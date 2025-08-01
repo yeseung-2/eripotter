@@ -1,12 +1,38 @@
 'use client';
+import { useState } from 'react';
+
+interface JsonData {
+  type: string;
+  content: string | null;
+  timestamp: string;
+}
 
 export default function Home() {
+  const [inputValue, setInputValue] = useState<string>('');
+  const [jsonData, setJsonData] = useState<JsonData | null>(null);
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const query = formData.get('query');
-    alert(`입력하신 내용: ${query}`);
-    e.currentTarget.reset(); // 폼 제출 후 입력 필드 초기화
+    
+    // 새로운 JSON 데이터 생성
+    const newJsonData: JsonData = {
+      type: 'user_input',
+      content: inputValue,
+      timestamp: new Date().toISOString()
+    };
+    
+    // JSON 상태 업데이트
+    setJsonData(newJsonData);
+    
+    // alert로 표시
+    alert(JSON.stringify(newJsonData, null, 2));
+    
+    // 입력값 초기화
+    setInputValue('');
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputValue(e.target.value);
   };
 
   return (
@@ -19,6 +45,8 @@ export default function Home() {
           <input
             name="query"
             type="text"
+            value={inputValue}
+            onChange={handleInputChange}
             className="w-full px-4 py-3 rounded-full border border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             placeholder="무엇이든 물어보세요"
             required
