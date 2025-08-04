@@ -38,7 +38,7 @@ def custom_openapi():
     
     # 서버 정보 추가
     openapi_schema["servers"] = [
-        {"url": "http://localhost:8000", "description": "Development server"},
+        {"url": "http://localhost:8080", "description": "Development server"},
     ]
     
     app.openapi_schema = openapi_schema
@@ -173,4 +173,4 @@ async def handle_user_input(user_input: UserInput):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8080)
