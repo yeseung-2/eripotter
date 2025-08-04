@@ -11,7 +11,7 @@ export default function Home() {
   const [inputValue, setInputValue] = useState<string>('');
   const [jsonData, setJsonData] = useState<JsonData | null>(null);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
     // 새로운 JSON 데이터 생성
@@ -26,6 +26,26 @@ export default function Home() {
     
     // alert로 표시
     alert(JSON.stringify(newJsonData, null, 2));
+
+    try {
+      // API 호출
+      const response = await fetch('http://localhost:8080/api/user-input', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newJsonData),
+      });
+
+      if (!response.ok) {
+        throw new Error('API 호출 실패');
+      }
+
+      const result = await response.json();
+      console.log('API 응답:', result);
+    } catch (error) {
+      console.error('API 호출 중 오류:', error);
+    }
     
     // 입력값 초기화
     setInputValue('');

@@ -5,6 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import httpx
 import os
 from typing import Dict
+from pydantic import BaseModel
+from datetime import datetime
 
 app = FastAPI(
     title="MSA API Gateway",
@@ -136,6 +138,38 @@ async def proxy_request(
             
     except httpx.RequestError as e:
         raise HTTPException(status_code=503, detail=f"Service '{service}' is unavailable")
+
+# 프론트엔드에서 받을 데이터 모델 정의
+class UserInput(BaseModel):
+    type: str
+    content: str
+    timestamp: str
+
+@app.post("/api/user-input", 
+    summary="사용자 입력 처리",
+    description="프론트엔드에서 전송된 사용자 입력을 처리합니다.",
+    response_description="처리 결과",
+    responses={
+        200: {
+            "description": "입력 처리 성공",
+            "content": {
+                "application/json": {
+                    "example": {"status": "success", "message": "입력이 처리되었습니다."}
+                }
+            }
+        }
+    }
+)
+async def handle_user_input(user_input: UserInput):
+    """
+    프론트엔드에서 전송된 사용자 입력을 처리하는 엔드포인트입니다.
+    """
+    print("받은 사용자 입력:")
+    print(f"타입: {user_input.type}")
+    print(f"내용: {user_input.content}")
+    print(f"시간: {user_input.timestamp}")
+    
+    return {"status": "success", "message": "입력이 처리되었습니다."}
 
 if __name__ == "__main__":
     import uvicorn
