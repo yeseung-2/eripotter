@@ -1,0 +1,144 @@
+up:
+	docker-compose up -d --build
+
+down:
+	docker-compose down
+
+logs:
+	docker-compose logs -f
+
+restart:
+	docker-compose down && docker-compose up -d --build
+
+ps:
+	docker-compose ps
+
+# 🚀 마이크로서비스별 명령어
+
+## gateway
+build-gateway:
+	docker-compose build gateway
+
+up-gateway:
+	docker-compose up -d gateway
+
+down-gateway:
+	docker-compose stop gateway
+
+logs-gateway:
+	docker-compose logs -f gateway
+
+restart-gateway:
+	docker-compose stop gateway && docker-compose up -d gateway
+
+## assessment-service
+build-assessment:
+	docker-compose build assesment-service
+
+up-assessment:
+	docker-compose up -d assesment-service
+
+down-assessment:
+	docker-compose stop assesment-service
+
+logs-assessment:
+	docker-compose logs -f assesment-service
+
+restart-assessment:
+	docker-compose stop assesment-service && docker-compose up -d assesment-service
+
+## chatbot-service
+build-chatbot:
+	docker-compose build chatbot-service
+
+up-chatbot:
+	docker-compose up -d chatbot-service
+
+down-chatbot:
+	docker-compose stop chatbot-service
+
+logs-chatbot:
+	docker-compose logs -f chatbot-service
+
+restart-chatbot:
+	docker-compose stop chatbot-service && docker-compose up -d chatbot-service
+
+## monitoring-service
+build-monitoring:
+	docker-compose build monitoring-service
+
+up-monitoring:
+	docker-compose up -d monitoring-service
+
+down-monitoring:
+	docker-compose stop monitoring-service
+
+logs-monitoring:
+	docker-compose logs -f monitoring-service
+
+restart-monitoring:
+	docker-compose stop monitoring-service && docker-compose up -d monitoring-service
+
+## report-service
+build-report:
+	docker-compose build report-service
+
+up-report:
+	docker-compose up -d report-service
+
+down-report:
+	docker-compose stop report-service
+
+logs-report:
+	docker-compose logs -f report-service
+
+restart-report:
+	docker-compose stop report-service && docker-compose up -d report-service
+
+## request-service
+build-request:
+	docker-compose build request-service
+
+up-request:
+	docker-compose up -d request-service
+
+down-request:
+	docker-compose stop request-service
+
+logs-request:
+	docker-compose logs -f request-service
+
+restart-request:
+	docker-compose stop request-service && docker-compose up -d request-service
+
+## response-service
+build-response:
+	docker-compose build response-service
+
+up-response:
+	docker-compose up -d response-service
+
+down-response:
+	docker-compose stop response-service
+
+logs-response:
+	docker-compose logs -f response-service
+
+restart-response:
+	docker-compose stop response-service && docker-compose up -d response-service
+
+## redis
+build-redis:
+	docker-compose build redis
+
+up-redis:
+	docker-compose up -d redis
+
+down-redis:
+	docker-compose stop redis
+
+logs-redis:
+	docker-compose logs -f redis
+
+restart-redis:
+	docker-compose stop redis && docker-compose up -d redis

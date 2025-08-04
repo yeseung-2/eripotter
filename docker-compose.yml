@@ -5,14 +5,117 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
+    volumes:
+      - ./gateway:/app
     environment:
-      # 개발 테스트를 위해 임시로 localhost 주소 사용
-      - USER_SERVICE_URL=http://localhost:8001
-      - PRODUCT_SERVICE_URL=http://localhost:8002
-      - ORDER_SERVICE_URL=http://localhost:8003
+      - PYTHONUNBUFFERED=1
+      - ASSESSMENT_SERVICE_URL=http://assesment-service:8001
+      - CHATBOT_SERVICE_URL=http://chatbot-service:8002
+      - MONITORING_SERVICE_URL=http://monitoring-service:8003
+      - REPORT_SERVICE_URL=http://report-service:8004
+      - REQUEST_SERVICE_URL=http://request-service:8005
+      - RESPONSE_SERVICE_URL=http://response-service:8006
+    restart: always
+    depends_on:
+      - assesment-service
+      - chatbot-service
+      - monitoring-service
+      - report-service
+      - request-service
+      - response-service
+      - redis
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     networks:
       - msa_network
+
+  assesment-service:
+    build: ./service/assesment-service
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./service/assesment-service/app:/app/app
+      - ./service/assesment-service/requirements.txt:/app/requirements.txt
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - msa_network
+
+  chatbot-service:
+    build: ./service/chatbot-service
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./service/chatbot-service/app:/app/app
+      - ./service/chatbot-service/requirements.txt:/app/requirements.txt
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - msa_network
+
+  monitoring-service:
+    build: ./service/monitoring-service
+    ports:
+      - "8003:8003"
+    volumes:
+      - ./service/monitoring-service/app:/app/app
+      - ./service/monitoring-service/requirements.txt:/app/requirements.txt
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - msa_network
+
+  report-service:
+    build: ./service/report-service
+    ports:
+      - "8004:8004"
+    volumes:
+      - ./service/report-service/app:/app/app
+      - ./service/report-service/requirements.txt:/app/requirements.txt
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - msa_network
+
+  request-service:
+    build: ./service/request-service
+    ports:
+      - "8005:8005"
+    volumes:
+      - ./service/request-service/app:/app/app
+      - ./service/request-service/requirements.txt:/app/requirements.txt
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: always
+    networks:
+      - msa_network
+
+  response-service:
+    build: ./service/response-service
+    ports:
+      - "8006:8006"
+    volumes:
+      - ./service/response-service/app:/app/app
+      - ./service/response-service/requirements.txt:/app/requirements.txt
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: always
+    networks:
+      - msa_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - msa_network
+    restart: always
 
 networks:
   msa_network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16
