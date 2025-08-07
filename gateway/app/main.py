@@ -42,7 +42,7 @@ def custom_openapi():
     ]
     
     app.openapi_schema = openapi_schema
-    return app.openapi_schema
+    return app.openapi_schemas
 
 app.openapi = custom_openapi
 
@@ -53,123 +53,63 @@ SERVICE_REGISTRY: Dict[str, str] = {
     "order": os.getenv("ORDER_SERVICE_URL", "http://localhost:8003"),
 }
 
-@app.get("/health", 
-    summary="Health Check",
-    description="게이트웨이 서비스의 상태를 확인합니다.",
-    response_description="서비스가 정상적으로 동작 중임을 나타내는 응답",
-    responses={
-        200: {
-            "description": "서비스가 정상 동작 중",
-            "content": {
-                "application/json": {
-                    "example": {"status": "healthy"}
-                }
-            }
-        }
-    }
-)
+@app.get("/health", summary="Health Check")
 async def health_check():
-    """
-    게이트웨이 서비스의 상태를 확인하는 엔드포인트입니다.
-    """
     return {"status": "healthy"}
 
-@app.api_route("/{service}/{path:path}", 
-    methods=["GET", "POST", "PUT", "DELETE"],
-    summary="서비스 프록시",
-    description="요청을 적절한 마이크로서비스로 라우팅합니다.",
-    response_description="대상 서비스의 응답을 그대로 반환",
-    responses={
-        404: {
-            "description": "요청한 서비스를 찾을 수 없음",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Service 'unknown' not found"}
-                }
-            }
-        },
-        503: {
-            "description": "서비스가 현재 사용 불가능",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Service 'user' is unavailable"}
-                }
-            }
-        }
-    }
-)
-async def proxy_request(
-    service: str = Path(..., description="라우팅할 대상 서비스 이름 (예: user, product, order)"),
-    path: str = Path(..., description="서비스의 세부 경로"),
-    request: Request = Path(..., description="클라이언트의 원본 요청")
-):
-    if service not in SERVICE_REGISTRY:
-        raise HTTPException(status_code=404, detail=f"Service '{service}' not found")
-    
-    # 대상 서비스의 기본 URL 가져오기
-    target_service_base_url = SERVICE_REGISTRY[service]
-    
-    # 전체 대상 URL 구성
-    target_url = f"{target_service_base_url}/{path}"
-    
-    # 원본 요청에서 헤더와 쿼리 파라미터 복사
-    headers = dict(request.headers)
-    headers.pop("host", None)  # host 헤더 제거
-    
-    try:
-        # 클라이언트 요청의 body 읽기
-        body = await request.body()
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.request(
-                method=request.method,
-                url=target_url,
-                headers=headers,
-                params=request.query_params,
-                content=body,
-                timeout=30.0
-            )
-            
-            return JSONResponse(
-                content=response.json() if response.content else None,
-                status_code=response.status_code,
-                headers=dict(response.headers)
-            )
-            
-    except httpx.RequestError as e:
-        raise HTTPException(status_code=503, detail=f"Service '{service}' is unavailable")
+# 로그인 데이터 모델
+class LoginData(BaseModel):
+    user_id: str
+    user_pw: str
 
-# 프론트엔드에서 받을 데이터 모델 정의
-class UserInput(BaseModel):
-    type: str
-    content: str
-    timestamp: str
+# 회원가입 데이터 모델
+class SignupData(BaseModel):
+    user_id: str
+    user_pw: str
+    company_id: str
 
-@app.post("/api/user-input", 
-    summary="사용자 입력 처리",
-    description="프론트엔드에서 전송된 사용자 입력을 처리합니다.",
-    response_description="처리 결과",
-    responses={
-        200: {
-            "description": "입력 처리 성공",
-            "content": {
-                "application/json": {
-                    "example": {"status": "success", "message": "입력이 처리되었습니다."}
-                }
-            }
-        }
-    }
-)
-async def handle_user_input(user_input: UserInput):
+@app.post("/login", summary="Login")
+async def login(login_data: LoginData):
     """
-    프론트엔드에서 전송된 사용자 입력을 처리하는 엔드포인트입니다.
+    프론트엔드에서 전송된 로그인 데이터를 처리합니다.
     """
-    print("받은 사용자 입력:")
-    print(f"타입: {user_input.type}")
-    print(f"내용: {user_input.content}")
-    print(f"시간: {user_input.timestamp}")
+    print("로그인 요청:")
+    print(f"사용자 ID: {login_data.user_id}")
+    print(f"비밀번호: {login_data.user_pw}")
     
-    return {"status": "success", "message": "입력이 처리되었습니다."}
+    # 실제 로그인 로직은 여기에 구현
+    # 현재는 간단히 성공 응답만 반환
+    return {
+        "status": "success", 
+        "message": "로그인 성공",
+        "user_id": login_data.user_id
+    }
+
+@app.post("/signup", summary="Signup")
+async def signup(signup_data: SignupData):
+    """
+    프론트엔드에서 전송된 회원가입 데이터를 처리합니다.
+    """
+    print("회원가입 요청:")
+    print(f"사용자 ID: {signup_data.user_id}")
+    print(f"비밀번호: {signup_data.user_pw}")
+    print(f"회사 ID: {signup_data.company_id}")
+    
+    # 비밀번호를 해시하여 정수로 변환 (예시)
+    # 실제로는 bcrypt나 다른 해시 함수를 사용해야 합니다
+    password_hash = hash(signup_data.user_pw) % (2**63)  # bigint 범위 내로 제한
+    
+    print(f"해시된 비밀번호: {password_hash}")
+    
+    # 실제 회원가입 로직은 여기에 구현
+    # 현재는 간단히 성공 응답만 반환
+    return {
+        "status": "success", 
+        "message": "회원가입 성공",
+        "user_id": signup_data.user_id,
+        "company_id": signup_data.company_id
+    }
+
 
 if __name__ == "__main__":
     import uvicorn
