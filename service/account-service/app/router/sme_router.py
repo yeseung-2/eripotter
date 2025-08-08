@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Cookie, HTTPException, Query
 from fastapi.responses import JSONResponse
+from typing import Optional
 
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
 
