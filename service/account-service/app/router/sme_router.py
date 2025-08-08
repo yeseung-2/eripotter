@@ -1,34 +1,7 @@
 from fastapi import APIRouter, Cookie, HTTPException, Query
 from fastapi.responses import JSONResponse
 
-from http://app.domain.auth.controller.google_controller import GoogleController
-
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
-google_controller = GoogleController()
-
-@auth_router.get("/google/login", summary="Google 로그인 시작")
-async def google_login(
-    redirect_uri: str = Query(
-        default="http://localhost:3000/dashboard",
-        description="로그인 후 리다이렉트할 URI (기본값: /dashboard)"
-    )
-):
-    """
-    Google OAuth 로그인을 시작합니다.
-    리다이렉트 URI는 state 파라미터로 전달되어 콜백 시 다시 받게 됩니다.
-    """
-    return await google_controller.start_google_login(redirect_uri)
-
-@auth_router.get("/google/callback", summary="Google OAuth 콜백 처리")
-async def google_callback(
-    code: str = Query(..., description="Google OAuth 인증 코드"),
-    state: str = Query(..., description="로그인 시작 시 전달한 state 값")
-):
-    """
-    Google OAuth 콜백을 처리합니다.
-    인증 코드를 받아 처리하고 세션 토큰을 쿠키에 설정한 후 리다이렉트합니다.
-    """
-    return await google_controller.handle_google_callback(code, state)
 
 @auth_router.post("/logout", summary="로그아웃")
 async def logout(session_token: str | None = Cookie(None)):
@@ -63,8 +36,9 @@ async def get_profile(session_token: str | None = Cookie(None)):
     
     if not session_token:
         raise HTTPException(status_code=401, detail="인증 쿠키가 없습니다.")
-    try:
-        return await google_controller.get_user_profile(session_token)
-    except Exception as e:
-        print(f"프로필 조회 오류: {e}")
-        raise HTTPException(status_code=401, detail=str(e))
+    
+    # 간단한 프로필 정보 반환 (실제로는 데이터베이스에서 조회)
+    return {
+        "user_id": "sample_user",
+        "message": "사용자 프로필 조회 성공"
+    }
