@@ -9,14 +9,16 @@ services:
       - ./gateway:/app
     environment:
       - PYTHONUNBUFFERED=1
-      - ASSESSMENT_SERVICE_URL=http://assesment-service:8001
-      - CHATBOT_SERVICE_URL=http://chatbot-service:8002
-      - MONITORING_SERVICE_URL=http://monitoring-service:8003
-      - REPORT_SERVICE_URL=http://report-service:8004
-      - REQUEST_SERVICE_URL=http://request-service:8005
-      - RESPONSE_SERVICE_URL=http://response-service:8006
+      - ACCOUNT_SERVICE_URL=http://account-service:8001
+      - ASSESSMENT_SERVICE_URL=http://assesment-service:8002
+      - CHATBOT_SERVICE_URL=http://chatbot-service:8003
+      - MONITORING_SERVICE_URL=http://monitoring-service:8004
+      - REPORT_SERVICE_URL=http://report-service:8005
+      - REQUEST_SERVICE_URL=http://request-service:8006
+      - RESPONSE_SERVICE_URL=http://response-service:8007
     restart: always
     depends_on:
+      - account-service
       - assesment-service
       - chatbot-service
       - monitoring-service
@@ -30,10 +32,22 @@ services:
     networks:
       - msa_network
 
+  account-service:
+    build: ./service/account-service
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./service/account-service/app:/app/app
+      - ./service/account-service/requirements.txt:/app/requirements.txt
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - msa_network
+
   assesment-service:
     build: ./service/assesment-service
     ports:
-      - "8001:8001"
+      - "8002:8002"
     volumes:
       - ./service/assesment-service/app:/app/app
       - ./service/assesment-service/requirements.txt:/app/requirements.txt
@@ -45,7 +59,7 @@ services:
   chatbot-service:
     build: ./service/chatbot-service
     ports:
-      - "8002:8002"
+      - "8003:8003"
     volumes:
       - ./service/chatbot-service/app:/app/app
       - ./service/chatbot-service/requirements.txt:/app/requirements.txt
@@ -57,7 +71,7 @@ services:
   monitoring-service:
     build: ./service/monitoring-service
     ports:
-      - "8003:8003"
+      - "8004:8004"
     volumes:
       - ./service/monitoring-service/app:/app/app
       - ./service/monitoring-service/requirements.txt:/app/requirements.txt
@@ -69,7 +83,7 @@ services:
   report-service:
     build: ./service/report-service
     ports:
-      - "8004:8004"
+      - "8005:8005"
     volumes:
       - ./service/report-service/app:/app/app
       - ./service/report-service/requirements.txt:/app/requirements.txt
@@ -81,7 +95,7 @@ services:
   request-service:
     build: ./service/request-service
     ports:
-      - "8005:8005"
+      - "8006:8006"
     volumes:
       - ./service/request-service/app:/app/app
       - ./service/request-service/requirements.txt:/app/requirements.txt
@@ -94,7 +108,7 @@ services:
   response-service:
     build: ./service/response-service
     ports:
-      - "8006:8006"
+      - "8007:8007"
     volumes:
       - ./service/response-service/app:/app/app
       - ./service/response-service/requirements.txt:/app/requirements.txt
