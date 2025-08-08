@@ -10,7 +10,7 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - ACCOUNT_SERVICE_URL=http://account-service:8001
-      - ASSESSMENT_SERVICE_URL=http://assesment-service:8002
+      - ASSESSMENT_SERVICE_URL=http://assessment-service:8002
       - CHATBOT_SERVICE_URL=http://chatbot-service:8003
       - MONITORING_SERVICE_URL=http://monitoring-service:8004
       - REPORT_SERVICE_URL=http://report-service:8005
@@ -19,7 +19,7 @@ services:
     restart: always
     depends_on:
       - account-service
-      - assesment-service
+      - assessment-service
       - chatbot-service
       - monitoring-service
       - report-service
@@ -44,13 +44,13 @@ services:
     networks:
       - msa_network
 
-  assesment-service:
-    build: ./service/assesment-service
+  assessment-service:
+    build: ./service/assessment-service
     ports:
       - "8002:8002"
     volumes:
-      - ./service/assesment-service/app:/app/app
-      - ./service/assesment-service/requirements.txt:/app/requirements.txt
+      - ./service/assessment-service/app:/app/app
+      - ./service/assessment-service/requirements.txt:/app/requirements.txt
     environment:
       - PYTHONUNBUFFERED=1
     networks:

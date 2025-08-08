@@ -123,56 +123,46 @@ class SignupData(BaseModel):
 @app.post("/login", summary="Login")
 async def login(login_data: LoginData):
     """
-    프론트엔드에서 전송된 로그인 데이터를 처리합니다.
+    프론트엔드에서 전송된 로그인 데이터를 Account Service로 전달합니다.
     """
     logger.info(f"🗝️🗝️🗝️Login request received for user_id: {login_data.user_id}")
     
     try:
-        # 데이터베이스 연결
-        engine = get_db_engine()
+        # Account Service로 로그인 요청 전달
+        account_service_url = os.getenv("ACCOUNT_SERVICE_URL", "http://account-service:8001")
+        login_url = f"{account_service_url}/login"
         
-        # 비밀번호를 해시하여 정수로 변환
-        password_hash = hash(login_data.user_pw) % (2**63)  # bigint 범위 내로 제한
-        
-        logger.debug(f"🗝️🗝️🗝️Password hashed for user_id: {login_data.user_id}")
-        
-        # auth 테이블에서 사용자 정보 확인
-        with engine.connect() as connection:
-            select_query = text("""
-                SELECT user_id, company_id FROM auth 
-                WHERE user_id = :user_id AND user_pw = :user_pw
-            """)
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                login_url,
+                json={
+                    "user_id": login_data.user_id,
+                    "user_pw": login_data.user_pw
+                },
+                headers={"Content-Type": "application/json"},
+                timeout=30.0
+            )
             
-            result = connection.execute(select_query, {
-                "user_id": login_data.user_id,
-                "user_pw": password_hash
-            })
-            
-            user = result.fetchone()
-            
-            if user:
-                logger.info(f"🗝️🗝️🗝️Login successful for user_id: {login_data.user_id}, company_id: {user.company_id}")
-                return {
-                    "status": "success", 
-                    "message": "로그인 성공",
-                    "user_id": user.user_id,
-                    "company_id": user.company_id
-                }
+            if response.status_code == 200:
+                result = response.json()
+                logger.info(f"🗝️🗝️🗝️Login successful via account service for user_id: {login_data.user_id}")
+                return result
             else:
-                logger.warning(f"🗝️🗝️🗝️Login failed for user_id: {login_data.user_id} - invalid credentials")
+                error_detail = response.json() if response.content else {"detail": "Account service error"}
+                logger.warning(f"🗝️🗝️🗝️Login failed via account service for user_id: {login_data.user_id}")
                 raise HTTPException(
-                    status_code=401, 
-                    detail="로그인 실패: 사용자 ID 또는 비밀번호가 올바르지 않습니다."
+                    status_code=response.status_code,
+                    detail=error_detail.get("detail", "로그인 실패")
                 )
         
+    except httpx.RequestError as e:
+        logger.error(f"🗝️🗝️🗝️Network error during login for user_id {login_data.user_id}: {str(e)}")
+        raise HTTPException(
+            status_code=503, 
+            detail="로그인 서비스에 연결할 수 없습니다."
+        )
     except HTTPException:
         raise
-    except SQLAlchemyError as e:
-        logger.error(f"🗝️🗝️🗝️Database error during login for user_id {login_data.user_id}: {str(e)}")
-        raise HTTPException(
-            status_code=500, 
-            detail=f"로그인 실패: 데이터베이스 오류 - {str(e)}"
-        )
     except Exception as e:
         logger.error(f"🗝️🗝️🗝️Unexpected error during login for user_id {login_data.user_id}: {str(e)}")
         raise HTTPException(
@@ -183,49 +173,47 @@ async def login(login_data: LoginData):
 @app.post("/signup", summary="Signup")
 async def signup(signup_data: SignupData):
     """
-    프론트엔드에서 전송된 회원가입 데이터를 처리합니다.
+    프론트엔드에서 전송된 회원가입 데이터를 Account Service로 전달합니다.
     """
     logger.info(f"🗝️🗝️🗝️🔓🔓🔓Signup request received for user_id: {signup_data.user_id}, company_id: {signup_data.company_id}")
     
     try:
-        # 데이터베이스 연결
-        engine = get_db_engine()
+        # Account Service로 회원가입 요청 전달
+        account_service_url = os.getenv("ACCOUNT_SERVICE_URL", "http://account-service:8001")
+        signup_url = f"{account_service_url}/signup"
         
-        # 비밀번호를 해시하여 정수로 변환
-        password_hash = hash(signup_data.user_pw) % (2**63)  # bigint 범위 내로 제한
-        
-        logger.debug(f"🗝️🗝️🗝️🔓🔓🔓Password hashed for user_id: {signup_data.user_id}")
-        
-        # auth 테이블에 사용자 정보 삽입
-        with engine.connect() as connection:
-            insert_query = text("""
-                INSERT INTO auth (user_id, user_pw, company_id) 
-                VALUES (:user_id, :user_pw, :company_id)
-            """)
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                signup_url,
+                json={
+                    "user_id": signup_data.user_id,
+                    "user_pw": signup_data.user_pw,
+                    "company_id": signup_data.company_id
+                },
+                headers={"Content-Type": "application/json"},
+                timeout=30.0
+            )
             
-            connection.execute(insert_query, {
-                "user_id": signup_data.user_id,
-                "user_pw": password_hash,
-                "company_id": signup_data.company_id
-            })
-            
-            connection.commit()
+            if response.status_code == 200:
+                result = response.json()
+                logger.info(f"🗝️🗝️🗝️🔓🔓🔓Signup successful via account service for user_id: {signup_data.user_id}")
+                return result
+            else:
+                error_detail = response.json() if response.content else {"detail": "Account service error"}
+                logger.warning(f"🗝️🗝️🗝️🔓🔓🔓Signup failed via account service for user_id: {signup_data.user_id}")
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=error_detail.get("detail", "회원가입 실패")
+                )
         
-        logger.info(f"🗝️🗝️🗝️🔓🔓🔓Signup successful for user_id: {signup_data.user_id}, company_id: {signup_data.company_id}")
-        
-        return {
-            "status": "success", 
-            "message": "회원가입 성공",
-            "user_id": signup_data.user_id,
-            "company_id": signup_data.company_id
-        }
-        
-    except SQLAlchemyError as e:
-        logger.error(f"🗝️🗝️🗝️🔓🔓🔓Database error during signup for user_id {signup_data.user_id}: {str(e)}")
+    except httpx.RequestError as e:
+        logger.error(f"🗝️🗝️🗝️🔓🔓🔓Network error during signup for user_id {signup_data.user_id}: {str(e)}")
         raise HTTPException(
-            status_code=500, 
-            detail=f"회원가입 실패: 데이터베이스 오류 - {str(e)}"
+            status_code=503, 
+            detail="회원가입 서비스에 연결할 수 없습니다."
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"🗝️🗝️🗝️🔓🔓🔓Unexpected error during signup for user_id {signup_data.user_id}: {str(e)}")
         raise HTTPException(
