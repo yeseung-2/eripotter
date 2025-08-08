@@ -6,6 +6,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 import httpx
 import os
+import logging
 from typing import Dict
 from pydantic import BaseModel
 from datetime import datetime
@@ -13,6 +14,17 @@ from dotenv import load_dotenv
 
 # 환경 변수 로드
 load_dotenv()
+
+# 로거 설정
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),  # 콘솔 출력
+        logging.FileHandler('gateway.log')  # 파일 출력
+    ]
+)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="MSA API Gateway",
@@ -61,6 +73,7 @@ SERVICE_REGISTRY: Dict[str, str] = {
 
 @app.get("/health", summary="Health Check")
 async def health_check():
+    logger.info("👌👌👌Health check requested")
     return {"status": "healthy", "service": "gateway"}
 
 @app.get("/health/db", summary="Database Health Check")
@@ -68,6 +81,7 @@ async def db_health_check():
     """
     데이터베이스 연결 상태를 확인합니다.
     """
+    logger.info("🎸🎸🎸Database health check requested")
     try:
         engine = get_db_engine()
         with engine.connect() as connection:
@@ -75,6 +89,7 @@ async def db_health_check():
             result = connection.execute(text("SELECT COUNT(*) FROM auth"))
             count = result.scalar()
             
+        logger.info(f"🎸🎸🎸Database health check successful - auth table count: {count}")
         return {
             "status": "healthy",
             "database": "connected",
@@ -82,11 +97,13 @@ async def db_health_check():
             "message": "Database connection successful"
         }
     except SQLAlchemyError as e:
+        logger.error(f"🎸🎸🎸Database connection failed: {str(e)}")
         raise HTTPException(
             status_code=503, 
             detail=f"Database connection failed: {str(e)}"
         )
     except Exception as e:
+        logger.error(f"🎸🎸🎸Unexpected error in database health check: {str(e)}")
         raise HTTPException(
             status_code=500, 
             detail=f"Unexpected error: {str(e)}"
@@ -108,9 +125,7 @@ async def login(login_data: LoginData):
     """
     프론트엔드에서 전송된 로그인 데이터를 처리합니다.
     """
-    print("로그인 요청:")
-    print(f"사용자 ID: {login_data.user_id}")
-    print(f"비밀번호: {login_data.user_pw}")
+    logger.info(f"🗝️🗝️🗝️Login request received for user_id: {login_data.user_id}")
     
     try:
         # 데이터베이스 연결
@@ -119,7 +134,7 @@ async def login(login_data: LoginData):
         # 비밀번호를 해시하여 정수로 변환
         password_hash = hash(login_data.user_pw) % (2**63)  # bigint 범위 내로 제한
         
-        print(f"해시된 비밀번호: {password_hash}")
+        logger.debug(f"🗝️🗝️🗝️Password hashed for user_id: {login_data.user_id}")
         
         # auth 테이블에서 사용자 정보 확인
         with engine.connect() as connection:
@@ -136,7 +151,7 @@ async def login(login_data: LoginData):
             user = result.fetchone()
             
             if user:
-                print("로그인 성공: 사용자 정보 확인됨")
+                logger.info(f"🗝️🗝️🗝️Login successful for user_id: {login_data.user_id}, company_id: {user.company_id}")
                 return {
                     "status": "success", 
                     "message": "로그인 성공",
@@ -144,7 +159,7 @@ async def login(login_data: LoginData):
                     "company_id": user.company_id
                 }
             else:
-                print("로그인 실패: 사용자 정보가 일치하지 않음")
+                logger.warning(f"🗝️🗝️🗝️Login failed for user_id: {login_data.user_id} - invalid credentials")
                 raise HTTPException(
                     status_code=401, 
                     detail="로그인 실패: 사용자 ID 또는 비밀번호가 올바르지 않습니다."
@@ -153,13 +168,13 @@ async def login(login_data: LoginData):
     except HTTPException:
         raise
     except SQLAlchemyError as e:
-        print(f"데이터베이스 오류: {str(e)}")
+        logger.error(f"🗝️🗝️🗝️Database error during login for user_id {login_data.user_id}: {str(e)}")
         raise HTTPException(
             status_code=500, 
             detail=f"로그인 실패: 데이터베이스 오류 - {str(e)}"
         )
     except Exception as e:
-        print(f"예상치 못한 오류: {str(e)}")
+        logger.error(f"🗝️🗝️🗝️Unexpected error during login for user_id {login_data.user_id}: {str(e)}")
         raise HTTPException(
             status_code=500, 
             detail=f"로그인 실패: {str(e)}"
@@ -170,10 +185,7 @@ async def signup(signup_data: SignupData):
     """
     프론트엔드에서 전송된 회원가입 데이터를 처리합니다.
     """
-    print("회원가입 요청:")
-    print(f"사용자 ID: {signup_data.user_id}")
-    print(f"비밀번호: {signup_data.user_pw}")
-    print(f"회사 ID: {signup_data.company_id}")
+    logger.info(f"🗝️🗝️🗝️🔓🔓🔓Signup request received for user_id: {signup_data.user_id}, company_id: {signup_data.company_id}")
     
     try:
         # 데이터베이스 연결
@@ -182,7 +194,7 @@ async def signup(signup_data: SignupData):
         # 비밀번호를 해시하여 정수로 변환
         password_hash = hash(signup_data.user_pw) % (2**63)  # bigint 범위 내로 제한
         
-        print(f"해시된 비밀번호: {password_hash}")
+        logger.debug(f"🗝️🗝️🗝️🔓🔓🔓Password hashed for user_id: {signup_data.user_id}")
         
         # auth 테이블에 사용자 정보 삽입
         with engine.connect() as connection:
@@ -199,7 +211,7 @@ async def signup(signup_data: SignupData):
             
             connection.commit()
         
-        print("데이터베이스에 회원가입 정보 저장 완료")
+        logger.info(f"🗝️🗝️🗝️🔓🔓🔓Signup successful for user_id: {signup_data.user_id}, company_id: {signup_data.company_id}")
         
         return {
             "status": "success", 
@@ -209,13 +221,13 @@ async def signup(signup_data: SignupData):
         }
         
     except SQLAlchemyError as e:
-        print(f"데이터베이스 오류: {str(e)}")
+        logger.error(f"🗝️🗝️🗝️🔓🔓🔓Database error during signup for user_id {signup_data.user_id}: {str(e)}")
         raise HTTPException(
             status_code=500, 
             detail=f"회원가입 실패: 데이터베이스 오류 - {str(e)}"
         )
     except Exception as e:
-        print(f"예상치 못한 오류: {str(e)}")
+        logger.error(f"🗝️🗝️🗝️🔓🔓🔓Unexpected error during signup for user_id {signup_data.user_id}: {str(e)}")
         raise HTTPException(
             status_code=500, 
             detail=f"회원가입 실패: {str(e)}"
