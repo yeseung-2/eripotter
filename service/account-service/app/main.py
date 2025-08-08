@@ -19,8 +19,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler(),  # 콘솔 출력
-        logging.FileHandler('account.log')  # 파일 출력
+        logging.StreamHandler(),  # 콘솔 출력만 사용
     ]
 )
 logger = logging.getLogger("account-service")
@@ -230,11 +229,11 @@ async def log_requests(request: Request, call_next):
         raise
 
 if __name__ == "__main__":
-    logger.info(f"💻 개발 모드로 실행 - 포트: 8001")
+    port = int(os.getenv("PORT", 8001))
+    logger.info(f"💻 서비스 시작 - 포트: {port}")
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
-        port=8001,
-        reload=True,
+        port=port,
         log_level="info"
     )

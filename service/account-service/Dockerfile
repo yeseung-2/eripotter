@@ -17,8 +17,8 @@ COPY . .
 # 환경 변수 설정
 ENV PYTHONPATH=/app
 
-# 포트 노출 (8001 포트 사용)
+# 포트 노출 (기본 포트)
 EXPOSE 8001
 
-# 애플리케이션 실행
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]
+# 애플리케이션 실행 (Python 스크립트 실행)
+CMD ["python", "app/main.py"]

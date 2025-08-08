@@ -1,0 +1,2 @@
+2025-08-08 08:18:13,521 - app.main - INFO - 🗝️🗝️🗝️🔓🔓🔓Signup request received for user_id: 1234, company_id: 1234
+2025-08-08 08:18:13,672 - app.main - ERROR - 🗝️🗝️🗝️🔓🔓🔓Network error during signup for user_id 1234: [Errno -2] Name or service not known
