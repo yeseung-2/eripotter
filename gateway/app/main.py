@@ -59,14 +59,6 @@ SERVICE_REGISTRY: Dict[str, str] = {
     "order": os.getenv("ORDER_SERVICE_URL", "http://localhost:8003"),
 }
 
-# 데이터베이스 연결
-def get_database_url():
-    return os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/dbname")
-
-def get_db_engine():
-    database_url = get_database_url()
-    return create_engine(database_url)
-
 @app.get("/health", summary="Health Check")
 async def health_check():
     return {"status": "healthy", "service": "gateway"}
@@ -120,13 +112,58 @@ async def login(login_data: LoginData):
     print(f"사용자 ID: {login_data.user_id}")
     print(f"비밀번호: {login_data.user_pw}")
     
-    # 실제 로그인 로직은 여기에 구현
-    # 현재는 간단히 성공 응답만 반환
-    return {
-        "status": "success", 
-        "message": "로그인 성공",
-        "user_id": login_data.user_id
-    }
+    try:
+        # 데이터베이스 연결
+        engine = get_db_engine()
+        
+        # 비밀번호를 해시하여 정수로 변환
+        password_hash = hash(login_data.user_pw) % (2**63)  # bigint 범위 내로 제한
+        
+        print(f"해시된 비밀번호: {password_hash}")
+        
+        # auth 테이블에서 사용자 정보 확인
+        with engine.connect() as connection:
+            select_query = text("""
+                SELECT user_id, company_id FROM auth 
+                WHERE user_id = :user_id AND user_pw = :user_pw
+            """)
+            
+            result = connection.execute(select_query, {
+                "user_id": login_data.user_id,
+                "user_pw": password_hash
+            })
+            
+            user = result.fetchone()
+            
+            if user:
+                print("로그인 성공: 사용자 정보 확인됨")
+                return {
+                    "status": "success", 
+                    "message": "로그인 성공",
+                    "user_id": user.user_id,
+                    "company_id": user.company_id
+                }
+            else:
+                print("로그인 실패: 사용자 정보가 일치하지 않음")
+                raise HTTPException(
+                    status_code=401, 
+                    detail="로그인 실패: 사용자 ID 또는 비밀번호가 올바르지 않습니다."
+                )
+        
+    except HTTPException:
+        raise
+    except SQLAlchemyError as e:
+        print(f"데이터베이스 오류: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"로그인 실패: 데이터베이스 오류 - {str(e)}"
+        )
+    except Exception as e:
+        print(f"예상치 못한 오류: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"로그인 실패: {str(e)}"
+        )
 
 @app.post("/signup", summary="Signup")
 async def signup(signup_data: SignupData):
@@ -138,20 +175,51 @@ async def signup(signup_data: SignupData):
     print(f"비밀번호: {signup_data.user_pw}")
     print(f"회사 ID: {signup_data.company_id}")
     
-    # 비밀번호를 해시하여 정수로 변환 (예시)
-    # 실제로는 bcrypt나 다른 해시 함수를 사용해야 합니다
-    password_hash = hash(signup_data.user_pw) % (2**63)  # bigint 범위 내로 제한
-    
-    print(f"해시된 비밀번호: {password_hash}")
-    
-    # 실제 회원가입 로직은 여기에 구현
-    # 현재는 간단히 성공 응답만 반환
-    return {
-        "status": "success", 
-        "message": "회원가입 성공",
-        "user_id": signup_data.user_id,
-        "company_id": signup_data.company_id
-    }
+    try:
+        # 데이터베이스 연결
+        engine = get_db_engine()
+        
+        # 비밀번호를 해시하여 정수로 변환
+        password_hash = hash(signup_data.user_pw) % (2**63)  # bigint 범위 내로 제한
+        
+        print(f"해시된 비밀번호: {password_hash}")
+        
+        # auth 테이블에 사용자 정보 삽입
+        with engine.connect() as connection:
+            insert_query = text("""
+                INSERT INTO auth (user_id, user_pw, company_id) 
+                VALUES (:user_id, :user_pw, :company_id)
+            """)
+            
+            connection.execute(insert_query, {
+                "user_id": signup_data.user_id,
+                "user_pw": password_hash,
+                "company_id": signup_data.company_id
+            })
+            
+            connection.commit()
+        
+        print("데이터베이스에 회원가입 정보 저장 완료")
+        
+        return {
+            "status": "success", 
+            "message": "회원가입 성공",
+            "user_id": signup_data.user_id,
+            "company_id": signup_data.company_id
+        }
+        
+    except SQLAlchemyError as e:
+        print(f"데이터베이스 오류: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"회원가입 실패: 데이터베이스 오류 - {str(e)}"
+        )
+    except Exception as e:
+        print(f"예상치 못한 오류: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"회원가입 실패: {str(e)}"
+        )
 
 
 if __name__ == "__main__":

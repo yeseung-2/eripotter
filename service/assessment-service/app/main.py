@@ -25,7 +25,7 @@ app.add_middleware(
 
 # 데이터베이스 연결
 def get_database_url():
-    return os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/dbname")
+    return os.getenv("DATABASE_URL", "postgresql://postgres:liyjJKKLWfrWOMFvdgPsWpJvcFdBUsks@postgres.railway.internal:5432/railway")
 
 def get_db_engine():
     database_url = get_database_url()

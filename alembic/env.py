@@ -30,7 +30,7 @@ target_metadata = None
 
 
 def get_url():
-    return os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/dbname")
+    return os.getenv("DATABASE_URL", "postgresql://postgres:liyjJKKLWfrWOMFvdgPsWpJvcFdBUsks@postgres.railway.internal:5432/railway")
 
 
 def run_migrations_offline() -> None:
