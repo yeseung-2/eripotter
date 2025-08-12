@@ -48,7 +48,8 @@ app.include_router(auth_router)
 
 # 데이터베이스 연결
 def get_database_url():
-    return os.getenv("DATABASE_URL", "postgresql://postgres:liyjJKKLWfrWOMFvdgPsWpJvcFdBUsks@postgres.railway.internal:5432/railway")
+    # Railway 외부 연결 문자열 사용 (로컬 개발용)
+    return os.getenv("DATABASE_URL", "postgresql://postgres:liyjJKKLWfrWOMFvdgPsWpJvcFdBUsks@containers-us-west-207.railway.app:5432/railway")
 
 def get_db_engine():
     database_url = get_database_url()
