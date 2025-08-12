@@ -4,11 +4,14 @@ httpx==0.25.2
 pydantic==2.5.0
 python-dotenv==1.0.0
 
-# LangChain dependencies
-langchain==0.1.0
-langchain-openai==0.0.5
-langchain-community==0.0.10
-langchain-core==0.1.10
+# LangChain dependencies - 최신 안정 버전
+langchain>=0.1.0
+langchain-openai>=0.0.5
+langchain-community>=0.0.10
+langchain-core>=0.1.10
 
 # Vector store
-chromadb==0.4.22
+chromadb>=0.4.22
+
+# 추가 의존성
+typing-extensions>=4.0.0numpy>=1.21.0
