@@ -1,6 +1,3 @@
-"""
-Account 서비스 메인 애플리케이션 진입점
-"""
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,6 +8,8 @@ import uvicorn
 import logging
 import traceback
 import os
+from dotenv import load_dotenv, find_dotenv
+
 
 from app.router.sme_router import auth_router
 
@@ -24,8 +23,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger("account-service")
 
+# .env 로딩
 if os.getenv("RAILWAY_ENVIRONMENT") != "true":
-    load_dotenv()
+    load_dotenv(find_dotenv())
+
 
 app = FastAPI(
     title="Account Service API",
@@ -48,12 +49,23 @@ app.include_router(auth_router)
 
 # 데이터베이스 연결
 def get_database_url():
-    # Railway 외부 연결 문자열 사용 (로컬 개발용)
-    return os.getenv("DATABASE_URL", "postgresql://postgres:liyjJKKLWfrWOMFvdgPsWpJvcFdBUsks@containers-us-west-207.railway.app:5432/railway")
+    url = os.getenv("DATABASE_URL")
+    if not url:
+        # 디버깅을 쉽게 하려면 명확히 실패시키는 게 좋음
+        raise RuntimeError("DATABASE_URL is not set")
+    return url
 
 def get_db_engine():
-    database_url = get_database_url()
-    return create_engine(database_url)
+    url = get_database_url()
+
+    # Public Network(URL이 proxy.rlwy.net/railway.app/containers-... 등)면 SSL 필요
+    connect_args = {}
+    if "sslmode=" not in url and (
+        "proxy.rlwy.net" in url or "railway.app" in url
+    ):
+        connect_args["sslmode"] = "require"
+
+    return create_engine(url, connect_args=connect_args if connect_args else {})
 
 # 로그인 데이터 모델
 class LoginData(BaseModel):

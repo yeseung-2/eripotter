@@ -1,121 +1,70 @@
-from fastapi import FastAPI, Request, HTTPException, Path
-from fastapi.responses import JSONResponse
-from fastapi.openapi.utils import get_openapi
+# main.py (gateway) — 깔끔 버전
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import create_engine, text
-from sqlalchemy.exc import SQLAlchemyError
-import httpx
-import os
-import logging
-from typing import Dict
-from datetime import datetime
-from dotenv import load_dotenv
+from starlette.responses import Response
+import httpx, os, logging
 
-# 환경 변수 로드
-load_dotenv()
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("gateway")
 
-# 로거 설정
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),  # 콘솔 출력
-        logging.FileHandler('gateway.log')  # 파일 출력
-    ]
-)
-logger = logging.getLogger(__name__)
+app = FastAPI(title="MSA API Gateway", version="1.0.0")
 
-app = FastAPI(
-    title="MSA API Gateway",
-    description="마이크로서비스 아키텍처를 위한 API 게이트웨이",
-    version="1.0.0",
-    docs_url="/docs",  # Swagger UI URL
-    redoc_url="/redoc"  # ReDoc UI URL
-)
-
-# CORS 미들웨어 설정
+# CORS: 운영 도메인만 허용 (+개발용은 필요시 추가)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 실제 운영환경에서는 구체적인 도메인을 지정해야 합니다
+    allow_origins=[
+        "https://sme.eripotter.com",
+        # "http://localhost:8080", "http://localhost:3000"  # 개발용
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-def custom_openapi():
-    if app.openapi_schema:
-        return app.openapi_schema
-    
-    openapi_schema = get_openapi(
-        title="MSA API Gateway",
-        version="1.0.0",
-        description="마이크로서비스 아키텍처를 위한 API 게이트웨이",
-        routes=app.routes,
+ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL", "http://localhost:8001")
+TIMEOUT = float(os.getenv("UPSTREAM_TIMEOUT", "20"))
+
+@app.get("/health")
+async def health(): return {"status": "healthy", "service": "gateway"}
+
+# ---- 단일 프록시 유틸 ----
+async def _proxy(request: Request, upstream_base: str, rest: str):
+    url = upstream_base.rstrip("/") + "/" + rest.lstrip("/")
+    # 원본 요청 복제
+    headers = dict(request.headers)
+    headers.pop("host", None)
+    body = await request.body()
+    params = dict(request.query_params)
+
+    async with httpx.AsyncClient(timeout=TIMEOUT, follow_redirects=True) as client:
+        upstream = await client.request(
+            request.method, url, params=params, content=body, headers=headers
+        )
+
+    # 응답 그대로 전달(바이너리/JSON 모두 대응)
+    # 보안상 필요한 헤더만 복사
+    passthrough = {}
+    for k, v in upstream.headers.items():
+        lk = k.lower()
+        if lk in ("content-type", "set-cookie", "cache-control"):
+            passthrough[k] = v
+
+    return Response(
+        content=upstream.content,
+        status_code=upstream.status_code,
+        headers=passthrough,
+        media_type=upstream.headers.get("content-type")
     )
-    
-    # 서버 정보 추가
-    openapi_schema["servers"] = [
-        {"url": "http://localhost:8080", "description": "Development server"},
-    ]
-    
-    app.openapi_schema = openapi_schema
-    return app.openapi_schema
 
-app.openapi = custom_openapi
+# ---- account-service 프록시 ----
+@app.api_route("/api/account", methods=["GET","POST","PUT","PATCH","DELETE"])
+async def account_root(request: Request):
+    return await _proxy(request, ACCOUNT_SERVICE_URL, "/")
 
-# 서비스 URL 매핑 (환경 변수에서 가져옴)
-SERVICE_REGISTRY: Dict[str, str] = {
-    "user": os.getenv("USER_SERVICE_URL", "http://localhost:8001"),
-    "product": os.getenv("PRODUCT_SERVICE_URL", "http://localhost:8002"),
-    "order": os.getenv("ORDER_SERVICE_URL", "http://localhost:8003"),
-}
-
-# 데이터베이스 연결 함수
-def get_database_url():
-    return os.getenv("DATABASE_URL", "postgresql://postgres:liyjJKKLWfrWOMFvdgPsWpJvcFdBUsks@postgres.railway.internal:5432/railway")
-
-def get_db_engine():
-    database_url = get_database_url()
-    return create_engine(database_url)
-
-@app.get("/health", summary="Health Check")
-async def health_check():
-    logger.info("👌👌👌Health check requested")
-    return {"status": "healthy", "service": "gateway"}
-
-@app.get("/health/db", summary="Database Health Check")
-async def db_health_check():
-    """
-    데이터베이스 연결 상태를 확인합니다.
-    """
-    logger.info("🎸🎸🎸Database health check requested")
-    try:
-        engine = get_db_engine()
-        with engine.connect() as connection:
-            # auth 테이블 존재 여부 확인
-            result = connection.execute(text("SELECT COUNT(*) FROM auth"))
-            count = result.scalar()
-            
-        logger.info(f"🎸🎸🎸Database health check successful - auth table count: {count}")
-        return {
-            "status": "healthy",
-            "database": "connected",
-            "auth_table_count": count,
-            "message": "Database connection successful"
-        }
-    except SQLAlchemyError as e:
-        logger.error(f"🎸🎸🎸Database connection failed: {str(e)}")
-        raise HTTPException(
-            status_code=503, 
-            detail=f"Database connection failed: {str(e)}"
-        )
-    except Exception as e:
-        logger.error(f"🎸🎸🎸Unexpected error in database health check: {str(e)}")
-        raise HTTPException(
-            status_code=500, 
-            detail=f"Unexpected error: {str(e)}"
-        )
+@app.api_route("/api/account/{path:path}", methods=["GET","POST","PUT","PATCH","DELETE"])
+async def account_any(path: str, request: Request):
+    return await _proxy(request, ACCOUNT_SERVICE_URL, path)
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    import uvicorn, os
+    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", "8080")))
