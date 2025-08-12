@@ -22,6 +22,7 @@ app.add_middleware(
 )
 
 ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL")
+CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL")
 TIMEOUT = float(os.getenv("UPSTREAM_TIMEOUT", "20"))
 
 @app.get("/health")
@@ -64,6 +65,15 @@ async def account_root(request: Request):
 @app.api_route("/api/account/{path:path}", methods=["GET","POST","PUT","PATCH","DELETE"])
 async def account_any(path: str, request: Request):
     return await _proxy(request, ACCOUNT_SERVICE_URL, path)
+
+# ---- chatbot-service 프록시 ----
+@app.api_route("/api/chatbot", methods=["GET","POST","PUT","PATCH","DELETE"])
+async def chatbot_root(request: Request):
+    return await _proxy(request, CHATBOT_SERVICE_URL, "/")
+
+@app.api_route("/api/chatbot/{path:path}", methods=["GET","POST","PUT","PATCH","DELETE"])
+async def chatbot_any(path: str, request: Request):
+    return await _proxy(request, CHATBOT_SERVICE_URL, path)
 
 if __name__ == "__main__":
     import uvicorn, os

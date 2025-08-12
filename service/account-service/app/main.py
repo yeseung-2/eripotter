@@ -9,6 +9,7 @@ import logging, sys
 import traceback
 import os
 from dotenv import load_dotenv, find_dotenv
+from passlib.hash import bcrypt
 
 
 from app.router.sme_router import auth_router
@@ -117,48 +118,31 @@ async def db_health_check():
 
 @app.post("/login", summary="Login")
 async def login(login_data: LoginData):
-    """
-    로그인 처리를 담당합니다.
-    """
     logger.info(f"🗝️🗝️🗝️Login request received for user_id: {login_data.user_id}")
-    
     try:
-        # 데이터베이스 연결
         engine = get_db_engine()
-        
-        # 비밀번호를 해시하여 정수로 변환
-        password_hash = hash(login_data.user_pw) % (2**63)  # bigint 범위 내로 제한
-        
-        logger.debug(f"Password hashed for user_id: {login_data.user_id}")
-        
-        # auth 테이블에서 사용자 정보 확인
+
         with engine.connect() as connection:
+            # ✅ 비밀번호는 DB에서 해시 문자열을 가져와 검증
             select_query = text("""
-                SELECT user_id, company_id FROM auth 
-                WHERE user_id = :user_id AND user_pw = :user_pw
+                SELECT user_id, company_id, user_pw
+                FROM auth
+                WHERE user_id = :user_id
             """)
-            
-            result = connection.execute(select_query, {
-                "user_id": login_data.user_id,
-                "user_pw": password_hash
-            })
-            
-            user = result.fetchone()
-            
-            if user:
-                logger.info(f"🗝️🗝️🗝️Login successful for user_id: {login_data.user_id}, company_id: {user.company_id}")
+            row = connection.execute(select_query, {"user_id": login_data.user_id}).fetchone()
+
+            if row and bcrypt.verify(login_data.user_pw, row.user_pw):
+                logger.info(f"🗝️🗝️🗝️Login successful for user_id: {login_data.user_id}, company_id: {row.company_id}")
                 return {
-                    "status": "success", 
+                    "status": "success",
                     "message": "로그인 성공",
-                    "user_id": user.user_id,
-                    "company_id": user.company_id
+                    "user_id": row.user_id,
+                    "company_id": row.company_id
                 }
-            else:
-                logger.warning(f"🗝️🗝️🗝️Login failed for user_id: {login_data.user_id} - invalid credentials")
-                raise HTTPException(
-                    status_code=401, 
-                    detail="로그인 실패: 사용자 ID 또는 비밀번호가 올바르지 않습니다."
-                )
+
+            logger.warning(f"🗝️🗝️🗝️Login failed for user_id: {login_data.user_id} - invalid credentials")
+            raise HTTPException(status_code=401, detail="로그인 실패: 사용자 ID 또는 비밀번호가 올바르지 않습니다.")
+
         
     except HTTPException:
         raise
@@ -177,43 +161,40 @@ async def login(login_data: LoginData):
 
 @app.post("/signup", summary="Signup")
 async def signup(signup_data: SignupData):
-    """
-    회원가입 처리를 담당합니다.
-    """
     logger.info(f"🗝️🗝️🗝️🔓🔓🔓Signup request received for user_id: {signup_data.user_id}, company_id: {signup_data.company_id}")
-    
     try:
-        # 데이터베이스 연결
         engine = get_db_engine()
-        
-        # 비밀번호를 해시하여 정수로 변환
-        password_hash = hash(signup_data.user_pw) % (2**63)  # bigint 범위 내로 제한
-        
-        logger.debug(f"Password hashed for user_id: {signup_data.user_id}")
-        
-        # auth 테이블에 사용자 정보 삽입
+
+        # ✅ 비밀번호 해시 (문자열)
+        hashed_pw = bcrypt.hash(signup_data.user_pw)
+
         with engine.connect() as connection:
             insert_query = text("""
-                INSERT INTO auth (user_id, user_pw, company_id) 
+                INSERT INTO auth (user_id, user_pw, company_id)
                 VALUES (:user_id, :user_pw, :company_id)
             """)
-            
             connection.execute(insert_query, {
                 "user_id": signup_data.user_id,
-                "user_pw": password_hash,
+                "user_pw": hashed_pw,            # 문자열 해시 저장
                 "company_id": signup_data.company_id
             })
-            
             connection.commit()
-        
+
         logger.info(f"🗝️🗝️🗝️🔓🔓🔓Signup successful for user_id: {signup_data.user_id}, company_id: {signup_data.company_id}")
-        
         return {
-            "status": "success", 
+            "status": "success",
             "message": "회원가입 성공",
             "user_id": signup_data.user_id,
             "company_id": signup_data.company_id
         }
+
+    except SQLAlchemyError as e:
+        logger.error(f"🗝️🗝️🗝️🔓🔓🔓Database error during signup for user_id {signup_data.user_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"회원가입 실패: 데이터베이스 오류 - {str(e)}")
+    except Exception as e:
+        logger.error(f"🗝️🗝️🗝️🔓🔓🔓Unexpected error during signup for user_id {signup_data.user_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"회원가입 실패: {str(e)}")
+
         
     except SQLAlchemyError as e:
         logger.error(f"🗝️🗝️🗝️🔓🔓🔓Database error during signup for user_id {signup_data.user_id}: {str(e)}")
