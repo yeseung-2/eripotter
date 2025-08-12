@@ -31,7 +31,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:8080/login', userData, {
+      const response = await axios.post('http://localhost:8001/login', userData, {
         headers: {
           'Content-Type': 'application/json',
         },

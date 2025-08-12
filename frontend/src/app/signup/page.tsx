@@ -47,7 +47,7 @@ export default function SignupPage() {
         company_id: userData.company_id
       };
       
-      const response = await axios.post('http://localhost:8080/signup', signupData, {
+      const response = await axios.post('http://localhost:8001/signup', signupData, {
         headers: {
           'Content-Type': 'application/json',
         },

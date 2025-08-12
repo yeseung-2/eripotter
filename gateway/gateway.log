@@ -3,3 +3,12 @@
 2025-08-12 05:00:08,002 - app.main - INFO - 🗝️🗝️🗝️🔓🔓🔓Signup request received for user_id: 1234, company_id: 1234
 2025-08-12 05:00:08,393 - httpx - INFO - HTTP Request: POST http://account-service:8001/signup "HTTP/1.1 500 Internal Server Error"
 2025-08-12 05:00:08,394 - app.main - WARNING - 🗝️🗝️🗝️🔓🔓🔓Signup failed via account service for user_id: 1234
+2025-08-12 05:05:57,055 - app.main - INFO - 🗝️🗝️🗝️🔓🔓🔓Signup request received for user_id: 1234, company_id: 1234
+2025-08-12 05:05:57,108 - httpx - INFO - HTTP Request: POST http://account-service:8001/signup "HTTP/1.1 500 Internal Server Error"
+2025-08-12 05:05:57,109 - app.main - WARNING - 🗝️🗝️🗝️🔓🔓🔓Signup failed via account service for user_id: 1234
+2025-08-12 05:06:15,666 - app.main - INFO - 🗝️🗝️🗝️🔓🔓🔓Signup request received for user_id: 1234, company_id: 1234
+2025-08-12 05:06:15,717 - httpx - INFO - HTTP Request: POST http://account-service:8001/signup "HTTP/1.1 500 Internal Server Error"
+2025-08-12 05:06:15,718 - app.main - WARNING - 🗝️🗝️🗝️🔓🔓🔓Signup failed via account service for user_id: 1234
+2025-08-12 05:07:00,680 - app.main - INFO - 🗝️🗝️🗝️🔓🔓🔓Signup request received for user_id: 1234, company_id: 1234
+2025-08-12 05:07:00,727 - httpx - INFO - HTTP Request: POST http://account-service:8001/signup "HTTP/1.1 500 Internal Server Error"
+2025-08-12 05:07:00,728 - app.main - WARNING - 🗝️🗝️🗝️🔓🔓🔓Signup failed via account service for user_id: 1234
