@@ -31,23 +31,30 @@ async def health(): return {"status": "healthy", "service": "gateway"}
 # ---- 단일 프록시 유틸 ----
 async def _proxy(request: Request, upstream_base: str, rest: str):
     url = upstream_base.rstrip("/") + "/" + rest.lstrip("/")
+    logger.info(f"🔗 프록시 요청: {request.method} {request.url.path} -> {url}")
+    
     # 원본 요청 복제
     headers = dict(request.headers)
     headers.pop("host", None)
     body = await request.body()
     params = dict(request.query_params)
 
-    async with httpx.AsyncClient(timeout=TIMEOUT, follow_redirects=True) as client:
-        upstream = await client.request(
-            request.method, url, params=params, content=body, headers=headers
-        )
+    try:
+        async with httpx.AsyncClient(timeout=TIMEOUT, follow_redirects=True) as client:
+            upstream = await client.request(
+                request.method, url, params=params, content=body, headers=headers
+            )
+            logger.info(f"✅ 프록시 응답: {upstream.status_code} {url}")
+    except Exception as e:
+        logger.error(f"❌ 프록시 오류: {str(e)} {url}")
+        raise
 
     # 응답 그대로 전달(바이너리/JSON 모두 대응)
     # 보안상 필요한 헤더만 복사
     passthrough = {}
     for k, v in upstream.headers.items():
         lk = k.lower()
-        if lk in ("content-type", "set-cookie", "cache-control"):
+        if lk in ("content-type", "set-cookie", "cache-control", "access-control-allow-origin", "access-control-allow-methods", "access-control-allow-headers"):
             passthrough[k] = v
 
     return Response(

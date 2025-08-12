@@ -70,19 +70,21 @@ export default function ChatPage() {
       
       let errorText = '죄송합니다. 응답을 생성하는 중 오류가 발생했습니다.';
       
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { status?: number; data?: { detail?: string } } };
-        if (axiosError.response?.status === 500) {
-          errorText = '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
-        } else if (axiosError.response?.data?.detail) {
-          errorText = axiosError.response.data.detail;
-        }
-      } else if (error && typeof error === 'object' && 'code' in error) {
-        const networkError = error as { code?: string };
-        if (networkError.code === 'ERR_NETWORK') {
-          errorText = '네트워크 연결을 확인해주세요.';
-        }
-      }
+             if (error && typeof error === 'object' && 'response' in error) {
+         const axiosError = error as { response?: { status?: number; data?: { detail?: string } } };
+         if (axiosError.response?.status === 500) {
+           errorText = '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+         } else if (axiosError.response?.status === 0) {
+           errorText = 'CORS 오류가 발생했습니다. 서버 설정을 확인해주세요.';
+         } else if (axiosError.response?.data?.detail) {
+           errorText = axiosError.response.data.detail;
+         }
+       } else if (error && typeof error === 'object' && 'code' in error) {
+         const networkError = error as { code?: string };
+         if (networkError.code === 'ERR_NETWORK') {
+           errorText = '네트워크 연결을 확인해주세요. CORS 정책에 의해 요청이 차단되었을 수 있습니다.';
+         }
+       }
       
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),

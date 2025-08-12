@@ -154,6 +154,12 @@ async def contextual_chat(request: ChatRequest):
     try:
         logger.info(f"Contextual chat request from user: {request.user_id}")
         
+        if not llm:
+            return ChatResponse(
+                response="안녕하세요! 현재 AI 서비스가 준비 중입니다. 잠시 후 다시 시도해주세요.",
+                confidence=0.5
+            )
+        
         # 컨텍스트가 있는 경우 프롬프트 수정
         if request.context:
             contextual_prompt = ChatPromptTemplate.from_template(
