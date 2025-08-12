@@ -4,6 +4,11 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 
+// === ADD: API base util ===
+const BASE = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "";
+const join = (p: string) => (BASE ? `${BASE}${p}` : p);
+// ==========================
+
 export default function SignupPage() {
   const router = useRouter();
 
@@ -46,26 +51,32 @@ export default function SignupPage() {
         user_pw: userData.user_pw,
         company_id: userData.company_id
       };
-      
-      const response = await axios.post('http://localhost:8001/signup', signupData, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+
+      // ✅ 게이트웨이 경유로 호출
+      const response = await axios.post(
+        join('/api/account/signup'),
+        signupData,
+        {
+          headers: { 'Content-Type': 'application/json' },
+          withCredentials: true,
+        }
+      );
 
       console.log('회원가입 성공:', response.data);
       alert('회원가입이 완료되었습니다!');
-      
+
       // 회원가입 성공 시 로그인 페이지로 리다이렉트
       router.push('/');
-      
+
     } catch (error) {
       console.error('회원가입 실패:', error);
-      
+
       // 에러 처리
       if (axios.isAxiosError(error)) {
         if (error.response) {
-          alert(`회원가입 실패: ${error.response.data.message || '알 수 없는 오류가 발생했습니다.'}`);
+          const data: any = error.response.data ?? {};
+          const msg = data?.detail ?? data?.message ?? '알 수 없는 오류가 발생했습니다.';
+          alert(`회원가입 실패: ${msg}`);
         } else if (error.request) {
           alert('서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
         } else {
@@ -154,8 +165,8 @@ export default function SignupPage() {
               type="submit"
               disabled={isLoading}
               className={`w-full py-4 rounded-2xl font-medium text-lg shadow-sm transition-all duration-200 ${
-                isLoading 
-                  ? 'bg-gray-400 text-white cursor-not-allowed' 
+                isLoading
+                  ? 'bg-gray-400 text-white cursor-not-allowed'
                   : 'bg-blue-600 text-white hover:bg-blue-700'
               }`}
             >

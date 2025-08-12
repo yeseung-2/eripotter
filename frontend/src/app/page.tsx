@@ -4,6 +4,11 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 
+// === ADD: API base util ===
+const BASE = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "";
+const join = (p: string) => (BASE ? `${BASE}${p}` : p);
+// ==========================
+
 export default function LoginPage() {
   const router = useRouter();
 
@@ -31,10 +36,10 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:8001/login', userData, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      const url = join("/api/account/login");
+      const response = await axios.post(url, userData, {
+        headers: { "Content-Type": "application/json" },
+        withCredentials: true, // 쿠키 기반이면 필수
       });
 
       console.log('로그인 성공:', response.data);
@@ -45,16 +50,14 @@ export default function LoginPage() {
     } catch (error) {
       console.error('로그인 실패:', error);
       
-      // 에러 처리
       if (axios.isAxiosError(error)) {
         if (error.response) {
-          // 서버에서 응답이 왔지만 에러인 경우
-          alert(`로그인 실패: ${error.response.data.message || '알 수 없는 오류가 발생했습니다.'}`);
+          const data: any = error.response.data ?? {};
+          const msg = data?.detail ?? data?.message ?? '알 수 없는 오류가 발생했습니다.';
+          alert(`로그인 실패: ${msg}`);
         } else if (error.request) {
-          // 요청은 보냈지만 응답을 받지 못한 경우
           alert('서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
         } else {
-          // 요청 자체를 보내지 못한 경우
           alert('네트워크 오류가 발생했습니다.');
         }
       } else {
@@ -133,7 +136,7 @@ export default function LoginPage() {
                 <div className="flex items-center justify-center">
                   <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a 8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                   로그인 중...
                 </div>
