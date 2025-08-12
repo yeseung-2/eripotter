@@ -21,4 +21,4 @@ ENV PYTHONPATH=/app
 EXPOSE 8001
 
 # 애플리케이션 실행 (Python 스크립트 실행)
-CMD ["python", "app/main.py"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]
