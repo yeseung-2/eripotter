@@ -5,7 +5,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 from pydantic import BaseModel
 import uvicorn
-import logging
+import logging, sys
 import traceback
 import os
 from dotenv import load_dotenv, find_dotenv
@@ -16,10 +16,9 @@ from app.router.sme_router import auth_router
 # 로거 설정
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),  # 콘솔 출력만 사용
-    ]
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
+    force=True,  # ← uvicorn 기본 설정을 덮어쓰기
 )
 logger = logging.getLogger("account-service")
 
