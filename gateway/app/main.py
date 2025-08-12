@@ -8,7 +8,6 @@ import httpx
 import os
 import logging
 from typing import Dict
-from pydantic import BaseModel
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -60,7 +59,7 @@ def custom_openapi():
     ]
     
     app.openapi_schema = openapi_schema
-    return app.openapi_schemas
+    return app.openapi_schema
 
 app.openapi = custom_openapi
 
@@ -70,6 +69,14 @@ SERVICE_REGISTRY: Dict[str, str] = {
     "product": os.getenv("PRODUCT_SERVICE_URL", "http://localhost:8002"),
     "order": os.getenv("ORDER_SERVICE_URL", "http://localhost:8003"),
 }
+
+# 데이터베이스 연결 함수
+def get_database_url():
+    return os.getenv("DATABASE_URL", "postgresql://postgres:liyjJKKLWfrWOMFvdgPsWpJvcFdBUsks@postgres.railway.internal:5432/railway")
+
+def get_db_engine():
+    database_url = get_database_url()
+    return create_engine(database_url)
 
 @app.get("/health", summary="Health Check")
 async def health_check():
@@ -108,119 +115,6 @@ async def db_health_check():
             status_code=500, 
             detail=f"Unexpected error: {str(e)}"
         )
-
-# 로그인 데이터 모델
-class LoginData(BaseModel):
-    user_id: str
-    user_pw: str
-
-# 회원가입 데이터 모델
-class SignupData(BaseModel):
-    user_id: str
-    user_pw: str
-    company_id: str
-
-@app.post("/login", summary="Login")
-async def login(login_data: LoginData):
-    """
-    프론트엔드에서 전송된 로그인 데이터를 Account Service로 전달합니다.
-    """
-    logger.info(f"🗝️🗝️🗝️Login request received for user_id: {login_data.user_id}")
-    
-    try:
-        # Account Service로 로그인 요청 전달
-        account_service_url = os.getenv("ACCOUNT_SERVICE_URL", "http://account-service:8001")
-        login_url = f"{account_service_url}/login"
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                login_url,
-                json={
-                    "user_id": login_data.user_id,
-                    "user_pw": login_data.user_pw
-                },
-                headers={"Content-Type": "application/json"},
-                timeout=30.0
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                logger.info(f"🗝️🗝️🗝️Login successful via account service for user_id: {login_data.user_id}")
-                return result
-            else:
-                error_detail = response.json() if response.content else {"detail": "Account service error"}
-                logger.warning(f"🗝️🗝️🗝️Login failed via account service for user_id: {login_data.user_id}")
-                raise HTTPException(
-                    status_code=response.status_code,
-                    detail=error_detail.get("detail", "로그인 실패")
-                )
-        
-    except httpx.RequestError as e:
-        logger.error(f"🗝️🗝️🗝️Network error during login for user_id {login_data.user_id}: {str(e)}")
-        raise HTTPException(
-            status_code=503, 
-            detail="로그인 서비스에 연결할 수 없습니다."
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"🗝️🗝️🗝️Unexpected error during login for user_id {login_data.user_id}: {str(e)}")
-        raise HTTPException(
-            status_code=500, 
-            detail=f"로그인 실패: {str(e)}"
-        )
-
-@app.post("/signup", summary="Signup")
-async def signup(signup_data: SignupData):
-    """
-    프론트엔드에서 전송된 회원가입 데이터를 Account Service로 전달합니다.
-    """
-    logger.info(f"🗝️🗝️🗝️🔓🔓🔓Signup request received for user_id: {signup_data.user_id}, company_id: {signup_data.company_id}")
-    
-    try:
-        # Account Service로 회원가입 요청 전달
-        account_service_url = os.getenv("ACCOUNT_SERVICE_URL", "http://account-service:8001")
-        signup_url = f"{account_service_url}/signup"
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                signup_url,
-                json={
-                    "user_id": signup_data.user_id,
-                    "user_pw": signup_data.user_pw,
-                    "company_id": signup_data.company_id
-                },
-                headers={"Content-Type": "application/json"},
-                timeout=30.0
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                logger.info(f"🗝️🗝️🗝️🔓🔓🔓Signup successful via account service for user_id: {signup_data.user_id}")
-                return result
-            else:
-                error_detail = response.json() if response.content else {"detail": "Account service error"}
-                logger.warning(f"🗝️🗝️🗝️🔓🔓🔓Signup failed via account service for user_id: {signup_data.user_id}")
-                raise HTTPException(
-                    status_code=response.status_code,
-                    detail=error_detail.get("detail", "회원가입 실패")
-                )
-        
-    except httpx.RequestError as e:
-        logger.error(f"🗝️🗝️🗝️🔓🔓🔓Network error during signup for user_id {signup_data.user_id}: {str(e)}")
-        raise HTTPException(
-            status_code=503, 
-            detail="회원가입 서비스에 연결할 수 없습니다."
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"🗝️🗝️🗝️🔓🔓🔓Unexpected error during signup for user_id {signup_data.user_id}: {str(e)}")
-        raise HTTPException(
-            status_code=500, 
-            detail=f"회원가입 실패: {str(e)}"
-        )
-
 
 if __name__ == "__main__":
     import uvicorn
