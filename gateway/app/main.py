@@ -28,6 +28,19 @@ TIMEOUT = float(os.getenv("UPSTREAM_TIMEOUT", "20"))
 @app.get("/health")
 async def health(): return {"status": "healthy", "service": "gateway"}
 
+@app.options("/{path:path}")
+async def options_handler(path: str):
+    """CORS preflight 요청 처리"""
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "https://sme.eripotter.com",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
+        }
+    )
+
 # ---- 단일 프록시 유틸 ----
 async def _proxy(request: Request, upstream_base: str, rest: str):
     url = upstream_base.rstrip("/") + "/" + rest.lstrip("/")
@@ -56,6 +69,12 @@ async def _proxy(request: Request, upstream_base: str, rest: str):
         lk = k.lower()
         if lk in ("content-type", "set-cookie", "cache-control", "access-control-allow-origin", "access-control-allow-methods", "access-control-allow-headers"):
             passthrough[k] = v
+
+    # CORS 헤더 명시적 추가 (프록시 응답에)
+    passthrough["Access-Control-Allow-Origin"] = "https://sme.eripotter.com"
+    passthrough["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    passthrough["Access-Control-Allow-Headers"] = "*"
+    passthrough["Access-Control-Allow-Credentials"] = "true"
 
     return Response(
         content=upstream.content,
