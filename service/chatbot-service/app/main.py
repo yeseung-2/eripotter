@@ -40,22 +40,36 @@ app = FastAPI(
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://sme.eripotter.com",
+        "http://localhost:3000",
+        "http://localhost:8080"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # LangChain 모델 초기화
-llm = ChatOpenAI(
-    model="gpt-3.5-turbo",
-    temperature=0.7,
-    api_key=os.getenv("OPENAI_API_KEY")
-)
-
-embeddings = OpenAIEmbeddings(
-    api_key=os.getenv("OPENAI_API_KEY")
-)
+try:
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    if not openai_api_key:
+        logger.warning("OPENAI_API_KEY가 설정되지 않았습니다. 기본 응답을 사용합니다.")
+        llm = None
+        embeddings = None
+    else:
+        llm = ChatOpenAI(
+            model="gpt-3.5-turbo",
+            temperature=0.7,
+            api_key=openai_api_key
+        )
+        embeddings = OpenAIEmbeddings(
+            api_key=openai_api_key
+        )
+except Exception as e:
+    logger.error(f"LangChain 모델 초기화 실패: {str(e)}")
+    llm = None
+    embeddings = None
 
 # Pydantic 모델들
 class ChatRequest(BaseModel):
@@ -94,7 +108,10 @@ DEFAULT_PROMPT = ChatPromptTemplate.from_template(
 )
 
 # 기본 체인
-basic_chain = DEFAULT_PROMPT | llm | StrOutputParser()
+if llm:
+    basic_chain = DEFAULT_PROMPT | llm | StrOutputParser()
+else:
+    basic_chain = None
 
 @app.get("/health")
 async def health_check():
@@ -111,6 +128,13 @@ async def chat(request: ChatRequest):
     """기본 채팅 기능"""
     try:
         logger.info(f"Chat request from user: {request.user_id}")
+        
+        if not basic_chain:
+            # OpenAI API 키가 없을 때 기본 응답
+            return ChatResponse(
+                response="안녕하세요! 현재 AI 서비스가 준비 중입니다. 잠시 후 다시 시도해주세요.",
+                confidence=0.5
+            )
         
         # 기본 체인 실행
         response = basic_chain.invoke({"question": request.message})

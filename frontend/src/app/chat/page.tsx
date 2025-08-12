@@ -65,12 +65,22 @@ export default function ChatPage() {
       };
 
       setMessages(prev => [...prev, aiMessage]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('채팅 오류:', error);
+      
+      let errorText = '죄송합니다. 응답을 생성하는 중 오류가 발생했습니다.';
+      
+      if (error.response?.status === 500) {
+        errorText = '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+      } else if (error.code === 'ERR_NETWORK') {
+        errorText = '네트워크 연결을 확인해주세요.';
+      } else if (error.response?.data?.detail) {
+        errorText = error.response.data.detail;
+      }
       
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: '죄송합니다. 응답을 생성하는 중 오류가 발생했습니다.',
+        text: errorText,
         isUser: false,
         timestamp: new Date(),
       };

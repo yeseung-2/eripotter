@@ -22,7 +22,7 @@ app.add_middleware(
 )
 
 ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL")
-CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL")
+CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "http://localhost:8002")
 TIMEOUT = float(os.getenv("UPSTREAM_TIMEOUT", "20"))
 
 @app.get("/health")
