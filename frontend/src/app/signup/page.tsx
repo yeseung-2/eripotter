@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 
@@ -74,7 +74,7 @@ export default function SignupPage() {
       // 에러 처리
       if (axios.isAxiosError(error)) {
         if (error.response) {
-          const data: any = error.response.data ?? {};
+                     const data: { detail?: string; message?: string } = error.response.data ?? {};
           const msg = data?.detail ?? data?.message ?? '알 수 없는 오류가 발생했습니다.';
           alert(`회원가입 실패: ${msg}`);
         } else if (error.request) {
