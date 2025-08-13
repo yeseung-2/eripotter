@@ -1,6 +1,8 @@
+"""
+Account Repository - 순수한 데이터 접근 로직
+"""
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
-from passlib.hash import bcrypt
 import logging
 from typing import Optional, Dict, Any
 
@@ -10,15 +12,14 @@ class AccountRepository:
     def __init__(self, engine):
         self.engine = engine
     
-    def create_user(self, user_id: str, user_pw: str, company_id: str) -> bool:
-        """사용자 생성"""
+    def create_user(self, user_id: str, hashed_password: str, company_id: str) -> bool:
+        """사용자 생성 (해시된 비밀번호를 받음)"""
         try:
-            hashed_pw = bcrypt.hash(user_pw)
             with self.engine.connect() as conn:
                 conn.execute(
                     text("""INSERT INTO auth (user_id, user_pw, company_id)
                             VALUES (:user_id, :user_pw, :company_id)"""),
-                    {"user_id": user_id, "user_pw": hashed_pw, "company_id": company_id},
+                    {"user_id": user_id, "user_pw": hashed_password, "company_id": company_id},
                 )
                 conn.commit()
             return True
@@ -49,10 +50,6 @@ class AccountRepository:
         except SQLAlchemyError as e:
             logger.error(f"Database error during user retrieval: {e}")
             raise
-    
-    def verify_password(self, plain_password: str, hashed_password: str) -> bool:
-        """비밀번호 검증"""
-        return bcrypt.verify(plain_password, hashed_password)
     
     def get_user_count(self) -> int:
         """사용자 수 조회"""

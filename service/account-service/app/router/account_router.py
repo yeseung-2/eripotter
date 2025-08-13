@@ -1,19 +1,50 @@
-from fastapi import APIRouter, Cookie, HTTPException, Query
+"""
+Account Router - API 엔드포인트 및 의존성 주입
+"""
+from fastapi import APIRouter, Cookie, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from typing import Optional
 from ..domain.controller.account_controller import AccountController
 from ..domain.service.account_service import AccountService
-from ..common.db import get_account_repository
+from ..domain.repository.account_repository import AccountRepository
+from ..domain.model.account_model import LoginData, SignupData, AccountResponse
+from ..common.db import get_db_engine
+import logging
 
-# 기존 라우터
+logger = logging.getLogger("account-router")
+
+# DI 함수들
+def get_account_repository() -> AccountRepository:
+    """Account Repository 인스턴스 생성"""
+    engine = get_db_engine()
+    return AccountRepository(engine)
+
+def get_account_service(repo: AccountRepository = Depends(get_account_repository)) -> AccountService:
+    """Account Service 인스턴스 생성"""
+    return AccountService(repo)
+
+def get_account_controller(service: AccountService = Depends(get_account_service)) -> AccountController:
+    """Account Controller 인스턴스 생성"""
+    return AccountController(service)
+
+# 라우터 생성
 account_router = APIRouter(prefix="", tags=["account"])
-# 새로운 Account Controller 초기화
-account_repository = get_account_repository()
-account_service = AccountService(account_repository)
-account_controller = AccountController(account_service)
 
-# 새로운 Account Controller의 라우터를 포함
-account_router.include_router(account_controller.get_router())
+@account_router.post("/signup", response_model=AccountResponse, summary="회원가입")
+async def signup(
+    signup_data: SignupData,
+    controller: AccountController = Depends(get_account_controller)
+):
+    """회원가입 API"""
+    return controller.signup(signup_data)
+
+@account_router.post("/login", response_model=AccountResponse, summary="로그인")
+async def login(
+    login_data: LoginData,
+    controller: AccountController = Depends(get_account_controller)
+):
+    """로그인 API"""
+    return controller.login(login_data)
 
 @account_router.post("/logout", summary="로그아웃")
 async def logout(session_token: Optional[str] = Cookie(None)):

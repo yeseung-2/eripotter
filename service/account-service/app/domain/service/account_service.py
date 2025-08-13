@@ -1,8 +1,12 @@
+"""
+Account Service - 비즈니스 로직 및 보안 처리
+"""
 from fastapi import HTTPException
 import logging
 from typing import Dict, Any
 from ..repository.account_repository import AccountRepository
 from ..model.account_model import LoginData, SignupData, AccountResponse
+from ...common.security import hash_password, verify_password
 
 logger = logging.getLogger("account-service")
 
@@ -15,9 +19,12 @@ class AccountService:
         logger.info(f"Signup request: user_id={signup_data.user_id}, company_id={signup_data.company_id}")
         
         try:
+            # 비밀번호 해시화
+            hashed_password = hash_password(signup_data.user_pw)
+            
             success = self.account_repository.create_user(
                 signup_data.user_id, 
-                signup_data.user_pw, 
+                hashed_password, 
                 signup_data.company_id
             )
             
@@ -47,7 +54,8 @@ class AccountService:
             if not user:
                 raise HTTPException(status_code=401, detail="로그인 실패: 사용자 ID 또는 비밀번호가 올바르지 않습니다.")
             
-            if self.account_repository.verify_password(login_data.user_pw, user["user_pw"]):
+            # 비밀번호 검증
+            if verify_password(login_data.user_pw, user["user_pw"]):
                 return AccountResponse(
                     status="success",
                     message="로그인 성공",

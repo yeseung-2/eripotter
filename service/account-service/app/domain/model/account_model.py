@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Optional
 
 class LoginData(BaseModel):
     user_id: str
@@ -13,4 +14,4 @@ class AccountResponse(BaseModel):
     status: str
     message: str
     user_id: str
-    company_id: str
+    company_id: Optional[str] = None

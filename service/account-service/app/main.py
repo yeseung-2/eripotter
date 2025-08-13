@@ -4,10 +4,8 @@ Account Service - MSA 프랙탈 구조
 from dotenv import load_dotenv, find_dotenv
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.exc import SQLAlchemyError
 import uvicorn
 import logging, sys, traceback, os
-from sqlalchemy import text
 
 # ---------- Logging ----------
 logging.basicConfig(
@@ -39,15 +37,18 @@ app.add_middleware(
 
 # ---------- Import Routers ----------
 from .router.account_router import account_router
-from .common.db import get_db_engine
 
 # ---------- Include Routers ----------
 app.include_router(account_router)
 
-# ---------- Health Check Routes ----------
+# ---------- Root Route ----------
 @app.get("/", summary="Root")
 def root():
-    return {"status": "ok", "service": "account-service", "endpoints": ["/login", "/signup"]}
+    return {
+        "status": "ok", 
+        "service": "account-service", 
+        "endpoints": ["/login", "/signup", "/logout", "/profile"]
+    }
 
 # ---------- Middleware ----------
 @app.middleware("http")
