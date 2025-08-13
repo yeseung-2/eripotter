@@ -6,7 +6,7 @@ from ..domain.service.account_service import AccountService
 from ..common.db import get_account_repository
 
 # 기존 라우터
-account_router = APIRouter(prefix="/account", tags=["account"])
+account_router = APIRouter(prefix="", tags=["account"])
 # 새로운 Account Controller 초기화
 account_repository = get_account_repository()
 account_service = AccountService(account_repository)

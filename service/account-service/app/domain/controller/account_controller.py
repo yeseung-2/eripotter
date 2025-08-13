@@ -8,7 +8,7 @@ logger = logging.getLogger("account-controller")
 class AccountController:
     def __init__(self, account_service: AccountService):
         self.account_service = account_service
-        self.router = APIRouter(prefix="/account", tags=["account"])
+        self.router = APIRouter(prefix="", tags=["account"])
         self._setup_routes()
     
     def _setup_routes(self):
