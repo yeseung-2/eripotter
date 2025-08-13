@@ -1,10 +1,21 @@
 from fastapi import APIRouter, Cookie, HTTPException, Query
 from fastapi.responses import JSONResponse
 from typing import Optional
+from ..domain.controller.account_controller import AccountController
+from ..domain.service.account_service import AccountService
+from ..common.db import get_account_repository
 
-auth_router = APIRouter(prefix="/auth", tags=["auth"])
+# 기존 라우터
+account_router = APIRouter(prefix="/account", tags=["account"])
+# 새로운 Account Controller 초기화
+account_repository = get_account_repository()
+account_service = AccountService(account_repository)
+account_controller = AccountController(account_service)
 
-@auth_router.post("/logout", summary="로그아웃")
+# 새로운 Account Controller의 라우터를 포함
+account_router.include_router(account_controller.get_router())
+
+@account_router.post("/logout", summary="로그아웃")
 async def logout(session_token: Optional[str] = Cookie(None)):
     """
     사용자를 로그아웃하고 인증 쿠키를 삭제합니다.
@@ -27,7 +38,7 @@ async def logout(session_token: Optional[str] = Cookie(None)):
     print("✅ 로그아웃 완료 - 인증 쿠키 삭제됨")
     return response
 
-@auth_router.get("/profile", summary="사용자 프로필 조회")
+@account_router.get("/profile", summary="사용자 프로필 조회")
 async def get_profile(session_token: Optional[str] = Cookie(None)):
     """
     세션 토큰으로 사용자 프로필을 조회합니다.
