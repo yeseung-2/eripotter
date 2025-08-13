@@ -278,7 +278,7 @@ async def log_requests(request: Request, call_next):
     return response
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8002))
+    port = int(os.getenv("PORT", 8003))
     logger.info(f"🤖 챗봇 서비스 시작 - 포트: {port}")
     uvicorn.run(
         "app.main:app",
