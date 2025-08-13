@@ -23,10 +23,10 @@ COPY ./app ./app
 
 # 환경 변수 설정
 ENV PYTHONUNBUFFERED=1
-ENV PORT=8002
+ENV PORT=8003
 
 # 서비스 포트 노출
-EXPOSE 8002
+EXPOSE 8003
 
 # 애플리케이션 실행
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8002"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8003"]
