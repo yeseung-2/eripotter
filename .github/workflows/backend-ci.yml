@@ -5,7 +5,7 @@ on:
     branches: [ main ]
 
 env:
-  SERVICES: "normal-service sharing-service account-service chatbot-service regulation-service report-service assessment-service monitoring-service solution-service"
+  SERVICES: "account-service chatbot-service"
 
 jobs:
   backend:
