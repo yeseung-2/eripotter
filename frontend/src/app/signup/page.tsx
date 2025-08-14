@@ -99,7 +99,7 @@ export default function SignupPage() {
             <h1 className="text-4xl font-bold text-gray-900 tracking-tight">
               Sign Up
             </h1>
-            <p className="text-gray-600 mt-2">새로운 계정을 만들어보세요</p>
+            <p className="text-gray-600 mt-2">새로운 계정을 만들어 보세요</p>
           </div>
 
           {/* Signup Form */}
