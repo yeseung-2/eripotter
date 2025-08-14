@@ -11,8 +11,8 @@ app = FastAPI(title="MSA API Gateway", version="1.0.0")
 
 # ===== CORS 설정 =====
 WHITELIST = {
-    "https://sme.eripotter.com",
-    "https://www.sme.eripotter.com",              # www 도메인도 허용
+            "https://eripotter.com",
+        "https://www.eripotter.com",              # www 도메인도 허용
     "http://localhost:3000", "http://localhost:5173",  # 로컬 개발
     # "https://sme-eripotter-com.vercel.app",     # Vercel 프리뷰를 쓰면 주석 해제
 }

@@ -26,7 +26,8 @@ app = FastAPI(title="Assessment Service API", description="Assessment 서비스"
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://sme.eripotter.com",
+        "https://eripotter.com",
+        "https://www.eripotter.com",
         # 개발용 필요 시 주석 해제
         "http://localhost:3000", "http://localhost:8080",
     ],

@@ -8,7 +8,8 @@ if os.getenv("RAILWAY_ENVIRONMENT") != "true":
 class Settings:
     DATABASE_URL: str = os.getenv("DATABASE_URL", "")
     ALLOW_ORIGINS = [
-        "https://sme.eripotter.com",
+        "https://eripotter.com",
+        "https://www.eripotter.com",
         "http://localhost:3000",
         "http://localhost:8080",
     ]

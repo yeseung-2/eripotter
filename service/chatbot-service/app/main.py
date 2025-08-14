@@ -41,7 +41,8 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://sme.eripotter.com",
+        "https://eripotter.com",
+        "https://www.eripotter.com",
         "http://localhost:3000",
         "http://localhost:8080"
     ],
