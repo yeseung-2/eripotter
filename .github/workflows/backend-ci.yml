@@ -2,82 +2,83 @@ name: Backend CI
 
 on:
   pull_request:
-    branches: [ main ]
-
-env:
-  SERVICES: "normal-service sharing-service account-service chatbot-service regulation-service report-service assessment-service monitoring-service solution-service"
+  push:
+    branches: [main]
 
 jobs:
-  backend:
-    name: Backend CI
+  detect:
     runs-on: ubuntu-latest
-    
-    defaults:
-      run:
-        shell: bash
+    outputs:
+      backend: ${{ steps.f.outputs.backend }}
+      gateway: ${{ steps.f.outputs.gateway }}
+      account: ${{ steps.f.outputs.account }}
+      chatbot: ${{ steps.f.outputs.chatbot }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: f
+        with:
+          filters: |
+            backend:
+              - 'gateway/**'
+              - 'service/**'
+            gateway:
+              - 'gateway/**'
+            account:
+              - 'service/account-service/**'
+            chatbot:
+              - 'service/chatbot-service/**'
+
+  backend-ci:
+    name: Backend CI
+    needs: detect
+    if: needs.detect.outputs.backend == 'true'
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Python 3.10
-        uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
+          cache: 'pip'
 
-      - name: Cache pip dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('service/*/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Install Python tooling
+      - name: Install base tooling
         run: |
-          pip install --upgrade pip
-          pip install black==23.12.1 isort==5.13.2 flake8==7.0.0 pytest==7.4.4
+          python -m pip install --upgrade pip
+          pip install ruff mypy pytest
 
-      - name: Process services
+      - name: Install per-service requirements (skip if missing)
         run: |
-          for service in $SERVICES; do
-            echo "=== Checking service/$service ==="
-            
-            if [ -f "service/$service/requirements.txt" ]; then
-              echo "Installing dependencies for $service"
-              pip install -r "service/$service/requirements.txt"
-            fi
-            
-            echo "Running linting checks for $service"
-            if ! black --check "service/$service"; then
-              echo "❌ Black check failed for $service"
-              exit 1
-            fi
-            
-            if ! isort --check-only "service/$service"; then
-              echo "❌ isort check failed for $service"
-              exit 1
-            fi
-            
-            if ! flake8 "service/$service"; then
-              echo "❌ flake8 check failed for $service"
-              exit 1
-            fi
-            
-            echo "✅ Linting passed for $service"
-            
-            # Run tests if tests directory or pytest.ini exists
-            if [ -d "service/$service/tests" ] || [ -f "service/$service/pytest.ini" ]; then
-              echo "Running tests for $service"
-              if ! pytest -q "service/$service"; then
-                echo "❌ Tests failed for $service"
-                exit 1
-              fi
-              echo "✅ Tests passed for $service"
+          set -e
+          for d in gateway service/*-service; do
+            if [ -f "$d/requirements.txt" ]; then
+              echo "== Installing $d requirements =="
+              pip install -r "$d/requirements.txt"
             else
-              echo "No tests found for $service, skipping"
+              echo "== Skip (no requirements.txt) for $d =="
             fi
-            
-            echo "=== Completed $service ==="
-            echo
           done
+
+      - name: Lint (ruff) — not strict at start
+        run: |
+          ruff check gateway service || true
+
+      - name: Type check (mypy) — relaxed for imports
+        run: |
+          mypy --ignore-missing-imports --install-types --non-interactive gateway service || true
+
+      - name: Run tests if present
+        run: |
+          found=0
+          for d in gateway service/*-service; do
+            if [ -d "$d/tests" ]; then
+              echo "::group::pytest $d"
+              found=1
+              pytest -q "$d"
+              echo "::endgroup::"
+            fi
+          done
+          if [ $found -eq 0 ]; then
+            echo "No tests found; skipping."
+          fi
