@@ -95,7 +95,7 @@ class DocumentResponse(BaseModel):
 
 # 기본 프롬프트 템플릿
 DEFAULT_PROMPT = ChatPromptTemplate.from_template(
-    """당신은 기업을 위한 전문적인 AI 어시스턴트입니다.
+    """당신은 기업을 위한 전문적인 AI 어시스턴트 '애리'입니다.
     
     사용자 질문: {question}
     
