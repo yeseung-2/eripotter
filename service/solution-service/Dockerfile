@@ -21,7 +21,7 @@ COPY ./app ./app
 ENV PYTHONUNBUFFERED=1
 
 # 서비스 포트 노출
-EXPOSE 8004
+EXPOSE 8009
 
 # 애플리케이션 실행
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8004"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8009"]

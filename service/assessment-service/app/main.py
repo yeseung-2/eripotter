@@ -1,99 +1,70 @@
-from fastapi import FastAPI, HTTPException
+"""
+Assessment Service - MSA 프랙탈 구조
+"""
+from dotenv import load_dotenv, find_dotenv
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import create_engine, text
-from sqlalchemy.exc import SQLAlchemyError
-import os
-import logging
-from dotenv import load_dotenv
+import uvicorn
+import logging, sys, traceback, os
 
-# 환경 변수 로드
-load_dotenv()
-
-# 로거 설정
+# ---------- Logging ----------
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),  # 콘솔 출력
-        logging.FileHandler('assessment.log')  # 파일 출력
-    ]
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
+    force=True,
 )
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("assessment-service")
 
-app = FastAPI(
-    title="Assessment Service",
-    description="평가 관련 마이크로서비스",
-    version="1.0.0"
-)
+# ---------- .env ----------
+if os.getenv("RAILWAY_ENVIRONMENT") != "true":
+    load_dotenv(find_dotenv())
 
-# CORS 미들웨어 설정
+# ---------- FastAPI ----------
+app = FastAPI(title="Assessment Service API", description="Assessment 서비스", version="1.0.0")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://sme.eripotter.com",
+        # 개발용 필요 시 주석 해제
+        "http://localhost:3000", "http://localhost:8080",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 데이터베이스 연결
-def get_database_url():
-    return os.getenv("DATABASE_URL", "postgresql://postgres:liyjJKKLWfrWOMFvdgPsWpJvcFdBUsks@postgres.railway.internal:5432/railway")
+# ---------- Import Routers ----------
+from .router.assesment_router import assessment_router
 
-def get_db_engine():
-    database_url = get_database_url()
-    return create_engine(database_url)
+# ---------- Include Routers ----------
+app.include_router(assessment_router)
 
-@app.get("/health", summary="Health Check")
-async def health_check():
-    logger.info("Health check requested for assessment service")
-    return {"status": "healthy", "service": "assessment-service"}
-
-@app.get("/health/db", summary="Database Health Check")
-async def db_health_check():
-    """
-    데이터베이스 연결 상태를 확인합니다.
-    """
-    logger.info("Database health check requested for assessment service")
-    try:
-        engine = get_db_engine()
-        with engine.connect() as connection:
-            # auth 테이블 존재 여부 확인
-            result = connection.execute(text("SELECT COUNT(*) FROM auth"))
-            count = result.scalar()
-            
-        logger.info(f"Database health check successful for assessment service - auth table count: {count}")
-        return {
-            "status": "healthy",
-            "database": "connected",
-            "auth_table_count": count,
-            "message": "Database connection successful"
-        }
-    except SQLAlchemyError as e:
-        logger.error(f"Database connection failed for assessment service: {str(e)}")
-        raise HTTPException(
-            status_code=503, 
-            detail=f"Database connection failed: {str(e)}"
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error in assessment service database health check: {str(e)}")
-        raise HTTPException(
-            status_code=500, 
-            detail=f"Unexpected error: {str(e)}"
-        )
-
+# ---------- Root Route ----------
 @app.get("/", summary="Root")
-async def root():
-    logger.info("Root endpoint accessed for assessment service")
+def root():
     return {
-        "message": "Assessment Service",
-        "version": "1.0.0",
-        "endpoints": {
-            "health": "/health",
-            "db_health": "/health/db"
-        }
+        "status": "ok", 
+        "service": "assessment-service", 
+        "endpoints": ["/assessment", "/health", "/metrics"]
     }
 
+# ---------- Middleware ----------
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f"📥 요청: {request.method} {request.url.path} (클라이언트: {request.client.host if request.client else '-'})")
+    try:
+        response = await call_next(request)
+        logger.info(f"📤 응답: {response.status_code}")
+        return response
+    except Exception as e:
+        logger.error(f"❌ 요청 처리 중 오류: {e}")
+        logger.error(traceback.format_exc())
+        raise
+
+# ---------- Entrypoint ----------
 if __name__ == "__main__":
-    import uvicorn
-    logger.info("Starting Assessment Service on port 8002")
-    uvicorn.run(app, host="0.0.0.0", port=8002)
+    port = int(os.getenv("PORT", "8002"))
+    logger.info(f"💻 서비스 시작 - 포트: {port}")
+    uvicorn.run("app.main:app", host="0.0.0.0", port=port, log_level="info", access_log=True)
