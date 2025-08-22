@@ -13,7 +13,7 @@ class AccountRepository:
         self.engine = engine
     
     def create_user(self, user_id: str, hashed_password: str, company_id: str) -> bool:
-        """사용자 생성 (해시된 비밀번호를 받음)"""
+        """사용자 생성(해시된 비밀번호)"""
         try:
             with self.engine.connect() as conn:
                 conn.execute(
