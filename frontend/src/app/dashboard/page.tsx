@@ -1,10 +1,26 @@
 'use client';
 
-import { useState } from 'react';
-import Image from 'next/image';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function CompanyDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
+  const [mounted, setMounted] = useState(false);
+  
+  // 클라이언트 사이드에서만 router 사용
+  const router = useRouter();
+  
+  // 컴포넌트가 마운트된 후에만 router 사용
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  
+  // 마운트 전에는 router 기능 비활성화
+  const handleNavigation = (path: string) => {
+    if (mounted) {
+      router.push(path);
+    }
+  };
 
   // 더미 데이터
   const stats = {
@@ -38,6 +54,15 @@ export default function CompanyDashboard() {
               <h1 className="text-2xl font-bold text-gray-900">기업 대시보드</h1>
             </div>
             <div className="flex items-center space-x-4">
+              {/* ESG 데이터 업로드 버튼 */}
+              <button
+                onClick={() => handleNavigation('/data-upload')}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+              >
+                <span>📊</span>
+                <span>ESG 데이터 업로드</span>
+              </button>
+              
               <div className="relative">
                 <a href="/chat" className="p-2 text-gray-400 hover:text-gray-500 transition-colors">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -45,16 +70,14 @@ export default function CompanyDashboard() {
                   </svg>
                 </a>
               </div>
-                             <div className="flex items-center space-x-3">
-                 <Image 
-                   className="h-8 w-8 rounded-full" 
-                   src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" 
-                   alt="User avatar"
-                   width={32}
-                   height={32}
-                 />
-                 <span className="text-sm font-medium text-gray-700">관리자</span>
-               </div>
+              <div className="flex items-center space-x-3">
+                <div className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <span className="text-sm font-medium text-gray-700">관리자</span>
+              </div>
             </div>
           </div>
         </div>
@@ -66,6 +89,7 @@ export default function CompanyDashboard() {
           <nav className="flex space-x-8">
             {[
               { id: 'overview', name: '개요' },
+              { id: 'esg', name: 'ESG 관리' },
               { id: 'projects', name: '프로젝트' },
               { id: 'analytics', name: '분석' },
               { id: 'reports', name: '보고서' },
@@ -92,7 +116,7 @@ export default function CompanyDashboard() {
         {activeTab === 'overview' && (
           <div className="space-y-6">
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5">
               <div className="bg-white overflow-hidden shadow rounded-lg">
                 <div className="p-5">
                   <div className="flex items-center">
@@ -164,6 +188,25 @@ export default function CompanyDashboard() {
                   </div>
                 </div>
               </div>
+
+              {/* ESG 데이터 카드 */}
+              <div className="bg-white overflow-hidden shadow rounded-lg">
+                <div className="p-5">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                        <span className="text-green-600 text-lg">🌱</span>
+                      </div>
+                    </div>
+                    <div className="ml-5 w-0 flex-1">
+                      <dl>
+                        <dt className="text-sm font-medium text-gray-500 truncate">ESG 점수</dt>
+                        <dd className="text-lg font-medium text-gray-900">87/100</dd>
+                      </dl>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Charts and Recent Activity */}
@@ -219,6 +262,73 @@ export default function CompanyDashboard() {
               </div>
             </div>
 
+            {/* ESG 데이터 섹션 */}
+            <div className="bg-white shadow rounded-lg">
+              <div className="px-4 py-5 sm:p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900">ESG 데이터 현황</h3>
+                                     <button
+                     onClick={() => handleNavigation('/data-upload')}
+                     className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition-colors"
+                   >
+                    데이터 업로드
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="border rounded-lg p-4">
+                    <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                      <span className="text-green-600 mr-2">🌱</span>
+                      환경 (Environmental)
+                    </h4>
+                    <div className="text-sm text-gray-600">
+                      <div className="flex justify-between">
+                        <span>완료 항목:</span>
+                        <span className="text-green-600">2/3</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>점수:</span>
+                        <span className="text-green-600">85점</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="border rounded-lg p-4">
+                    <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                      <span className="text-blue-600 mr-2">👥</span>
+                      사회 (Social)
+                    </h4>
+                    <div className="text-sm text-gray-600">
+                      <div className="flex justify-between">
+                        <span>완료 항목:</span>
+                        <span className="text-yellow-600">1/3</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>점수:</span>
+                        <span className="text-yellow-600">75점</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="border rounded-lg p-4">
+                    <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                      <span className="text-purple-600 mr-2">⚖️</span>
+                      지배구조 (Governance)
+                    </h4>
+                    <div className="text-sm text-gray-600">
+                      <div className="flex justify-between">
+                        <span>완료 항목:</span>
+                        <span className="text-green-600">2/3</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>점수:</span>
+                        <span className="text-green-600">90점</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Projects */}
             <div className="bg-white shadow rounded-lg">
               <div className="px-4 py-5 sm:p-6">
@@ -266,6 +376,141 @@ export default function CompanyDashboard() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'esg' && (
+          <div className="space-y-6">
+            {/* ESG 대시보드 헤더 */}
+            <div className="bg-white shadow rounded-lg p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold text-gray-900">ESG 데이터 관리</h2>
+                <button
+                  onClick={() => router.push('/data-upload')}
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+                >
+                  <span>📤</span>
+                  <span>데이터 업로드</span>
+                </button>
+              </div>
+              
+              {/* ESG 요약 카드 */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-center">
+                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                      <span className="text-green-600 text-lg">🌱</span>
+                    </div>
+                    <div>
+                      <p className="text-sm text-green-600 font-medium">총 ESG 점수</p>
+                      <p className="text-2xl font-bold text-green-700">87/100</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-center">
+                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                      <span className="text-blue-600 text-lg">📊</span>
+                    </div>
+                    <div>
+                      <p className="text-sm text-blue-600 font-medium">완료 항목</p>
+                      <p className="text-2xl font-bold text-blue-700">24/30</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="flex items-center">
+                    <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center mr-3">
+                      <span className="text-yellow-600 text-lg">⚠️</span>
+                    </div>
+                    <div>
+                      <p className="text-sm text-yellow-600 font-medium">개선 필요</p>
+                      <p className="text-2xl font-bold text-yellow-700">6개</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <div className="flex items-center">
+                    <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
+                      <span className="text-purple-600 text-lg">📅</span>
+                    </div>
+                    <div>
+                      <p className="text-sm text-purple-600 font-medium">다음 제출일</p>
+                      <p className="text-lg font-bold text-purple-700">2024-02-15</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* ESG 카테고리별 상세 정보 */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="border rounded-lg p-4">
+                  <h3 className="font-medium text-gray-900 mb-3 flex items-center">
+                    <span className="text-green-600 mr-2">🌱</span>
+                    환경 (Environmental)
+                  </h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>탄소 배출량</span>
+                      <span className="text-green-600">✅ 완료</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>에너지 효율성</span>
+                      <span className="text-yellow-600">🔄 진행중</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>폐기물 관리</span>
+                      <span className="text-green-600">✅ 완료</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="border rounded-lg p-4">
+                  <h3 className="font-medium text-gray-900 mb-3 flex items-center">
+                    <span className="text-blue-600 mr-2">👥</span>
+                    사회 (Social)
+                  </h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>노동 조건</span>
+                      <span className="text-green-600">✅ 완료</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>공급망 관리</span>
+                      <span className="text-red-600">❌ 미완료</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>커뮤니티 참여</span>
+                      <span className="text-yellow-600">🔄 진행중</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="border rounded-lg p-4">
+                  <h3 className="font-medium text-gray-900 mb-3 flex items-center">
+                    <span className="text-purple-600 mr-2">⚖️</span>
+                    지배구조 (Governance)
+                  </h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>이사회 구성</span>
+                      <span className="text-green-600">✅ 완료</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>윤리 경영</span>
+                      <span className="text-green-600">✅ 완료</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>투명성</span>
+                      <span className="text-yellow-600">🔄 진행중</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

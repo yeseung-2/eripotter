@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
+import { logInfo, logError, logWarn } from '@/lib/logger';
 
 // === ADD: API base util ===
 const BASE = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "";
@@ -35,32 +36,55 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
 
+    logInfo("🔐 로그인 시도", { user_id: userData.user_id });
+
     try {
       const url = join("/api/account/login");
+      logInfo("📡 API 요청", { url, method: "POST" });
+      
       const response = await axios.post(url, userData, {
         headers: { "Content-Type": "application/json" },
         withCredentials: true, // 쿠키 기반이면 필수
       });
 
+      logInfo("✅ 로그인 성공", response.data);
       console.log('로그인 성공:', response.data);
       
+      // 사용자 정보를 localStorage에 저장
+      if (response.data.company_id) {
+        localStorage.setItem('user_company_id', response.data.company_id);
+        localStorage.setItem('user_id', response.data.user_id);
+        localStorage.setItem('user_name', response.data.user_id); // 담당자 이름 (현재는 user_id 사용)
+        logInfo("💾 사용자 정보 저장", { 
+          user_id: response.data.user_id, 
+          company_id: response.data.company_id,
+          user_name: response.data.user_id
+        });
+      }
+      
       // 로그인 성공 시 대시보드로 리다이렉트
+      logInfo("🔄 대시보드로 리다이렉트");
       router.push('/dashboard');
       
     } catch (error) {
+      logError("❌ 로그인 실패", error as Error, { user_id: userData.user_id });
       console.error('로그인 실패:', error);
       
       if (axios.isAxiosError(error)) {
         if (error.response) {
-                     const data: { detail?: string; message?: string } = error.response.data ?? {};
+          const data: { detail?: string; message?: string } = error.response.data ?? {};
           const msg = data?.detail ?? data?.message ?? '알 수 없는 오류가 발생했습니다.';
+          logWarn("⚠️ 서버 응답 오류", { status: error.response.status, data });
           alert(`로그인 실패: ${msg}`);
         } else if (error.request) {
+          logError("❌ 서버 연결 실패", error as Error);
           alert('서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
         } else {
+          logError("❌ 네트워크 오류", error as Error);
           alert('네트워크 오류가 발생했습니다.');
         }
       } else {
+        logError("❌ 알 수 없는 로그인 오류", error as Error);
         alert('로그인 중 오류가 발생했습니다.');
       }
     } finally {
