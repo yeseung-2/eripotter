@@ -1,4 +1,19 @@
 services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+    networks:
+      - msa_network
+    depends_on:
+      - gateway
+
   gateway:
     build: 
       context: ./gateway
@@ -45,6 +60,7 @@ services:
       - ./service/account-service/requirements.txt:/app/requirements.txt
     environment:
       - PYTHONUNBUFFERED=1
+      - DATABASE_URL=postgresql://postgres:liyjJKKLWfrWOMFvdgPsWpJvcFdBUsks@switchyard.proxy.rlwy.net:38891/railway?sslmode=require
     networks:
       - msa_network
 
@@ -57,6 +73,7 @@ services:
       - ./service/assessment-service/requirements.txt:/app/requirements.txt
     environment:
       - PYTHONUNBUFFERED=1
+      - DATABASE_URL=postgresql://postgres:liyjJKKLWfrWOMFvdgPsWpJvcFdBUsks@switchyard.proxy.rlwy.net:38891/railway?sslmode=require
     networks:
       - msa_network
 
@@ -144,6 +161,21 @@ services:
     networks:
       - msa_network
 
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=eripotter
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - msa_network
+    restart: always
+
   redis:
     image: redis:7-alpine
     container_name: redis
@@ -153,9 +185,12 @@ services:
       - msa_network
     restart: always
 
+volumes:
+  postgres_data:
+
 networks:
   msa_network:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.25.0.0/16
+        - subnet: 172.26.0.0/16
