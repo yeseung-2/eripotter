@@ -1,9 +1,18 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import axios from '@/lib/axios';
 import { useAuthStore } from '@/store/useStore';
+
+interface Choice {
+  text: string;
+  score: number;
+}
+
+interface Choices {
+  [key: string]: Choice;
+}
 
 interface AssessmentResult {
   id: number;
@@ -22,14 +31,13 @@ interface Question {
   id: number;
   question_text: string;
   question_type: string;
-  choices?: any;
+  choices?: Choices;
   category?: string;
   weight: number;
 }
 
 const AssessmentResultPage = () => {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { user, isAuthenticated } = useAuthStore();
   const [results, setResults] = useState<AssessmentResult[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -154,8 +162,8 @@ const AssessmentResultPage = () => {
         } else {
           setError('자가진단 결과를 찾을 수 없습니다.');
         }
-      } catch (error: any) {
-        console.error('데이터 로드 실패:', error);
+      } catch (err: unknown) {
+        console.error('데이터 로드 실패:', err);
         setError('데이터를 불러오는 중 오류가 발생했습니다.');
       } finally {
         setLoading(false);
@@ -163,7 +171,7 @@ const AssessmentResultPage = () => {
     };
 
     fetchData();
-  }, [isAuthenticated, user, router]);
+  }, [isAuthenticated, user, router, sampleQuestions]);
 
   const getAnswerText = (result: AssessmentResult) => {
     const question = questions.find(q => q.id === result.question_id);

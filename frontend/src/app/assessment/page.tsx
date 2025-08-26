@@ -5,27 +5,29 @@ import { useRouter } from 'next/navigation';
 import axios from '@/lib/axios';
 import { useAuthStore } from '@/store/useStore';
 
+interface Choice {
+  text: string;
+  score: number;
+}
+
+interface Choices {
+  [key: string]: Choice;
+}
+
 interface Question {
   id: number;
   question_text: string;
   question_type: string;
-  choices?: any; // levels_json 또는 choices_json
+  choices?: Choices;
   category?: string;
   weight: number;
-}
-
-interface AssessmentResponse {
-  question_id: number;
-  question_type: string;
-  level_id?: number;
-  choice_ids?: number[];
 }
 
 const AssessmentPage = () => {
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [responses, setResponses] = useState<Record<number, any>>({});
+  const [responses, setResponses] = useState<Record<number, number | number[]>>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -314,16 +316,16 @@ const AssessmentPage = () => {
     }
 
     fetchQuestions();
-  }, [isAuthenticated, user, router]);
+  }, [isAuthenticated, user, router, sampleQuestions]);
 
-  const handleResponseChange = (questionId: number, value: any, questionType: string) => {
+  const handleResponseChange = (questionId: number, value: number | number[], questionType: string) => {
     setResponses(prev => {
       if (questionType === 'five_choice') {
         // checkbox의 경우 배열로 관리
-        const currentChoices = prev[questionId] || [];
-        const newChoices = currentChoices.includes(value)
-          ? currentChoices.filter((choice: any) => choice !== value)
-          : [...currentChoices, value];
+        const currentChoices = (prev[questionId] as number[]) || [];
+        const newChoices = currentChoices.includes(value as number)
+          ? currentChoices.filter((choice: number) => choice !== value)
+          : [...currentChoices, value as number];
         
         return {
           ...prev,
@@ -333,7 +335,7 @@ const AssessmentPage = () => {
         // radio의 경우 단일 값
         return {
           ...prev,
-          [questionId]: value
+          [questionId]: value as number
         };
       }
     });
@@ -452,7 +454,7 @@ const AssessmentPage = () => {
                             <input
                               type="checkbox"
                               value={choice.id}
-                              checked={Array.isArray(responses[question.id]) && responses[question.id].includes(choice.id)}
+                              checked={Array.isArray(responses[question.id]) && (responses[question.id] as number[]).includes(choice.id)}
                               onChange={(e) => handleResponseChange(question.id, choice.id, question.question_type)}
                               className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                             />
