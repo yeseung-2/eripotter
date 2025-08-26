@@ -281,14 +281,15 @@ const AssessmentPage = () => {
           console.log('첫 번째 kesg 항목:', response.data.items[0]);
           
           // kesg 데이터를 기존 형식으로 변환
-          const transformedQuestions = response.data.items.map((item: any, index: number) => {
+          const transformedQuestions = response.data.items.map((item: unknown, index: number) => {
             console.log(`변환 중 ${index + 1}번째 항목:`, item);
+            const typedItem = item as { id: number; item_name: string; question_type?: string; choices?: unknown; category?: string };
             return {
-              id: item.id,
-              question_text: item.item_name, // item_name을 question_text로 사용
-              question_type: item.question_type || "three_level",
-              choices: item.choices || {},
-              category: item.category || "자가진단",
+              id: typedItem.id,
+              question_text: typedItem.item_name, // item_name을 question_text로 사용
+              question_type: typedItem.question_type || "three_level",
+              choices: typedItem.choices || {},
+              category: typedItem.category || "자가진단",
               weight: 1
             };
           });
@@ -316,7 +317,7 @@ const AssessmentPage = () => {
     }
 
     fetchQuestions();
-  }, [isAuthenticated, user, router, sampleQuestions]);
+  }, [isAuthenticated, user, router]);
 
   const handleResponseChange = (questionId: number, value: number | number[], questionType: string) => {
     setResponses(prev => {
@@ -391,9 +392,9 @@ const AssessmentPage = () => {
         alert('제출 중 오류가 발생했습니다.');
       }
       
-    } catch (error: any) {
-      console.error('제출 실패:', error);
-      const errorMessage = error.response?.data?.detail || '제출 중 오류가 발생했습니다.';
+    } catch (err: unknown) {
+      console.error('제출 실패:', err);
+      const errorMessage = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || '제출 중 오류가 발생했습니다.';
       alert(`제출 실패: ${errorMessage}`);
     } finally {
       setSubmitting(false);
@@ -449,13 +450,13 @@ const AssessmentPage = () => {
                    {question.question_type === 'five_choice' ? (
                      // checkbox 렌더링 (choices_json)
                      <div className="space-y-2">
-                                               {Array.isArray(question.choices) && question.choices.map((choice: any) => (
+                                               {Array.isArray(question.choices) && question.choices.map((choice: { id: number; text: string }) => (
                           <label key={choice.id} className="flex items-center">
                             <input
                               type="checkbox"
                               value={choice.id}
                               checked={Array.isArray(responses[question.id]) && (responses[question.id] as number[]).includes(choice.id)}
-                              onChange={(e) => handleResponseChange(question.id, choice.id, question.question_type)}
+                              onChange={() => handleResponseChange(question.id, choice.id, question.question_type)}
                               className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                             />
                             <span className="ml-2 text-gray-700">{choice.text}</span>
@@ -465,14 +466,14 @@ const AssessmentPage = () => {
                    ) : (
                      // radio 버튼 렌더링 (levels_json)
                      <div className="space-y-2">
-                                               {Array.isArray(question.choices) && question.choices.map((level: any) => (
+                                               {Array.isArray(question.choices) && question.choices.map((level: { level_no: number; label: string; desc: string }) => (
                           <label key={level.level_no} className="flex items-center">
                             <input
                               type="radio"
                               name={`question-${question.id}`}
                               value={level.level_no}
                               checked={responses[question.id] === level.level_no}
-                              onChange={(e) => handleResponseChange(question.id, level.level_no, question.question_type)}
+                              onChange={() => handleResponseChange(question.id, level.level_no, question.question_type)}
                               className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 focus:ring-2"
                             />
                             <div className="ml-2">

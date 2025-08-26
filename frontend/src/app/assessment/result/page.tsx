@@ -130,14 +130,17 @@ const AssessmentResultPage = () => {
         try {
           const questionResponse = await axios.get('/api/assessment/kesg');
           if (questionResponse.data && questionResponse.data.items && questionResponse.data.items.length > 0) {
-            questionData = questionResponse.data.items.map((item: any) => ({
-              id: item.id,
-              question_text: item.item_name,
-              question_type: item.question_type || "four_level",
-              choices: item.choices || {},
-              category: item.category || "자가진단",
-              weight: 1
-            }));
+            questionData = questionResponse.data.items.map((item: unknown) => {
+              const typedItem = item as { id: number; item_name: string; question_type?: string; choices?: unknown; category?: string };
+              return {
+                id: typedItem.id,
+                question_text: typedItem.item_name,
+                question_type: typedItem.question_type || "four_level",
+                choices: typedItem.choices || {},
+                category: typedItem.category || "자가진단",
+                weight: 1
+              };
+            });
           }
         } catch (error) {
           console.log('문항 데이터 로드 실패, 샘플 데이터 사용');
@@ -171,7 +174,7 @@ const AssessmentResultPage = () => {
     };
 
     fetchData();
-  }, [isAuthenticated, user, router, sampleQuestions]);
+  }, [isAuthenticated, user, router]);
 
   const getAnswerText = (result: AssessmentResult) => {
     const question = questions.find(q => q.id === result.question_id);
