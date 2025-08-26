@@ -45,3 +45,21 @@ class AssessmentController:
     
     def get_metrics(self):
         return self.service.get_metrics()
+    
+    def submit_assessment(self, company_id: str, responses: List[Dict[str, Any]]) -> bool:
+        """자가진단 응답 제출"""
+        try:
+            logger.info(f"📝 자가진단 응답 제출 컨트롤러 요청: company_id={company_id}")
+            return self.service.submit_assessment(company_id, responses)
+        except Exception as e:
+            logger.error(f"❌ 자가진단 응답 제출 컨트롤러 오류: {e}")
+            raise
+    
+    def get_company_results(self, company_id: str) -> List[Dict[str, Any]]:
+        """특정 회사의 자가진단 결과 조회"""
+        try:
+            logger.info(f"📝 회사별 결과 조회 컨트롤러 요청: company_id={company_id}")
+            return self.service.get_company_results(company_id)
+        except Exception as e:
+            logger.error(f"❌ 회사별 결과 조회 컨트롤러 오류: {e}")
+            raise

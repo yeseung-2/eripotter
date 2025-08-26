@@ -1,7 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import axios from '@/lib/axios';
+import { useAuthStore } from '@/store/useStore';
 
 interface Question {
   id: number;
@@ -20,6 +22,8 @@ interface AssessmentResponse {
 }
 
 const AssessmentPage = () => {
+  const router = useRouter();
+  const { user, isAuthenticated } = useAuthStore();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [responses, setResponses] = useState<Record<number, any>>({});
   const [loading, setLoading] = useState(true);
@@ -302,8 +306,15 @@ const AssessmentPage = () => {
       }
     };
 
+    // 인증 체크
+    if (!isAuthenticated || !user) {
+      alert('로그인이 필요합니다.');
+      router.push('/');
+      return;
+    }
+
     fetchQuestions();
-  }, []);
+  }, [isAuthenticated, user, router]);
 
   const handleResponseChange = (questionId: number, value: any, questionType: string) => {
     setResponses(prev => {
@@ -346,8 +357,17 @@ const AssessmentPage = () => {
 
     setSubmitting(true);
     try {
+      // 로그인한 사용자의 company_id 사용
+      if (!user || !user.company_id) {
+        alert('사용자 정보를 찾을 수 없습니다. 다시 로그인해주세요.');
+        router.push('/');
+        return;
+      }
+      
+      const company_id = user.company_id;
+      
       const assessmentData = {
-        company_id: "sample_company", // 나중에 실제 기업 ID로 변경
+        company_id: company_id,
         responses: questions.map(question => ({
           question_id: question.id,
           question_type: question.question_type,
@@ -356,14 +376,23 @@ const AssessmentPage = () => {
         }))
       };
 
-      // const response = await axios.post('/assessment/', assessmentData);
-      console.log('제출된 데이터:', assessmentData);
-      alert('자가진단이 완료되었습니다!');
+      console.log('제출할 데이터:', assessmentData);
       
-      // 결과 페이지로 이동하거나 다른 처리
-    } catch (error) {
+      const response = await axios.post('/api/assessment/', assessmentData);
+      console.log('제출 응답:', response.data);
+      
+      if (response.data.status === 'success') {
+        alert('자가진단이 성공적으로 완료되었습니다!');
+        // 결과 페이지로 이동
+        router.push('/assessment/result');
+      } else {
+        alert('제출 중 오류가 발생했습니다.');
+      }
+      
+    } catch (error: any) {
       console.error('제출 실패:', error);
-      alert('제출 중 오류가 발생했습니다.');
+      const errorMessage = error.response?.data?.detail || '제출 중 오류가 발생했습니다.';
+      alert(`제출 실패: ${errorMessage}`);
     } finally {
       setSubmitting(false);
     }
@@ -418,38 +447,38 @@ const AssessmentPage = () => {
                    {question.question_type === 'five_choice' ? (
                      // checkbox 렌더링 (choices_json)
                      <div className="space-y-2">
-                       {Array.isArray(question.choices) && question.choices.map((choice: any) => (
-                         <label key={choice.id} className="flex items-center">
-                           <input
-                             type="checkbox"
-                             value={choice.id}
-                             checked={Array.isArray(responses[question.id]) && responses[question.id].includes(choice.id)}
-                             onChange={(e) => handleResponseChange(question.id, choice.id, question.question_type)}
-                             className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                           />
-                           <span className="ml-2 text-gray-700">{choice.text}</span>
-                         </label>
-                       ))}
+                                               {Array.isArray(question.choices) && question.choices.map((choice: any) => (
+                          <label key={choice.id} className="flex items-center">
+                            <input
+                              type="checkbox"
+                              value={choice.id}
+                              checked={Array.isArray(responses[question.id]) && responses[question.id].includes(choice.id)}
+                              onChange={(e) => handleResponseChange(question.id, choice.id, question.question_type)}
+                              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                            />
+                            <span className="ml-2 text-gray-700">{choice.text}</span>
+                          </label>
+                        ))}
                      </div>
                    ) : (
                      // radio 버튼 렌더링 (levels_json)
                      <div className="space-y-2">
-                       {Array.isArray(question.choices) && question.choices.map((level: any) => (
-                         <label key={level.level_no} className="flex items-center">
-                           <input
-                             type="radio"
-                             name={`question-${question.id}`}
-                             value={level.level_no}
-                             checked={responses[question.id] === level.level_no}
-                             onChange={(e) => handleResponseChange(question.id, level.level_no, question.question_type)}
-                             className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 focus:ring-2"
-                           />
-                           <div className="ml-2">
-                             <div className="font-medium text-gray-700">{level.label}</div>
-                             <div className="text-sm text-gray-600">{level.desc}</div>
-                           </div>
-                         </label>
-                       ))}
+                                               {Array.isArray(question.choices) && question.choices.map((level: any) => (
+                          <label key={level.level_no} className="flex items-center">
+                            <input
+                              type="radio"
+                              name={`question-${question.id}`}
+                              value={level.level_no}
+                              checked={responses[question.id] === level.level_no}
+                              onChange={(e) => handleResponseChange(question.id, level.level_no, question.question_type)}
+                              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 focus:ring-2"
+                            />
+                            <div className="ml-2">
+                              <div className="font-medium text-gray-700">{level.label}</div>
+                              <div className="text-sm text-gray-600">{level.desc}</div>
+                            </div>
+                          </label>
+                        ))}
                      </div>
                    )}
                  </div>

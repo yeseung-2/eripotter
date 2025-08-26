@@ -24,3 +24,11 @@ class AssessmentResponse(BaseModel):
     company_id: str
     created_at: datetime
     status: str
+
+class AssessmentSubmission(BaseModel):
+    company_id: str
+    question_id: int
+    question_type: str
+    level_no: Optional[int] = None
+    choice_ids: Optional[List[int]] = None
+    score: int

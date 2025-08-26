@@ -26,4 +26,4 @@ def get_db_engine():
         or (parsed.hostname or "").endswith("railway.app")
     ):
         connect_args["sslmode"] = "require"
-    return create_engine(url, pool_pre_ping=True, connect_args=connect_args)
+    return create_engine(url, pool_pre_ping=True, connect_args=connect_args) 

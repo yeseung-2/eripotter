@@ -68,7 +68,13 @@ class AccountService:
                     status="success",
                     message="로그인 성공",
                     user_id=user["user_id"],
-                    company_id=user["company_id"]
+                    company_id=user["company_id"],
+                    user_name=user.get("user_name"),
+                    user={
+                        "user_id": user["user_id"],
+                        "company_id": user["company_id"],
+                        "user_name": user.get("user_name")
+                    }
                 )
             else:
                 logger.warning(f"⚠️ 로그인 실패 - 비밀번호 불일치: {login_data.user_id}")

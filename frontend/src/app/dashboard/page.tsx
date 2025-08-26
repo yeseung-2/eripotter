@@ -2,8 +2,10 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 
 export default function CompanyDashboard() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState('overview');
 
   // 더미 데이터
@@ -83,6 +85,12 @@ export default function CompanyDashboard() {
                 {tab.name}
               </button>
             ))}
+            <button
+              onClick={() => router.push('/assessment')}
+              className="py-4 px-4 bg-blue-600 text-white font-medium text-sm rounded-lg hover:bg-blue-700 transition-colors ml-4"
+            >
+              자가진단 하러가기
+            </button>
           </nav>
         </div>
       </div>

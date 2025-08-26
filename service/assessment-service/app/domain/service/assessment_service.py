@@ -65,3 +65,56 @@ class AssessmentService:
     
     def get_metrics(self):
         return {"message": "get_metrics - 구현 예정"}
+    
+    def submit_assessment(self, company_id: str, responses: List[Dict[str, Any]]) -> bool:
+        """자가진단 응답 제출 및 저장"""
+        try:
+            logger.info(f"📝 자가진단 응답 제출 요청: company_id={company_id}, responses_count={len(responses)}")
+            
+            submissions = []
+            for response in responses:
+                # submission 데이터 구성
+                submission = {
+                    'company_id': company_id,
+                    'question_id': response['question_id'],
+                    'question_type': response['question_type']
+                }
+                
+                # question_type에 따라 적절한 필드 설정
+                if response['question_type'] in ['three_level', 'five_level']:
+                    submission['level_no'] = response.get('level_id')
+                elif response['question_type'] == 'five_choice':
+                    submission['choice_ids'] = response.get('choice_ids')
+                
+                submissions.append(submission)
+            
+            # 배치로 점수 계산 (성능 최적화)
+            submissions_with_scores = self.repository.calculate_scores_batch(submissions)
+            
+            # 데이터베이스에 저장
+            success = self.repository.save_assessment_responses(submissions_with_scores)
+            
+            if success:
+                logger.info(f"✅ 자가진단 응답 제출 성공: {len(submissions)}개 응답 저장")
+            else:
+                logger.error("❌ 자가진단 응답 제출 실패")
+            
+            return success
+            
+        except Exception as e:
+            logger.error(f"❌ 자가진단 응답 제출 서비스 오류: {e}")
+            raise
+    
+    def get_company_results(self, company_id: str) -> List[Dict[str, Any]]:
+        """특정 회사의 자가진단 결과 조회"""
+        try:
+            logger.info(f"📝 회사별 결과 조회 요청: company_id={company_id}")
+            
+            results = self.repository.get_company_results(company_id)
+            
+            logger.info(f"✅ 회사별 결과 조회 성공: {len(results)}개 결과")
+            return results
+            
+        except Exception as e:
+            logger.error(f"❌ 회사별 결과 조회 서비스 오류: {e}")
+            raise
