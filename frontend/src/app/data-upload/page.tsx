@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { logInfo } from '@/lib/logger';
 
 interface UploadedFile {
   id: string;
@@ -65,7 +64,7 @@ export default function PartnerDataUploadPage() {
           userName: displayName
         }));
 
-        logInfo("👤 사용자 정보 로드", { 
+        console.log("👤 사용자 정보 로드", { 
           user_id: userId, 
           company_id: companyId, 
           company_name: companyName,
@@ -77,7 +76,7 @@ export default function PartnerDataUploadPage() {
 
   // 파일 업로드 처리
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    logInfo("📁 파일 업로드 시작", { fileCount: acceptedFiles.length });
+    console.log("📁 파일 업로드 시작", { fileCount: acceptedFiles.length });
     
     const newFiles: UploadedFile[] = acceptedFiles.map(file => ({
       id: Math.random().toString(36).substr(2, 9),
@@ -122,7 +121,7 @@ export default function PartnerDataUploadPage() {
             return { ...file, progress: file.progress + 10 };
           } else {
             clearInterval(uploadInterval);
-            logInfo("✅ 파일 업로드 완료", { fileName: file.name });
+            console.log("✅ 파일 업로드 완료", { fileName: file.name });
             return { ...file, status: 'mapping', progress: 0 };
           }
         }
@@ -226,7 +225,7 @@ export default function PartnerDataUploadPage() {
             mappingScore: 0.83
           };
           
-          logInfo("🗺️ 데이터 매핑 완료", { 
+          console.log("🗺️ 데이터 매핑 완료", { 
             fileName: file.name, 
             mappedCount: mappingResult.mappedFields.length,
             mappingScore: mappingResult.mappingScore
@@ -267,7 +266,7 @@ export default function PartnerDataUploadPage() {
                 ] : []
               };
               
-              logInfo("🤖 AI 검증 완료", { 
+              console.log("🤖 AI 검증 완료", { 
                 fileName: file.name, 
                 isValid: aiValidationResult.isValid,
                 confidence: aiValidationResult.confidence,
@@ -290,7 +289,7 @@ export default function PartnerDataUploadPage() {
   // 전체 파일 삭제
   const removeAllFiles = () => {
     setUploadedFiles([]);
-    logInfo("🗑️ 전체 파일 삭제");
+    console.log("🗑️ 전체 파일 삭제");
   };
 
   // 선택된 파일들 삭제
@@ -314,7 +313,7 @@ export default function PartnerDataUploadPage() {
   const removeSelectedFiles = () => {
     setUploadedFiles(prev => prev.filter(f => !selectedFiles.includes(f.id)));
     setSelectedFiles([]);
-    logInfo("🗑️ 선택된 파일들 삭제", { count: selectedFiles.length });
+    console.log("🗑️ 선택된 파일들 삭제", { count: selectedFiles.length });
   };
 
   const selectAllFiles = () => {
@@ -519,7 +518,7 @@ export default function PartnerDataUploadPage() {
           : file
       ));
 
-      logInfo("🗺️ 매핑 수정 완료", { 
+      console.log("🗺️ 매핑 수정 완료", { 
         fileName: currentMappingFile.name,
         mappedCount: mappingFields.length,
         unmappedCount: unmappedFields.length
