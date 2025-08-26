@@ -245,7 +245,7 @@ const AssessmentResultPage = () => {
             <div>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">자가진단 결과</h1>
               <p className="text-gray-600">
-                {user?.company_id} 회사의 자가진단 결과입니다.
+                {user?.company_id}의의 자가진단 결과입니다.
               </p>
             </div>
             <button
