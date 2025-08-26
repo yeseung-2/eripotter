@@ -18,6 +18,7 @@ interface UploadedFile {
   uploadedBy: string;
   description?: string;
   version?: string;
+  file?: File; // 실제 File 객체 저장
 }
 
 interface CompanyData {
@@ -33,12 +34,13 @@ export default function PartnerDataUploadPage() {
   const [activeTab, setActiveTab] = useState<'upload' | 'dashboard' | 'reports'>('upload');
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [partnerInfo, setPartnerInfo] = useState({
-    name: 'LG화학',
-    companyId: 'LG001',
-    status: 'active',
-    lastSubmission: '2024-01-15',
-    nextDeadline: '2024-02-15'
-  });
+     name: 'LG화학',
+     companyId: 'LG001',
+     status: 'active',
+     lastSubmission: '2024-01-15',
+     nextDeadline: '2024-02-15',
+     userName: '담당자'
+   });
 
   // 사용자 정보 로드
   useEffect(() => {
@@ -96,7 +98,8 @@ export default function PartnerDataUploadPage() {
       uploadedAt: new Date().toISOString(),
       uploadedBy: '김철수', // 실제로는 로그인된 사용자 정보
       description: '',
-      version: '1.0'
+      version: '1.0',
+      file: file // 실제 File 객체 저장
     }));
 
     setUploadedFiles(prev => [...prev, ...newFiles]);
@@ -142,15 +145,94 @@ export default function PartnerDataUploadPage() {
         if (file.id === fileId) {
           const mappingResult = {
             mappedFields: [
-              { original: '탄소배출량', mapped: 'carbon_emissions', confidence: 0.95 },
-              { original: '에너지효율성', mapped: 'energy_efficiency', confidence: 0.87 },
-              { original: '폐기물관리', mapped: 'waste_management', confidence: 0.92 },
-              { original: '노동조건', mapped: 'labor_conditions', confidence: 0.78 }
+              { 
+                original: '이산화탄소', 
+                mapped: 'GHG-CO2', 
+                confidence: 0.95,
+                casNumber: '124-38-9',
+                englishName: 'Carbon dioxide',
+                msdsName: '이산화탄소',
+                esgIndicator: '온실가스별 배출량',
+                industryClass: '공통',
+                required: '필수',
+                unit: 'tonCO2eq'
+              },
+              { 
+                original: '에너지소비량', 
+                mapped: 'ENERGY-CONSUMPTION', 
+                confidence: 0.87,
+                casNumber: 'N/A',
+                englishName: 'Energy Consumption',
+                msdsName: '에너지소비량',
+                esgIndicator: '에너지 효율성',
+                industryClass: '공통',
+                required: '필수',
+                unit: 'GJ'
+              },
+              { 
+                original: '폐기물발생량', 
+                mapped: 'WASTE-GENERATION', 
+                confidence: 0.92,
+                casNumber: 'N/A',
+                englishName: 'Waste Generation',
+                msdsName: '폐기물발생량',
+                esgIndicator: '폐기물 관리',
+                industryClass: '공통',
+                required: '필수',
+                unit: 'ton'
+              }
+            ],
+            reviewFields: [
+              { 
+                original: '노동시간', 
+                mapped: 'LABOR-HOURS', 
+                confidence: 0.75,
+                casNumber: 'N/A',
+                englishName: 'Labor Hours',
+                msdsName: '노동시간',
+                esgIndicator: '노동 조건',
+                industryClass: '공통',
+                required: '필수',
+                unit: 'hours'
+              },
+              { 
+                original: 'HFC-227ea', 
+                mapped: 'GHG-HFCs', 
+                confidence: 0.72,
+                casNumber: '431-89-0',
+                englishName: '1,1,1,2,3,3,3-Heptafluoropropane',
+                msdsName: '헵타플루오로프로판',
+                esgIndicator: '온실가스별 배출량',
+                industryClass: '공통',
+                required: '선택',
+                unit: 'tonCO2eq'
+              }
             ],
             unmappedFields: [
-              { field: '공급망관리', reason: '표준 필드에 매핑할 수 없음' }
+              { 
+                field: '공급망관리', 
+                reason: '표준 필드에 매핑할 수 없음',
+                casNumber: 'N/A',
+                englishName: 'Supply Chain Management',
+                msdsName: '공급망관리',
+                esgIndicator: 'N/A',
+                industryClass: 'N/A',
+                required: 'N/A',
+                unit: 'N/A'
+              },
+              { 
+                field: '육발화황', 
+                reason: '매핑 신뢰도가 낮음 (50% 미만)',
+                casNumber: '2551-62-4',
+                englishName: 'Sulfur hexafluoride',
+                msdsName: '육불화황',
+                esgIndicator: '온실가스별 배출량',
+                industryClass: '공통',
+                required: '선택',
+                unit: 'tonCO2eq'
+              }
             ],
-            mappingScore: 0.85
+            mappingScore: 0.83
           };
           
           logInfo("🗺️ 데이터 매핑 완료", { 
@@ -228,6 +310,13 @@ export default function PartnerDataUploadPage() {
 
   // 선택된 파일들 삭제
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
+  const [previewFile, setPreviewFile] = useState<File | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [showMappingModal, setShowMappingModal] = useState(false);
+  const [currentMappingFile, setCurrentMappingFile] = useState<UploadedFile | null>(null);
+  const [mappingFields, setMappingFields] = useState<any[]>([]);
+  const [reviewFields, setReviewFields] = useState<any[]>([]);
+  const [unmappedFields, setUnmappedFields] = useState<any[]>([]);
   
   const toggleFileSelection = (fileId: string) => {
     setSelectedFiles(prev => 
@@ -249,6 +338,210 @@ export default function PartnerDataUploadPage() {
 
   const deselectAllFiles = () => {
     setSelectedFiles([]);
+  };
+
+  // 파일 미리보기 함수
+  const handlePreviewFile = (file: UploadedFile) => {
+    if (file.file) {
+      setPreviewFile(file.file);
+      setShowPreview(true);
+    }
+  };
+
+  // 파일 미리보기 닫기
+  const closePreview = () => {
+    setShowPreview(false);
+    setPreviewFile(null);
+  };
+
+  // 매핑 모달 열기
+  const openMappingModal = (file: UploadedFile) => {
+    if (file.mappingResult) {
+      setCurrentMappingFile(file);
+      setMappingFields(file.mappingResult.mappedFields || []);
+      setReviewFields(file.mappingResult.reviewFields || []);
+      setUnmappedFields(file.mappingResult.unmappedFields || []);
+      setShowMappingModal(true);
+    }
+  };
+
+  // 매핑 모달 닫기
+  const closeMappingModal = () => {
+    setShowMappingModal(false);
+    setCurrentMappingFile(null);
+    setMappingFields([]);
+    setReviewFields([]);
+    setUnmappedFields([]);
+  };
+
+  // 매핑 필드 수정
+  const updateMappingField = (index: number, newMapping: any) => {
+    setMappingFields(prev => prev.map((field, i) => 
+      i === index ? { ...field, ...newMapping } : field
+    ));
+  };
+
+  // 검토 필드 수정
+  const updateReviewField = (index: number, newReview: any) => {
+    setReviewFields(prev => prev.map((field, i) => 
+      i === index ? { ...field, ...newReview } : field
+    ));
+  };
+
+  // 매핑되지 않은 필드에 매핑 추가
+  const addMappingForUnmappedField = (unmappedIndex: number, targetField: string) => {
+    const unmappedField = unmappedFields[unmappedIndex];
+    
+    // 표준 필드 정보 매핑
+    const standardFieldInfo = {
+      'GHG-CO2': {
+        casNumber: '124-38-9',
+        englishName: 'Carbon dioxide',
+        msdsName: '이산화탄소',
+        esgIndicator: '온실가스별 배출량',
+        industryClass: '공통',
+        required: '필수',
+        unit: 'tonCO2eq'
+      },
+      'GHG-N2O': {
+        casNumber: '10024-97-2',
+        englishName: 'Dinitrogen oxide',
+        msdsName: '아산화질소',
+        esgIndicator: '온실가스별 배출량',
+        industryClass: '공통',
+        required: '필수',
+        unit: 'tonCO2eq'
+      },
+      'GHG-HFCs': {
+        casNumber: 'N/A',
+        englishName: 'Hydrofluorocarbons',
+        msdsName: '수소불화탄소',
+        esgIndicator: '온실가스별 배출량',
+        industryClass: '공통',
+        required: '선택',
+        unit: 'tonCO2eq'
+      },
+      'GHG-SF6': {
+        casNumber: '2551-62-4',
+        englishName: 'Sulfur hexafluoride',
+        msdsName: '육불화황',
+        esgIndicator: '온실가스별 배출량',
+        industryClass: '공통',
+        required: '선택',
+        unit: 'tonCO2eq'
+      },
+      'GHG-NF3': {
+        casNumber: '7783-54-2',
+        englishName: 'Nitrogen trifluoride',
+        msdsName: '삼불화질소',
+        esgIndicator: '온실가스별 배출량',
+        industryClass: '공통',
+        required: '선택',
+        unit: 'tonCO2eq'
+      },
+      'ENERGY-CONSUMPTION': {
+        casNumber: 'N/A',
+        englishName: 'Energy Consumption',
+        msdsName: '에너지소비량',
+        esgIndicator: '에너지 효율성',
+        industryClass: '공통',
+        required: '필수',
+        unit: 'GJ'
+      },
+      'WASTE-GENERATION': {
+        casNumber: 'N/A',
+        englishName: 'Waste Generation',
+        msdsName: '폐기물발생량',
+        esgIndicator: '폐기물 관리',
+        industryClass: '공통',
+        required: '필수',
+        unit: 'ton'
+      },
+      'LABOR-HOURS': {
+        casNumber: 'N/A',
+        englishName: 'Labor Hours',
+        msdsName: '노동시간',
+        esgIndicator: '노동 조건',
+        industryClass: '공통',
+        required: '필수',
+        unit: 'hours'
+      },
+      'SUPPLY-CHAIN': {
+        casNumber: 'N/A',
+        englishName: 'Supply Chain Management',
+        msdsName: '공급망관리',
+        esgIndicator: '공급망 관리',
+        industryClass: '공통',
+        required: '필수',
+        unit: 'N/A'
+      },
+      'STD-VOC': {
+        casNumber: 'N/A',
+        englishName: 'Volatile Organic Compounds',
+        msdsName: '휘발성유기화합물',
+        esgIndicator: '대기오염물질 배출량',
+        industryClass: '공통',
+        required: '선택',
+        unit: 'ton'
+      },
+      'APE-VOC': {
+        casNumber: 'N/A',
+        englishName: 'Air Pollutant Emissions - VOC',
+        msdsName: '대기오염물질',
+        esgIndicator: '대기오염물질 배출량',
+        industryClass: '공통',
+        required: '필수',
+        unit: 'ton'
+      }
+    };
+
+    const fieldInfo = standardFieldInfo[targetField as keyof typeof standardFieldInfo] || {
+      casNumber: 'N/A',
+      englishName: 'Unknown',
+      msdsName: '알 수 없음',
+      esgIndicator: 'N/A',
+      industryClass: 'N/A',
+      required: 'N/A',
+      unit: 'N/A'
+    };
+
+    const newMapping = {
+      original: unmappedField.field,
+      mapped: targetField,
+      confidence: 0.5, // 수동 매핑이므로 중간 신뢰도
+      isManual: true,
+      ...fieldInfo
+    };
+    
+    setMappingFields(prev => [...prev, newMapping]);
+    setUnmappedFields(prev => prev.filter((_, i) => i !== unmappedIndex));
+  };
+
+  // 매핑 저장
+  const saveMapping = () => {
+    if (currentMappingFile) {
+      const updatedMappingResult = {
+        ...currentMappingFile.mappingResult,
+        mappedFields: mappingFields,
+        reviewFields: reviewFields, // 새로 추가된 상태
+        unmappedFields: unmappedFields,
+        mappingScore: mappingFields.length / (mappingFields.length + unmappedFields.length)
+      };
+
+      setUploadedFiles(prev => prev.map(file => 
+        file.id === currentMappingFile.id 
+          ? { ...file, mappingResult: updatedMappingResult }
+          : file
+      ));
+
+      logInfo("🗺️ 매핑 수정 완료", { 
+        fileName: currentMappingFile.name,
+        mappedCount: mappingFields.length,
+        unmappedCount: unmappedFields.length
+      });
+
+      closeMappingModal();
+    }
   };
 
   // 통계 계산
@@ -481,7 +774,9 @@ export default function PartnerDataUploadPage() {
                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">크기</th>
                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">업로드자</th>
                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">업로드 시간</th>
-                                                       <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28">상태</th>
+                           <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28">상태</th>
+                           <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">원문보기</th>
+                           <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">매핑</th>
                          </tr>
                        </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -498,11 +793,18 @@ export default function PartnerDataUploadPage() {
                              <td className="px-3 py-4 whitespace-nowrap">
                                <div className="flex items-center">
                                  <div className="flex-shrink-0 h-8 w-8">
-                                   {file.status === 'uploading' && <span className="text-blue-500 text-lg">⏳</span>}
-                                   {file.status === 'mapping' && <span className="text-yellow-500 text-lg">🗺️</span>}
-                                   {file.status === 'ai_validating' && <span className="text-purple-500 text-lg">🤖</span>}
-                                   {file.status === 'success' && <span className="text-green-500 text-lg">✅</span>}
-                                   {file.status === 'error' && <span className="text-red-500 text-lg">❌</span>}
+                                   {/* 파일 타입별 아이콘 */}
+                                   {file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls') ? (
+                                     <span className="text-green-600 text-lg">📈</span>
+                                   ) : file.name.toLowerCase().endsWith('.pdf') ? (
+                                     <span className="text-red-600 text-lg">📄</span>
+                                   ) : file.name.toLowerCase().endsWith('.csv') ? (
+                                     <span className="text-blue-600 text-lg">📊</span>
+                                   ) : file.name.toLowerCase().endsWith('.txt') ? (
+                                     <span className="text-gray-600 text-lg">📝</span>
+                                   ) : (
+                                     <span className="text-gray-500 text-lg">📁</span>
+                                   )}
                                  </div>
                                  <div className="ml-3 min-w-0 flex-1">
                                    <div className="text-sm font-medium text-gray-900 truncate">{file.name}</div>
@@ -545,6 +847,35 @@ export default function PartnerDataUploadPage() {
                                   </div>
                                 )}
                               </td>
+                              <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <div className="flex space-x-2">
+                                                                     <button
+                                     onClick={() => handlePreviewFile(file)}
+                                     className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 shadow-sm hover:shadow-md"
+                                   >
+                                     <svg className="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                     </svg>
+                                     원문보기
+                                   </button>
+                                </div>
+                              </td>
+                              <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <div className="flex space-x-2">
+                                   {file.mappingResult && (
+                                     <button
+                                       onClick={() => openMappingModal(file)}
+                                       className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200 shadow-sm hover:shadow-md"
+                                     >
+                                       <svg className="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                       </svg>
+                                       매핑수정
+                                     </button>
+                                   )}
+                                 </div>
+                               </td>
                            </tr>
                          ))}
                       </tbody>
@@ -715,6 +1046,351 @@ export default function PartnerDataUploadPage() {
           </div>
         )}
       </main>
+
+      {/* 파일 미리보기 모달 */}
+      {showPreview && previewFile && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-gray-900">파일 미리보기</h3>
+                <button
+                  onClick={closePreview}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <span className="text-2xl">×</span>
+                </button>
+              </div>
+              
+              <div className="mb-4">
+                <h4 className="font-medium text-gray-900 mb-2">{previewFile.name}</h4>
+                <p className="text-sm text-gray-600">
+                  크기: {formatFileSize(previewFile.size)} | 
+                  타입: {previewFile.type}
+                </p>
+              </div>
+
+              <div className="border rounded-lg p-4 bg-gray-50 max-h-96 overflow-y-auto">
+                {previewFile.type.includes('text') || previewFile.type.includes('csv') ? (
+                  <pre className="text-sm text-gray-800 whitespace-pre-wrap">
+                    {/* 텍스트 파일 내용을 여기에 표시 */}
+                    파일 내용을 읽는 중...
+                  </pre>
+                ) : previewFile.type.includes('pdf') ? (
+                  <div className="text-center py-8">
+                    <div className="text-6xl mb-4">📄</div>
+                    <p className="text-gray-600">PDF 파일은 미리보기를 지원하지 않습니다.</p>
+                    <a
+                      href={URL.createObjectURL(previewFile)}
+                      download={previewFile.name}
+                      className="mt-4 inline-block bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                    >
+                      다운로드
+                    </a>
+                  </div>
+                ) : previewFile.type.includes('excel') || previewFile.type.includes('spreadsheet') ? (
+                  <div className="text-center py-8">
+                    <div className="text-6xl mb-4">📊</div>
+                    <p className="text-gray-600">Excel 파일은 미리보기를 지원하지 않습니다.</p>
+                    <a
+                      href={URL.createObjectURL(previewFile)}
+                      download={previewFile.name}
+                      className="mt-4 inline-block bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                    >
+                      다운로드
+                    </a>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="text-6xl mb-4">📁</div>
+                    <p className="text-gray-600">이 파일 형식은 미리보기를 지원하지 않습니다.</p>
+                    <a
+                      href={URL.createObjectURL(previewFile)}
+                      download={previewFile.name}
+                      className="mt-4 inline-block bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                    >
+                      다운로드
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end mt-4 space-x-3">
+                <button
+                  onClick={closePreview}
+                  className="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400"
+                >
+                  닫기
+                </button>
+                <a
+                  href={URL.createObjectURL(previewFile)}
+                  download={previewFile.name}
+                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                >
+                  다운로드
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 매핑 수정 모달 */}
+      {showMappingModal && currentMappingFile && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-10 mx-auto p-5 border w-11/12 md:w-4/5 lg:w-3/4 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-gray-900">데이터 매핑 수정</h3>
+                <button
+                  onClick={closeMappingModal}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <span className="text-2xl">×</span>
+                </button>
+              </div>
+              
+              <div className="mb-4">
+                <h4 className="font-medium text-gray-900 mb-2">{currentMappingFile.name}</h4>
+                <p className="text-sm text-gray-600">
+                  AI가 자동으로 매핑한 결과를 검토하고 수정할 수 있습니다.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* 매핑된 필드 */}
+                <div className="border rounded-lg p-4">
+                  <h5 className="font-medium text-gray-900 mb-3 flex items-center">
+                    <span className="text-green-600 mr-2">✅</span>
+                    매핑된 필드 ({mappingFields.length})
+                  </h5>
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {mappingFields.map((field, index) => (
+                      <div key={index} className="border rounded p-3 bg-green-50">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-900">
+                               원본: {field.original}
+                             </div>
+                             <div className="text-sm text-gray-600">
+                               매핑: {field.mapped}
+                             </div>
+                             <div className="text-xs text-gray-500 mt-1">
+                               CAS: {field.casNumber} | 단위: {field.unit}
+                             </div>
+                             <div className="text-xs text-gray-500">
+                               영문: {field.englishName} | MSDS: {field.msdsName}
+                             </div>
+                           </div>
+                           <div className="flex items-center space-x-2">
+                             <span className={`px-2 py-1 text-xs rounded-full ${
+                               field.confidence >= 0.8 ? 'bg-green-100 text-green-800' :
+                               field.confidence >= 0.6 ? 'bg-yellow-100 text-yellow-800' :
+                               'bg-red-100 text-red-800'
+                             }`}>
+                               {Math.round(field.confidence * 100)}%
+                             </span>
+                             {field.isManual && (
+                               <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                                 수동
+                               </span>
+                             )}
+                           </div>
+                         </div>
+                         <div className="flex space-x-2">
+                           <select
+                             value={field.mapped}
+                             onChange={(e) => updateMappingField(index, { mapped: e.target.value })}
+                             className="text-xs border rounded px-2 py-1 flex-1"
+                           >
+                             <option value="GHG-CO2">GHG-CO2 (이산화탄소)</option>
+                             <option value="GHG-N2O">GHG-N2O (아산화질소)</option>
+                             <option value="GHG-HFCs">GHG-HFCs (수소불화탄소)</option>
+                             <option value="GHG-SF6">GHG-SF6 (육불화황)</option>
+                             <option value="GHG-NF3">GHG-NF3 (삼불화질소)</option>
+                             <option value="ENERGY-CONSUMPTION">에너지 소비량</option>
+                             <option value="WASTE-GENERATION">폐기물 발생량</option>
+                             <option value="LABOR-HOURS">노동 시간</option>
+                             <option value="SUPPLY-CHAIN">공급망 관리</option>
+                             <option value="STD-VOC">STD-VOC (휘발성유기화합물)</option>
+                             <option value="APE-VOC">APE-VOC (대기오염물질)</option>
+                           </select>
+                           <button
+                             onClick={() => {
+                               setMappingFields(prev => prev.filter((_, i) => i !== index));
+                               setUnmappedFields(prev => [...prev, { 
+                                 field: field.original, 
+                                 reason: '수동으로 매핑 해제됨',
+                                 casNumber: field.casNumber,
+                                 englishName: field.englishName,
+                                 msdsName: field.msdsName,
+                                 esgIndicator: field.esgIndicator,
+                                 industryClass: field.industryClass,
+                                 required: field.required,
+                                 unit: field.unit
+                               }]);
+                             }}
+                             className="text-xs text-red-600 hover:text-red-800 px-2 py-1 border border-red-300 rounded hover:bg-red-50"
+                           >
+                             해제
+                           </button>
+                         </div>
+                       </div>
+                     ))}
+                  </div>
+                </div>
+
+                {/* 검토가 필요한 필드 */}
+                <div className="border rounded-lg p-4">
+                  <h5 className="font-medium text-gray-900 mb-3 flex items-center">
+                    <span className="text-yellow-600 mr-2">⚠️</span>
+                    검토가 필요한 필드 ({reviewFields.length})
+                  </h5>
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {reviewFields.map((field, index) => (
+                      <div key={index} className="border rounded p-3 bg-yellow-50">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-900">
+                               원본: {field.original}
+                             </div>
+                             <div className="text-sm text-gray-600">
+                               매핑: {field.mapped}
+                             </div>
+                             <div className="text-xs text-gray-500 mt-1">
+                                CAS: {field.casNumber} | 단위: {field.unit}
+                             </div>
+                             <div className="text-xs text-gray-500">
+                               영문: {field.englishName} | MSDS: {field.msdsName}
+                             </div>
+                           </div>
+                           <div className="flex items-center space-x-2">
+                             <span className={`px-2 py-1 text-xs rounded-full ${
+                               field.confidence >= 0.8 ? 'bg-green-100 text-green-800' :
+                               field.confidence >= 0.6 ? 'bg-yellow-100 text-yellow-800' :
+                               'bg-red-100 text-red-800'
+                             }`}>
+                               {Math.round(field.confidence * 100)}%
+                             </span>
+                             {field.isManual && (
+                               <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                                 수동
+                               </span>
+                             )}
+                           </div>
+                         </div>
+                         <div className="flex space-x-2">
+                           <select
+                             value={field.mapped}
+                             onChange={(e) => updateReviewField(index, { mapped: e.target.value })}
+                             className="text-xs border rounded px-2 py-1 flex-1"
+                           >
+                             <option value="GHG-CO2">GHG-CO2 (이산화탄소)</option>
+                             <option value="GHG-N2O">GHG-N2O (아산화질소)</option>
+                             <option value="GHG-HFCs">GHG-HFCs (수소불화탄소)</option>
+                             <option value="GHG-SF6">GHG-SF6 (육불화황)</option>
+                             <option value="GHG-NF3">GHG-NF3 (삼불화질소)</option>
+                             <option value="ENERGY-CONSUMPTION">에너지 소비량</option>
+                             <option value="WASTE-GENERATION">폐기물 발생량</option>
+                             <option value="LABOR-HOURS">노동 시간</option>
+                             <option value="SUPPLY-CHAIN">공급망 관리</option>
+                             <option value="STD-VOC">STD-VOC (휘발성유기화합물)</option>
+                             <option value="APE-VOC">APE-VOC (대기오염물질)</option>
+                           </select>
+                           <button
+                             onClick={() => {
+                               setReviewFields(prev => prev.filter((_, i) => i !== index));
+                               setUnmappedFields(prev => [...prev, { 
+                                 field: field.original, 
+                                 reason: '수동으로 매핑 해제됨',
+                                 casNumber: field.casNumber,
+                                 englishName: field.englishName,
+                                 msdsName: field.msdsName,
+                                 esgIndicator: field.esgIndicator,
+                                 industryClass: field.industryClass,
+                                 required: field.required,
+                                 unit: field.unit
+                               }]);
+                             }}
+                             className="text-xs text-red-600 hover:text-red-800 px-2 py-1 border border-red-300 rounded hover:bg-red-50"
+                           >
+                             해제
+                           </button>
+                         </div>
+                       </div>
+                     ))}
+                   </div>
+                 </div>
+
+                 {/* 매핑되지 않은 필드 */}
+                 <div className="border rounded-lg p-4">
+                   <h5 className="font-medium text-gray-900 mb-3 flex items-center">
+                     <span className="text-red-600 mr-2">❌</span>
+                     매핑되지 않은 필드 ({unmappedFields.length})
+                   </h5>
+                   <div className="space-y-3 max-h-96 overflow-y-auto">
+                     {unmappedFields.map((field, index) => (
+                       <div key={index} className="border rounded p-3 bg-red-50">
+                         <div className="text-sm font-medium text-gray-900 mb-2">
+                           원본: {field.field}
+                         </div>
+                         <div className="text-xs text-gray-600 mb-2">
+                           사유: {field.reason}
+                         </div>
+                         {field.casNumber !== 'N/A' && (
+                           <div className="text-xs text-gray-500 mb-1">
+                             CAS: {field.casNumber} | 영문: {field.englishName}
+                           </div>
+                         )}
+                         {field.unit !== 'N/A' && (
+                           <div className="text-xs text-gray-500 mb-2">
+                             단위: {field.unit} | MSDS: {field.msdsName}
+                           </div>
+                         )}
+                         <div className="flex space-x-2">
+                           <select
+                             onChange={(e) => addMappingForUnmappedField(index, e.target.value)}
+                             className="text-xs border rounded px-2 py-1 flex-1"
+                             defaultValue=""
+                           >
+                             <option value="" disabled>매핑할 필드 선택</option>
+                             <option value="GHG-CO2">GHG-CO2 (이산화탄소)</option>
+                             <option value="GHG-N2O">GHG-N2O (아산화질소)</option>
+                             <option value="GHG-HFCs">GHG-HFCs (수소불화탄소)</option>
+                             <option value="GHG-SF6">GHG-SF6 (육불화황)</option>
+                             <option value="GHG-NF3">GHG-NF3 (삼불화질소)</option>
+                             <option value="ENERGY-CONSUMPTION">에너지 소비량</option>
+                             <option value="WASTE-GENERATION">폐기물 발생량</option>
+                             <option value="LABOR-HOURS">노동 시간</option>
+                             <option value="SUPPLY-CHAIN">공급망 관리</option>
+                             <option value="STD-VOC">STD-VOC (휘발성유기화합물)</option>
+                             <option value="APE-VOC">APE-VOC (대기오염물질)</option>
+                           </select>
+                         </div>
+                       </div>
+                     ))}
+                   </div>
+                 </div>
+               </div>
+
+              <div className="flex justify-end mt-6 space-x-3">
+                <button
+                  onClick={closeMappingModal}
+                  className="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={saveMapping}
+                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                >
+                  매핑 저장
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
