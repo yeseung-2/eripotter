@@ -10,9 +10,8 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  ReferenceLine,
 } from "recharts";
-import { Leaf, Users, Scale, AlertTriangle } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 
 // --- Color System ------------------------------------------------------------
 // Status accents must be: green(우수), yellow(양호), red(위험)
@@ -20,17 +19,20 @@ import { Leaf, Users, Scale, AlertTriangle } from "lucide-react";
   EXCELLENT: { 
     text: "우수", 
     color: "text-green-600",
-    shadow: "shadow-[0_4px_12px_rgba(34,197,94,0.35)]"
+    shadow: "shadow-[0_4px_12px_rgba(34,197,94,0.35)]",
+    chip: "bg-green-50 text-green-600"
   },
   FAIR: { 
     text: "양호", 
     color: "text-yellow-600",
-    shadow: "shadow-[0_4px_12px_rgba(234,179,8,0.35)]"
+    shadow: "shadow-[0_4px_12px_rgba(234,179,8,0.35)]",
+    chip: "bg-yellow-50 text-yellow-600"
   },
   RISK: { 
     text: "위험", 
     color: "text-red-600",
-    shadow: "shadow-[0_4px_12px_rgba(239,68,68,0.35)]"
+    shadow: "shadow-[0_4px_12px_rgba(239,68,68,0.35)]",
+    chip: "bg-red-50 text-red-600"
   },
 };
 
@@ -50,6 +52,25 @@ const THEME = {
   blueA: "#93c5fd",
   blueB: "#60a5fa",
   blueC: "#3b82f6",
+};
+// --- Types -----------------------------------------------------------------
+type ScorePoint = { month: string; E: number; S: number; G: number };
+
+type TimelineItem = {
+  id: number;
+  company: string;
+  status: string;
+  score: number | null;
+  time: string;
+};
+
+type CompanyRow = {
+  id: number;
+  name: string;
+  progress: number;
+  status: string;
+  lastUpdate: string;
+  score: number | null;
 };
 
 // --- Helpers -----------------------------------------------------------------
@@ -108,7 +129,7 @@ function StatCard({ title, score }: { title: string; score: number }) {
   );
 }
 
-function TrendChart({ data }: { data: any[] }) {
+function TrendChart({ data }: { data: ScorePoint[] }) {
   const minY = 0;
   const maxY = 100;
   return (
@@ -147,12 +168,12 @@ function TrendChart({ data }: { data: any[] }) {
   );
 }
 
-function Timeline({ items }: { items: any[] }) {
+function Timeline({ items }: { items: TimelineItem[] }) {
   return (
     <div className={`rounded-2xl border ${THEME.border} ${THEME.cardBg} p-6 shadow-sm`}>
       <h3 className="text-lg font-semibold text-slate-900 mb-4">최근 활동</h3>
       <ol className="relative border-s border-slate-200">
-        {items.map((a, i) => (
+        {items.map((a) => (
           <li key={a.id} className="ms-6 py-4">
             <span
               className={`absolute -start-2.5 mt-1 flex h-5 w-5 items-center justify-center rounded-full ring-4 ring-white ${
@@ -182,7 +203,7 @@ function Timeline({ items }: { items: any[] }) {
   );
 }
 
-function CompanyTable({ rows }: { rows: any[] }) {
+function CompanyTable({ rows }: { rows: CompanyRow[] }) {
   return (
     <div className={`rounded-2xl border ${THEME.border} ${THEME.cardBg} shadow-sm overflow-hidden`}>
       <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
@@ -202,7 +223,7 @@ function CompanyTable({ rows }: { rows: any[] }) {
           </thead>
           <tbody className="divide-y divide-slate-200 text-sm">
             {rows.map((company) => {
-              const s = company.status === "완료" && company.score != null ? getStatusInfo(company.score) : null;
+              const statusInfo = company.status === "완료" && company.score != null ? getStatusInfo(company.score) : null;
               return (
                 <tr key={company.id} className="hover:bg-slate-50/70">
                   <td className="px-6 py-3 font-medium text-slate-900">{company.name}</td>
@@ -231,7 +252,7 @@ function CompanyTable({ rows }: { rows: any[] }) {
                         <span className="tabular-nums">{company.score}점</span>
                         <span
                           className="inline-block h-2 w-2 rounded-full"
-                          style={{ background: getStatusInfo(company.score).color }}
+                          style={{ background: statusInfo?.color }}
                         />
                       </span>
                     ) : (
