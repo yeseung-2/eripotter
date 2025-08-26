@@ -1,5 +1,10 @@
 {
   "buildCommand": "pnpm run build",
   "installCommand": "pnpm install",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "functions": {
+    "frontend/src/app/**/*.tsx": {
+      "runtime": "nodejs18.x"
+    }
+  }
 }
