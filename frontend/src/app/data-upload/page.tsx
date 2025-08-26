@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { logInfo, logError, logWarn } from '@/lib/logger';
+import { logInfo } from '@/lib/logger';
 
 interface UploadedFile {
   id: string;
@@ -19,15 +19,6 @@ interface UploadedFile {
   description?: string;
   version?: string;
   file?: File; // 실제 File 객체 저장
-}
-
-interface CompanyData {
-  id: string;
-  name: string;
-  type: 'partner' | 'client';
-  status: 'active' | 'pending' | 'approved';
-  lastUpdated: string;
-  dataQuality: number;
 }
 
 export default function PartnerDataUploadPage() {
@@ -294,12 +285,6 @@ export default function PartnerDataUploadPage() {
         }));
       }, 300);
     }, 2000);
-  };
-
-  // 파일 삭제
-  const removeFile = (fileId: string) => {
-    setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
-    logInfo("🗑️ 파일 삭제", { fileId });
   };
 
   // 전체 파일 삭제

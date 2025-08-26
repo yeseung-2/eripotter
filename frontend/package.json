@@ -4,8 +4,10 @@
   "private": true,
   "packageManager": "pnpm@10.14.0",
   "engines": {
-    "node": ">=18.18 <23"
+    "node": ">=18.18 <23",
+    "pnpm": ">=8.0.0"
   },
+
   "scripts": {
     "dev": "next dev",
     "build": "next build",
