@@ -1,7 +1,8 @@
 'use client'
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
+import { useRouter } from 'next/navigation';
 import {
   LineChart,
   Line,
@@ -10,27 +11,29 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  ReferenceLine,
 } from "recharts";
-import { Leaf, Users, Scale, AlertTriangle } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 
 // --- Color System ------------------------------------------------------------
 // Status accents must be: green(우수), yellow(양호), red(위험)
-  const STATUS = {
+const STATUS = {
   EXCELLENT: { 
     text: "우수", 
     color: "text-green-600",
-    shadow: "shadow-[0_4px_12px_rgba(34,197,94,0.35)]"
+    shadow: "shadow-[0_4px_12px_rgba(34,197,94,0.35)]",
+    chip: "bg-green-50 text-green-600"
   },
   FAIR: { 
     text: "양호", 
     color: "text-yellow-600",
-    shadow: "shadow-[0_4px_12px_rgba(234,179,8,0.35)]"
+    shadow: "shadow-[0_4px_12px_rgba(234,179,8,0.35)]",
+    chip: "bg-yellow-50 text-yellow-600"
   },
   RISK: { 
     text: "위험", 
     color: "text-red-600",
-    shadow: "shadow-[0_4px_12px_rgba(239,68,68,0.35)]"
+    shadow: "shadow-[0_4px_12px_rgba(239,68,68,0.35)]",
+    chip: "bg-red-50 text-red-600"
   },
 };
 
@@ -50,6 +53,26 @@ const THEME = {
   blueA: "#93c5fd",
   blueB: "#60a5fa",
   blueC: "#3b82f6",
+};
+
+// --- Types -----------------------------------------------------------------
+type ScorePoint = { month: string; E: number; S: number; G: number };
+
+type TimelineItem = {
+  id: number;
+  company: string;
+  status: string;
+  score: number | null;
+  time: string;
+};
+
+type CompanyRow = {
+  id: number;
+  name: string;
+  progress: number;
+  status: string;
+  lastUpdate: string;
+  score: number | null;
 };
 
 // --- Helpers -----------------------------------------------------------------
@@ -108,7 +131,7 @@ function StatCard({ title, score }: { title: string; score: number }) {
   );
 }
 
-function TrendChart({ data }: { data: any[] }) {
+function TrendChart({ data }: { data: ScorePoint[] }) {
   const minY = 0;
   const maxY = 100;
   return (
@@ -147,12 +170,12 @@ function TrendChart({ data }: { data: any[] }) {
   );
 }
 
-function Timeline({ items }: { items: any[] }) {
+function Timeline({ items }: { items: TimelineItem[] }) {
   return (
     <div className={`rounded-2xl border ${THEME.border} ${THEME.cardBg} p-6 shadow-sm`}>
       <h3 className="text-lg font-semibold text-slate-900 mb-4">최근 활동</h3>
       <ol className="relative border-s border-slate-200">
-        {items.map((a, i) => (
+        {items.map((a) => (
           <li key={a.id} className="ms-6 py-4">
             <span
               className={`absolute -start-2.5 mt-1 flex h-5 w-5 items-center justify-center rounded-full ring-4 ring-white ${
@@ -182,7 +205,7 @@ function Timeline({ items }: { items: any[] }) {
   );
 }
 
-function CompanyTable({ rows }: { rows: any[] }) {
+function CompanyTable({ rows }: { rows: CompanyRow[] }) {
   return (
     <div className={`rounded-2xl border ${THEME.border} ${THEME.cardBg} shadow-sm overflow-hidden`}>
       <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
@@ -202,7 +225,7 @@ function CompanyTable({ rows }: { rows: any[] }) {
           </thead>
           <tbody className="divide-y divide-slate-200 text-sm">
             {rows.map((company) => {
-              const s = company.status === "완료" && company.score != null ? getStatusInfo(company.score) : null;
+              const statusInfo = company.status === "완료" && company.score != null ? getStatusInfo(company.score) : null;
               return (
                 <tr key={company.id} className="hover:bg-slate-50/70">
                   <td className="px-6 py-3 font-medium text-slate-900">{company.name}</td>
@@ -231,7 +254,7 @@ function CompanyTable({ rows }: { rows: any[] }) {
                         <span className="tabular-nums">{company.score}점</span>
                         <span
                           className="inline-block h-2 w-2 rounded-full"
-                          style={{ background: getStatusInfo(company.score).color }}
+                          style={{ background: statusInfo?.color }}
                         />
                       </span>
                     ) : (
@@ -251,6 +274,20 @@ function CompanyTable({ rows }: { rows: any[] }) {
 // --- Page --------------------------------------------------------------------
 export default function SupplyChainDashboardPage() {
   const [activeTab, setActiveTab] = useState("overview");
+  const [mounted, setMounted] = useState(false);
+  const router = useRouter();
+
+  // 컴포넌트가 마운트된 후에만 router 사용
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // 마운트 전에는 router 기능 비활성화
+  const handleNavigation = (path: string) => {
+    if (mounted) {
+      router.push(path);
+    }
+  };
 
   // Replace with props / fetched data
   const esgScores = defaultScores;
@@ -260,39 +297,40 @@ export default function SupplyChainDashboardPage() {
 
   return (
     <div className={`min-h-screen ${THEME.pageBg}`}>
-      {/* Header (structure untouched, only the title text updated) */}
+      {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center -ml-15">
               <Image src="/logo.png" alt="ERI Logo" width={140} height={140} />
             </div>
-            <div className="flex items-center space-x-6">
-              {/* 고객사 모드 전환 버튼 */}
-              <button className="flex items-center space-x-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                </svg>
-                <span>고객사 모드</span>
+            <div className="flex items-center space-x-4">
+              {/* ESG 데이터 업로드 버튼 */}
+              <button
+                onClick={() => handleNavigation('/data-upload')}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+              >
+                <span>📊</span>
+                <span>ESG 데이터 업로드</span>
               </button>
-
-              {/* 알림 버튼 */}
-              <button className="relative p-2 text-gray-400 hover:text-gray-500">
+              
+              <div className="relative">
+                <a href="/chat" className="p-2 text-gray-400 hover:text-gray-500 transition-colors">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
-                <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white"></span>
-              </button>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                  <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white"></span>
+                </a>
+              </div>
 
-              {/* 프로필 버튼 */}
-              <button className="flex items-center space-x-3 group">
-                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 group-hover:bg-gray-300">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex items-center space-x-3">
+                <div className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
+                </div>
+                <span className="text-sm font-medium text-gray-700">관리자</span>
               </div>
-                 <span className="text-sm font-medium text-gray-700">관리자</span>
-              </button>
             </div>
           </div>
         </div>
@@ -329,18 +367,18 @@ export default function SupplyChainDashboardPage() {
         {activeTab === "overview" && (
           <div className="space-y-6">
             {/* ESG Score Summary */}
-                          <div className="bg-white rounded-xl shadow-sm mb-10">
-                <h3 className="text-2xl font-bold text-gray-800 mb-12 p-8 pb-0 text-center">공급망실사 자가진단 현황</h3>
-                <div className="flex flex-wrap justify-center gap-32 px-8">
-                  <StatCard title="환경(E)" score={esgScores.environmental.score} />
-                  <StatCard title="사회(S)" score={esgScores.social.score} />
-                  <StatCard title="지배구조(G)" score={esgScores.governance.score} />
-                </div>
-                <div className="flex justify-end p-8 pt-12">
-                  <p className="text-sm text-gray-500">자가진단 실시일: 2024.02.15</p>
-                </div>
+            <div className="bg-white rounded-xl shadow-sm mb-10">
+              <h3 className="text-2xl font-bold text-gray-800 mb-12 p-8 pb-0 text-center">공급망실사 자가진단 현황</h3>
+              <div className="flex flex-wrap justify-center gap-32 px-8">
+                <StatCard title="환경(E)" score={esgScores.environmental.score} />
+                <StatCard title="사회(S)" score={esgScores.social.score} />
+                <StatCard title="지배구조(G)" score={esgScores.governance.score} />
               </div>
-              <hr className="border-t border-gray-200 mb-6" />
+              <div className="flex justify-end p-8 pt-12">
+                <p className="text-sm text-gray-500">자가진단 실시일: 2024.02.15</p>
+              </div>
+            </div>
+            <hr className="border-t border-gray-200 mb-6" />
 
             {/* Chart + Timeline */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

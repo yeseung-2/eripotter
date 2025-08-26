@@ -11,7 +11,7 @@ services:
       - /app/.next
     environment:
       - NODE_ENV=development
-      - NEXT_PUBLIC_API_URL=http://localhost:8080
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
     restart: always
     depends_on:
       - gateway
@@ -28,15 +28,15 @@ services:
       - ./gateway:/app
     environment:
       - PYTHONUNBUFFERED=1
-      - ACCOUNT_SERVICE_URL=http://account-service:8001
-      - ASSESSMENT_SERVICE_URL=http://assessment-service:8002
-      - CHATBOT_SERVICE_URL=http://chatbot-service:8003
-      - MONITORING_SERVICE_URL=http://monitoring-service:8004
-      - NORMAL_SERVICE_URL=http://normal-service:8005
-      - REGULATION_SERVICE_URL=http://regulation-service:8006
-      - REPORT_SERVICE_URL=http://report-service:8007
-      - SHARING_SERVICE_URL=http://sharing-service:8008
-      - SOLUTION_SERVICE_URL=http://solution-service:8009
+      - ACCOUNT_SERVICE_URL=${ACCOUNT_SERVICE_URL}
+      - ASSESSMENT_SERVICE_URL=${ASSESSMENT_SERVICE_URL}
+      - CHATBOT_SERVICE_URL=${CHATBOT_SERVICE_URL}
+      - MONITORING_SERVICE_URL=${MONITORING_SERVICE_URL}
+      - NORMAL_SERVICE_URL=${NORMAL_SERVICE_URL}
+      - REGULATION_SERVICE_URL=${REGULATION_SERVICE_URL}
+      - REPORT_SERVICE_URL=${REPORT_SERVICE_URL}
+      - SHARING_SERVICE_URL=${SHARING_SERVICE_URL}
+      - SOLUTION_SERVICE_URL=${SOLUTION_SERVICE_URL}
     restart: always
     depends_on:
       - account-service
@@ -64,6 +64,7 @@ services:
       - ./service/account-service/requirements.txt:/app/requirements.txt
     environment:
       - PYTHONUNBUFFERED=1
+      - DATABASE_URL=${DATABASE_URL}
     env_file:
       - ./service/account-service/.env
     networks:
@@ -78,6 +79,7 @@ services:
       - ./service/assessment-service/requirements.txt:/app/requirements.txt
     environment:
       - PYTHONUNBUFFERED=1
+      - DATABASE_URL=${DATABASE_URL}
     env_file:
       - ./service/assessment-service/.env
     networks:
@@ -92,6 +94,7 @@ services:
       - ./service/chatbot-service/requirements.txt:/app/requirements.txt
     environment:
       - PYTHONUNBUFFERED=1
+      - DATABASE_URL=${DATABASE_URL}
     networks:
       - msa_network
 
@@ -104,6 +107,7 @@ services:
       - ./service/monitoring-service/requirements.txt:/app/requirements.txt
     environment:
       - PYTHONUNBUFFERED=1
+      - DATABASE_URL=${DATABASE_URL}
     networks:
       - msa_network
 
@@ -116,6 +120,7 @@ services:
       - ./service/normal-service/requirements.txt:/app/requirements.txt
     environment:
       - PYTHONUNBUFFERED=1
+      - DATABASE_URL=${DATABASE_URL}
     networks:
       - msa_network
 
@@ -128,6 +133,7 @@ services:
       - ./service/regulation-service/requirements.txt:/app/requirements.txt
     environment:
       - PYTHONUNBUFFERED=1
+      - DATABASE_URL=${DATABASE_URL}
     networks:
       - msa_network
 
@@ -140,6 +146,7 @@ services:
       - ./service/report-service/requirements.txt:/app/requirements.txt
     environment:
       - PYTHONUNBUFFERED=1
+      - DATABASE_URL=${DATABASE_URL}
     networks:
       - msa_network
 
@@ -152,6 +159,7 @@ services:
       - ./service/sharing-service/requirements.txt:/app/requirements.txt
     environment:
       - PYTHONUNBUFFERED=1
+      - DATABASE_URL=${DATABASE_URL}
     networks:
       - msa_network
 
@@ -164,8 +172,24 @@ services:
       - ./service/solution-service/requirements.txt:/app/requirements.txt
     environment:
       - PYTHONUNBUFFERED=1
+      - DATABASE_URL=${DATABASE_URL}
     networks:
       - msa_network
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=eripotter
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - msa_network
+    restart: always
 
   redis:
     image: redis:7-alpine
@@ -176,9 +200,12 @@ services:
       - msa_network
     restart: always
 
+volumes:
+  postgres_data:
+
 networks:
   msa_network:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.25.0.0/16
+        - subnet: 172.26.0.0/16
