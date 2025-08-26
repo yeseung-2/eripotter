@@ -16,4 +16,4 @@ class Settings:
     SERVICE_NAME = "assessment-service"
     PORT = int(os.getenv("PORT", "8002"))
 
-settings = Settings()
+settings = Settings() 
