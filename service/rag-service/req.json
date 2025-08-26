@@ -1,0 +1,5 @@
+﻿{
+  "question": "한온시스템의 2022년도 기후변화 관련 리스크와 기회를 감독하는 이사회의 역할은?",
+  "top_k": 5,
+  "collections": ["sr_corpus", "standards"]
+}
