@@ -41,6 +41,7 @@ def cors_headers_for(request: Request):
     return {}
 
 ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL")
+ASSESSMENT_SERVICE_URL = os.getenv("ASSESSMENT_SERVICE_URL", "http://localhost:8002")
 CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "http://localhost:8003")
 TIMEOUT = float(os.getenv("UPSTREAM_TIMEOUT", "20"))
 
@@ -111,6 +112,15 @@ async def account_root(request: Request):
 @app.api_route("/api/account/{path:path}", methods=["GET","POST","PUT","PATCH","DELETE"])
 async def account_any(path: str, request: Request):
     return await _proxy(request, ACCOUNT_SERVICE_URL, path)
+
+# ---- assessment-service 프록시 ----
+@app.api_route("/api/assessment", methods=["GET","POST","PUT","PATCH","DELETE"])
+async def assessment_root(request: Request):
+    return await _proxy(request, ASSESSMENT_SERVICE_URL, "/assessment")
+
+@app.api_route("/api/assessment/{path:path}", methods=["GET","POST","PUT","PATCH","DELETE"])
+async def assessment_any(path: str, request: Request):
+    return await _proxy(request, ASSESSMENT_SERVICE_URL, f"/assessment/{path}")
 
 # ---- chatbot-service 프록시 ----
 @app.api_route("/api/chatbot", methods=["GET","POST","PUT","PATCH","DELETE"])

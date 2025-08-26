@@ -1,4 +1,23 @@
 services:
+  frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+    restart: always
+    depends_on:
+      - gateway
+    networks:
+      - msa_network
+
   gateway:
     build: 
       context: ./gateway
@@ -45,6 +64,8 @@ services:
       - ./service/account-service/requirements.txt:/app/requirements.txt
     environment:
       - PYTHONUNBUFFERED=1
+    env_file:
+      - ./service/account-service/.env
     networks:
       - msa_network
 
@@ -57,6 +78,8 @@ services:
       - ./service/assessment-service/requirements.txt:/app/requirements.txt
     environment:
       - PYTHONUNBUFFERED=1
+    env_file:
+      - ./service/assessment-service/.env
     networks:
       - msa_network
 

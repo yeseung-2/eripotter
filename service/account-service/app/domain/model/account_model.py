@@ -15,3 +15,5 @@ class AccountResponse(BaseModel):
     message: str
     user_id: str
     company_id: Optional[str] = None
+    user_name: Optional[str] = None
+    user: Optional[dict] = None

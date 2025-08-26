@@ -7,7 +7,16 @@ const withPWA = require('next-pwa')({
 });
 
 const nextConfig = {
-  // 기타 옵션
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+        port: '',
+        pathname: '/**',
+      },
+    ],
+  },
 };
 
 module.exports = withPWA(nextConfig);
