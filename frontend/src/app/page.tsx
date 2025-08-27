@@ -3,7 +3,30 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
+
+interface LoginData {
+  user_id: string;
+  user_pw: string;
+}
+
+interface AccountResponse {
+  status: string;
+  message: string;
+  user_id: string;
+  company_id: string;
+  user_name?: string;
+  user: {
+    user_id: string;
+    company_id: string;
+    user_name?: string;
+  };
+}
+
+interface ApiErrorResponse {
+  detail?: string;
+  message?: string;
+}
 
 // === ADD: API base util ===
 const BASE = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "";
@@ -14,7 +37,7 @@ export default function LoginPage() {
   const router = useRouter();
 
   // Form state management
-  const [userData, setUserData] = useState({
+  const [userData, setUserData] = useState<LoginData>({
     user_id: '',
     user_pw: ''
   });
@@ -42,7 +65,7 @@ export default function LoginPage() {
       const url = join("/api/account/login");
       console.log("📡 API 요청", { url, method: "POST" });
       
-      const response = await axios.post(url, userData, {
+      const response = await axios.post<AccountResponse>(url, userData, {
         headers: { "Content-Type": "application/json" },
         withCredentials: true, // 쿠키 기반이면 필수
       });
@@ -72,7 +95,7 @@ export default function LoginPage() {
       
       if (axios.isAxiosError(error)) {
         if (error.response) {
-          const data: { detail?: string; message?: string } = error.response.data ?? {};
+          const data = error.response.data as ApiErrorResponse;
           const msg = data?.detail ?? data?.message ?? '알 수 없는 오류가 발생했습니다.';
           console.warn("⚠️ 서버 응답 오류", { status: error.response.status, data });
           alert(`로그인 실패: ${msg}`);

@@ -1,8 +1,15 @@
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 'use client';
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
+
+enum FileUploadStatus {
+  UPLOADING = 'uploading',
+  MAPPING = 'mapping',
+  AI_VALIDATING = 'ai_validating',
+  SUCCESS = 'success',
+  ERROR = 'error'
+}
 
 interface MappedField {
   original: string;
@@ -55,7 +62,7 @@ interface UploadedFile {
   name: string;
   size: number;
   type: string;
-  status: 'uploading' | 'mapping' | 'ai_validating' | 'success' | 'error';
+  status: FileUploadStatus;
   progress: number;
   mappingResult?: MappingResult;
   aiValidationResult?: AIValidationResult;
@@ -129,7 +136,7 @@ export default function PartnerDataUploadPage() {
       name: file.name,
       size: file.size,
       type: file.type,
-      status: 'uploading',
+      status: FileUploadStatus.UPLOADING,
       progress: 0,
       uploadedAt: new Date().toISOString(),
       uploadedBy: '김철수', // 실제로는 로그인된 사용자 정보
@@ -168,7 +175,7 @@ export default function PartnerDataUploadPage() {
           } else {
             clearInterval(uploadInterval);
             console.log("✅ 파일 업로드 완료", { fileName: file.name });
-            return { ...file, status: 'mapping', progress: 0 };
+            return { ...file, status: FileUploadStatus.MAPPING, progress: 0 };
           }
         }
         return file;
@@ -277,9 +284,9 @@ export default function PartnerDataUploadPage() {
             mappingScore: mappingResult.mappingScore
           });
           
-          return { 
+                      return { 
             ...file, 
-            status: 'ai_validating', 
+            status: FileUploadStatus.AI_VALIDATING, 
             progress: 0,
             mappingResult 
           };
@@ -321,7 +328,7 @@ export default function PartnerDataUploadPage() {
               
               return { 
                 ...file, 
-                status: aiValidationResult.isValid ? 'success' : 'error',
+                status: aiValidationResult.isValid ? FileUploadStatus.SUCCESS : FileUploadStatus.ERROR,
                 aiValidationResult 
               };
             }
@@ -577,10 +584,10 @@ export default function PartnerDataUploadPage() {
   // 통계 계산
   const stats = useMemo(() => {
     const totalFiles = uploadedFiles.length;
-    const successFiles = uploadedFiles.filter(f => f.status === 'success').length;
-    const errorFiles = uploadedFiles.filter(f => f.status === 'error').length;
+    const successFiles = uploadedFiles.filter(f => f.status === FileUploadStatus.SUCCESS).length;
+    const errorFiles = uploadedFiles.filter(f => f.status === FileUploadStatus.ERROR).length;
     const pendingFiles = uploadedFiles.filter(f => 
-      f.status === 'uploading' || f.status === 'mapping' || f.status === 'ai_validating'
+      f.status === FileUploadStatus.UPLOADING || f.status === FileUploadStatus.MAPPING || f.status === FileUploadStatus.AI_VALIDATING
     ).length;
 
     return { totalFiles, successFiles, errorFiles, pendingFiles };
@@ -853,23 +860,23 @@ export default function PartnerDataUploadPage() {
                              </td>
                                                            <td className="px-3 py-4 whitespace-nowrap">
                                 <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                  file.status === 'success' ? 'bg-green-100 text-green-800' :
-                                  file.status === 'error' ? 'bg-red-100 text-red-800' :
-                                  file.status === 'ai_validating' ? 'bg-purple-100 text-purple-800' :
-                                  file.status === 'mapping' ? 'bg-yellow-100 text-yellow-800' :
+                                  file.status === FileUploadStatus.SUCCESS ? 'bg-green-100 text-green-800' :
+                                  file.status === FileUploadStatus.ERROR ? 'bg-red-100 text-red-800' :
+                                  file.status === FileUploadStatus.AI_VALIDATING ? 'bg-purple-100 text-purple-800' :
+                                  file.status === FileUploadStatus.MAPPING ? 'bg-yellow-100 text-yellow-800' :
                                   'bg-blue-100 text-blue-800'
                                 }`}>
-                                  {file.status === 'uploading' ? '업로드중' :
-                                   file.status === 'mapping' ? '매핑중' :
-                                   file.status === 'ai_validating' ? 'AI검증중' :
-                                   file.status === 'success' ? '완료' : '오류'}
+                                  {file.status === FileUploadStatus.UPLOADING ? '업로드중' :
+                                   file.status === FileUploadStatus.MAPPING ? '매핑중' :
+                                   file.status === FileUploadStatus.AI_VALIDATING ? 'AI검증중' :
+                                   file.status === FileUploadStatus.SUCCESS ? '완료' : '오류'}
                                 </span>
-                                {(file.status === 'uploading' || file.status === 'mapping' || file.status === 'ai_validating') && (
+                                {(file.status === FileUploadStatus.UPLOADING || file.status === FileUploadStatus.MAPPING || file.status === FileUploadStatus.AI_VALIDATING) && (
                                   <div className="mt-1 w-full bg-gray-200 rounded-full h-1">
                                     <div
                                       className={`h-1 rounded-full transition-all duration-300 ${
-                                        file.status === 'uploading' ? 'bg-blue-600' :
-                                        file.status === 'mapping' ? 'bg-yellow-600' :
+                                        file.status === FileUploadStatus.UPLOADING ? 'bg-blue-600' :
+                                        file.status === FileUploadStatus.MAPPING ? 'bg-yellow-600' :
                                         'bg-purple-600'
                                       }`}
                                       style={{ width: `${file.progress}%` }}
