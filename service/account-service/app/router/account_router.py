@@ -8,7 +8,7 @@ from ..domain.controller.account_controller import AccountController
 from ..domain.service.account_service import AccountService
 from ..domain.repository.account_repository import AccountRepository
 from ..domain.model.account_model import LoginData, SignupData, AccountResponse
-from ..common.db import get_db_engine
+from eripotter_common.database.base import get_db_engine
 import logging
 
 logger = logging.getLogger("account-router")
