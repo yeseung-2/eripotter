@@ -6,7 +6,7 @@ import logging
 from typing import Dict, Any
 from ..repository.account_repository import AccountRepository
 from ..model.account_model import LoginData, SignupData, AccountResponse
-from ...common.security import hash_password, verify_password
+from eripotter_common.security import hash_password, verify_password
 
 logger = logging.getLogger("account-service")
 
