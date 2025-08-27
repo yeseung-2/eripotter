@@ -21,7 +21,7 @@ if os.getenv("RAILWAY_ENVIRONMENT") != "true":
     load_dotenv(find_dotenv())
 
 # ---------- Database ----------
-from .common.db import get_db_engine
+from eripotter_common.database.base import get_db_engine
 db_engine = get_db_engine()
 
 # ---------- FastAPI ----------

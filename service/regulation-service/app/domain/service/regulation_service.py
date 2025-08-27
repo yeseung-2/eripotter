@@ -1,6 +1,11 @@
+from eripotter_common.database.base import get_db_engine
+import logging
+
+logger = logging.getLogger("regulation-service")
+
 class RegulationService:
     def __init__(self):
-        pass
+        self.engine = get_db_engine()
 
     def get_all_regulations(self):
         """모든 규정안 목록 조회"""

@@ -1,6 +1,11 @@
+from eripotter_common.database.base import get_db_engine
+import logging
+
+logger = logging.getLogger("monitoring-service")
+
 class MonitoringService:
     def __init__(self):
-        pass
+        self.engine = get_db_engine()
 
     def get_all_monitoring_data(self):
         """모든 모니터링 데이터 조회"""

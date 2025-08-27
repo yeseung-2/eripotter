@@ -1,8 +1,5 @@
-fastapi==0.104.1
+eripotter-common==0.1.4
 uvicorn[standard]==0.24.0
-httpx==0.25.2
-pydantic==2.5.0
-python-dotenv==1.0.0
 
 # LangChain dependencies - 최신 안정 버전
 langchain>=0.1.20,<0.2
