@@ -1,6 +1,11 @@
+from eripotter_common.database.base import get_db_engine
+import logging
+
+logger = logging.getLogger("solution-service")
+
 class SolutionService:
     def __init__(self):
-        pass
+        self.engine = get_db_engine()
 
     def get_all_solutions(self):
         """모든 솔루션 목록 조회"""

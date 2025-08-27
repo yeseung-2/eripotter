@@ -1,6 +1,11 @@
+from eripotter_common.database.base import get_db_engine
+import logging
+
+logger = logging.getLogger("report-service")
+
 class ReportService:
     def __init__(self):
-        pass
+        self.engine = get_db_engine()
 
     def get_all_reports(self):
         """모든 보고서 목록 조회"""

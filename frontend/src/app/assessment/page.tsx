@@ -324,12 +324,12 @@ const AssessmentPage = () => {
       }
     };
 
-    // 인증 체크
-    if (!isAuthenticated || !user) {
-      alert('로그인이 필요합니다.');
-      router.push('/');
-      return;
-    }
+    // 인증 체크 임시 비활성화
+    // if (!isAuthenticated || !user) {
+    //   alert('로그인이 필요합니다.');
+    //   router.push('/');
+    //   return;
+    // }
 
     fetchQuestions();
   }, [isAuthenticated, user, router, sampleQuestions]);
@@ -375,14 +375,8 @@ const AssessmentPage = () => {
 
     setSubmitting(true);
     try {
-      // 로그인한 사용자의 company_id 사용
-      if (!user || !user.company_id) {
-        alert('사용자 정보를 찾을 수 없습니다. 다시 로그인해주세요.');
-        router.push('/');
-        return;
-      }
-      
-      const company_id = user.company_id;
+      // 임시로 고정된 company_id 사용
+      const company_id = "삼성";
       
       const assessmentData = {
         company_id: company_id,
