@@ -6,6 +6,7 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import logging, sys, traceback, os
+from eripotter_common.database.base import get_db_engine
 
 # ---------- Logging ----------
 logging.basicConfig(
@@ -55,7 +56,6 @@ app.add_middleware(
 )
 
 # ---------- Database Connection Test ----------
-from .common.db import get_db_engine
 from sqlalchemy import text
 
 # 서비스 시작 시 데이터베이스 연결 테스트
