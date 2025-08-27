@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from '@/lib/axios';
 import { useAuthStore } from '@/store/useStore';
@@ -332,7 +332,7 @@ const AssessmentPage = () => {
     }
 
     fetchQuestions();
-  }, [isAuthenticated, user, router]);
+  }, [isAuthenticated, user, router, sampleQuestions]);
 
   const handleResponseChange = (questionId: number, value: number | number[], questionType: string) => {
     setResponses(prev => {

@@ -185,7 +185,7 @@ const AssessmentResultPage = () => {
     };
 
     fetchData();
-  }, [isAuthenticated, user, router]);
+  }, [isAuthenticated, user, router, sampleQuestions]);
 
   const getAnswerText = (result: AssessmentResult) => {
     const question = questions.find(q => q.id === result.question_id);
