@@ -27,6 +27,17 @@ interface AssessmentResult {
   category?: string;
 }
 
+interface ApiQuestion {
+  id: number;
+  item_name: string;
+  question_text?: string;
+  question_type?: string;
+  levels_json?: Choices;
+  choices_json?: Choices;
+  category?: string;
+  weight?: number;
+}
+
 interface Question {
   id: number;
   question_text: string;
@@ -130,20 +141,19 @@ const AssessmentResultPage = () => {
         try {
           const questionResponse = await axios.get('/api/assessment/kesg');
           if (questionResponse.data && questionResponse.data.items && questionResponse.data.items.length > 0) {
-            questionData = questionResponse.data.items.map((item: unknown) => {
-              const typedItem = item as { id: number; item_name: string; question_type?: string; choices?: unknown; category?: string };
+            questionData = questionResponse.data.items.map((item: ApiQuestion) => {
               return {
-                id: typedItem.id,
-                question_text: typedItem.item_name,
-                question_type: typedItem.question_type || "four_level",
-                choices: typedItem.choices || {},
-                category: typedItem.category || "자가진단",
+                id: item.id,
+                question_text: item.question_text || item.item_name,
+                question_type: item.question_type || "four_level",
+                choices: item.question_type === 'five_choice' ? item.choices_json : item.levels_json || {},
+                category: item.category || "자가진단",
                 weight: 1
               };
             });
           }
-        } catch (error) {
-          console.log('문항 데이터 로드 실패, 샘플 데이터 사용');
+        } catch (error: Error | unknown) {
+          console.error('문항 데이터 로드 실패, 샘플 데이터 사용:', error);
         }
         setQuestions(questionData);
 
@@ -165,8 +175,9 @@ const AssessmentResultPage = () => {
         } else {
           setError('자가진단 결과를 찾을 수 없습니다.');
         }
-      } catch (err: unknown) {
-        console.error('데이터 로드 실패:', err);
+      } catch (err: Error | unknown) {
+        const errorMessage = err instanceof Error ? err.message : '알 수 없는 오류';
+        console.error('데이터 로드 실패:', errorMessage);
         setError('데이터를 불러오는 중 오류가 발생했습니다.');
       } finally {
         setLoading(false);
@@ -174,7 +185,7 @@ const AssessmentResultPage = () => {
     };
 
     fetchData();
-  }, [isAuthenticated, user, router]);
+  }, [isAuthenticated, user, router, sampleQuestions]);
 
   const getAnswerText = (result: AssessmentResult) => {
     const question = questions.find(q => q.id === result.question_id);

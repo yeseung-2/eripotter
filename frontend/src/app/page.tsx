@@ -4,6 +4,29 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 
+interface LoginData {
+  user_id: string;
+  user_pw: string;
+}
+
+interface AccountResponse {
+  status: string;
+  message: string;
+  user_id: string;
+  company_id: string;
+  user_name?: string;
+  user: {
+    user_id: string;
+    company_id: string;
+    user_name?: string;
+  };
+}
+
+interface ApiErrorResponse {
+  detail?: string;
+  message?: string;
+}
+
 // === ADD: API base util ===
 const BASE = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "";
 const join = (p: string) => (BASE ? `${BASE}${p}` : p);
@@ -13,7 +36,7 @@ export default function LoginPage() {
   const router = useRouter();
 
   // Form state management
-  const [userData, setUserData] = useState({
+  const [userData, setUserData] = useState<LoginData>({
     user_id: '',
     user_pw: ''
   });
@@ -35,32 +58,55 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
 
+    console.log("🔐 로그인 시도", { user_id: userData.user_id });
+
     try {
       const url = join("/api/account/login");
-      const response = await axios.post(url, userData, {
+      console.log("📡 API 요청", { url, method: "POST" });
+      
+      const response = await axios.post<AccountResponse>(url, userData, {
         headers: { "Content-Type": "application/json" },
         withCredentials: true, // 쿠키 기반이면 필수
       });
 
+      console.log("✅ 로그인 성공", response.data);
       console.log('로그인 성공:', response.data);
       
+      // 사용자 정보를 localStorage에 저장
+      if (response.data.company_id) {
+        localStorage.setItem('user_company_id', response.data.company_id);
+        localStorage.setItem('user_id', response.data.user_id);
+        localStorage.setItem('user_name', response.data.user_id); // 담당자 이름 (현재는 user_id 사용)
+        console.log("💾 사용자 정보 저장", { 
+          user_id: response.data.user_id, 
+          company_id: response.data.company_id,
+          user_name: response.data.user_id
+        });
+      }
+      
       // 로그인 성공 시 대시보드로 리다이렉트
+      console.log("🔄 대시보드로 리다이렉트");
       router.push('/dashboard');
       
     } catch (error) {
+      console.error("❌ 로그인 실패", error as Error, { user_id: userData.user_id });
       console.error('로그인 실패:', error);
       
       if (axios.isAxiosError(error)) {
         if (error.response) {
-                     const data: { detail?: string; message?: string } = error.response.data ?? {};
+          const data = error.response.data as ApiErrorResponse;
           const msg = data?.detail ?? data?.message ?? '알 수 없는 오류가 발생했습니다.';
+          console.warn("⚠️ 서버 응답 오류", { status: error.response.status, data });
           alert(`로그인 실패: ${msg}`);
         } else if (error.request) {
+          console.error("❌ 서버 연결 실패", error as Error);
           alert('서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
         } else {
+          console.error("❌ 네트워크 오류", error as Error);
           alert('네트워크 오류가 발생했습니다.');
         }
       } else {
+        console.error("❌ 알 수 없는 로그인 오류", error as Error);
         alert('로그인 중 오류가 발생했습니다.');
       }
     } finally {
