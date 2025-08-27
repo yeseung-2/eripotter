@@ -3,6 +3,52 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 
+interface MappedField {
+  original: string;
+  mapped: string;
+  confidence: number;
+  casNumber: string;
+  englishName: string;
+  msdsName: string;
+  esgIndicator: string;
+  industryClass: string;
+  required: string;
+  unit: string;
+  isManual?: boolean;
+}
+
+interface UnmappedField {
+  field: string;
+  reason: string;
+  casNumber: string;
+  englishName: string;
+  msdsName: string;
+  esgIndicator: string;
+  industryClass: string;
+  required: string;
+  unit: string;
+}
+
+interface MappingResult {
+  mappedFields: MappedField[];
+  reviewFields: MappedField[];
+  unmappedFields: UnmappedField[];
+  mappingScore: number;
+}
+
+interface ValidationIssue {
+  field: string;
+  severity: 'low' | 'medium' | 'high';
+  message: string;
+}
+
+interface AIValidationResult {
+  isValid: boolean;
+  confidence: number;
+  recommendations: string[];
+  issues: ValidationIssue[];
+}
+
 interface UploadedFile {
   id: string;
   name: string;
@@ -10,14 +56,13 @@ interface UploadedFile {
   type: string;
   status: 'uploading' | 'mapping' | 'ai_validating' | 'success' | 'error';
   progress: number;
-  validationResult?: any;
-  mappingResult?: any;
-  aiValidationResult?: any;
+  mappingResult?: MappingResult;
+  aiValidationResult?: AIValidationResult;
   uploadedAt: string;
   uploadedBy: string;
   description?: string;
   version?: string;
-  file?: File; // 실제 File 객체 저장
+  file?: File;
 }
 
 export default function PartnerDataUploadPage() {
@@ -261,8 +306,8 @@ export default function PartnerDataUploadPage() {
                   '탄소 배출량 데이터는 우수함'
                 ],
                 issues: Math.random() > 0.6 ? [
-                  { field: '공급망 관리', severity: 'medium', message: '데이터가 불완전합니다.' },
-                  { field: '에너지 효율성', severity: 'low', message: '단위 변환이 필요합니다.' }
+                  { field: '공급망 관리', severity: 'medium' as const, message: '데이터가 불완전합니다.' },
+                  { field: '에너지 효율성', severity: 'low' as const, message: '단위 변환이 필요합니다.' }
                 ] : []
               };
               
@@ -298,9 +343,9 @@ export default function PartnerDataUploadPage() {
   const [showPreview, setShowPreview] = useState(false);
   const [showMappingModal, setShowMappingModal] = useState(false);
   const [currentMappingFile, setCurrentMappingFile] = useState<UploadedFile | null>(null);
-  const [mappingFields, setMappingFields] = useState<any[]>([]);
-  const [reviewFields, setReviewFields] = useState<any[]>([]);
-  const [unmappedFields, setUnmappedFields] = useState<any[]>([]);
+  const [mappingFields, setMappingFields] = useState<MappedField[]>([]);
+  const [reviewFields, setReviewFields] = useState<MappedField[]>([]);
+  const [unmappedFields, setUnmappedFields] = useState<UnmappedField[]>([]);
   
   const toggleFileSelection = (fileId: string) => {
     setSelectedFiles(prev => 
@@ -359,14 +404,14 @@ export default function PartnerDataUploadPage() {
   };
 
   // 매핑 필드 수정
-  const updateMappingField = (index: number, newMapping: any) => {
+  const updateMappingField = (index: number, newMapping: Partial<MappedField>) => {
     setMappingFields(prev => prev.map((field, i) => 
       i === index ? { ...field, ...newMapping } : field
     ));
   };
 
   // 검토 필드 수정
-  const updateReviewField = (index: number, newReview: any) => {
+  const updateReviewField = (index: number, newReview: Partial<MappedField>) => {
     setReviewFields(prev => prev.map((field, i) => 
       i === index ? { ...field, ...newReview } : field
     ));
@@ -377,7 +422,7 @@ export default function PartnerDataUploadPage() {
     const unmappedField = unmappedFields[unmappedIndex];
     
     // 표준 필드 정보 매핑
-    const standardFieldInfo = {
+    const standardFieldInfo: Record<string, Omit<MappedField, 'original' | 'mapped' | 'confidence' | 'isManual'>> = {
       'GHG-CO2': {
         casNumber: '124-38-9',
         englishName: 'Carbon dioxide',
