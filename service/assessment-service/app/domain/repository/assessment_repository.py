@@ -7,9 +7,8 @@ from ..model.assessment_model import KesgItem
 logger = logging.getLogger("assessment-repository")
 
 class AssessmentRepository:
-    def __init__(self, database_url: str):
-        self.database_url = database_url
-        self.engine = create_engine(database_url)
+    def __init__(self, engine):
+        self.engine = engine
     
     def get_kesg_items(self) -> List[KesgItem]:
         """kesg 테이블에서 모든 데이터 조회"""

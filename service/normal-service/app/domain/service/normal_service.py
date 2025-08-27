@@ -1,6 +1,12 @@
+from eripotter_common.database.base import get_db_engine
+import logging
+from datetime import datetime
+
+logger = logging.getLogger("normal-service")
+
 class NormalService:
     def __init__(self):
-        pass
+        self.engine = get_db_engine()
 
     def get_all_normalized_data(self):
         """모든 정규화 데이터 조회"""
@@ -35,7 +41,6 @@ class NormalService:
     def upload_partner_esg_file(self, file, company_id: str = None):
         """협력사 ESG 데이터 파일 업로드 처리"""
         import uuid
-        from datetime import datetime
         
         # 업로드 ID 생성
         upload_id = str(uuid.uuid4())
@@ -54,7 +59,7 @@ class NormalService:
         content = file.file.read()
         
         # 로깅
-        print(f"파일 업로드 완료: {file.filename} (크기: {file.size} bytes)")
+        logger.info(f"파일 업로드 완료: {file.filename} (크기: {file.size} bytes)")
         
         return file_info
 

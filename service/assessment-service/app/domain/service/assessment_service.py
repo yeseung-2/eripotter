@@ -8,10 +8,8 @@ logger = logging.getLogger("assessment-service")
 
 class AssessmentService:
     def __init__(self):
-        database_url = os.getenv("DATABASE_URL")
-        if not database_url:
-            raise ValueError("DATABASE_URL environment variable is not set")
-        self.repository = AssessmentRepository(database_url)
+        from eripotter_common.database.base import get_db_engine
+        self.repository = AssessmentRepository(get_db_engine())
     
     def get_kesg_items(self) -> KesgResponse:
         """kesg 테이블의 모든 항목 조회"""

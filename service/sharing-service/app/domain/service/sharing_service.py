@@ -1,6 +1,11 @@
+from eripotter_common.database.base import get_db_engine
+import logging
+
+logger = logging.getLogger("sharing-service")
+
 class SharingService:
     def __init__(self):
-        pass
+        self.engine = get_db_engine()
 
     def get_all_sharing_requests(self):
         """모든 데이터 공유 요청 목록 조회"""
