@@ -20,16 +20,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Node 먼저 세팅 (pnpm 캐시 경로를 서브폴더로 지정)
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 10.14.0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
+          run_install: false
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
