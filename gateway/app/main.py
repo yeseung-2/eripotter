@@ -105,12 +105,9 @@ async def _proxy(request: Request, upstream_base: str, rest: str):
     )
 
 # ---- account-service 프록시 ----
-@app.api_route("/api/account", methods=["GET","POST","PUT","PATCH","DELETE"])
-async def account_root(request: Request):
-    return await _proxy(request, ACCOUNT_SERVICE_URL, "/")
-
 @app.api_route("/api/account/{path:path}", methods=["GET","POST","PUT","PATCH","DELETE"])
 async def account_any(path: str, request: Request):
+    # /api/account/signup -> /signup로 변환
     return await _proxy(request, ACCOUNT_SERVICE_URL, path)
 
 # ---- assessment-service 프록시 ----
