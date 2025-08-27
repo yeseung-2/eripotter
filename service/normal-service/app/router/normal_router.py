@@ -88,3 +88,47 @@ async def get_metrics(
 ):
     """서비스 메트릭 조회"""
     return controller.get_metrics()
+
+# ===== 협력사 ESG 데이터 업로드 전용 API =====
+
+@normal_router.post("/partner/upload", summary="협력사 ESG 데이터 파일 업로드")
+async def upload_partner_esg_data(
+    file: UploadFile = File(...),
+    company_id: str = None,
+    controller: NormalController = Depends(get_normal_controller)
+):
+    """협력사 ESG 데이터 파일 업로드 및 검증"""
+    return controller.upload_partner_esg_data(file, company_id)
+
+@normal_router.post("/partner/validate", summary="협력사 ESG 데이터 검증")
+async def validate_partner_esg_data(
+    data: dict,
+    controller: NormalController = Depends(get_normal_controller)
+):
+    """협력사 ESG 데이터 검증 및 표준화"""
+    return controller.validate_partner_esg_data(data)
+
+@normal_router.get("/partner/dashboard/{company_id}", summary="협력사 자가진단 대시보드")
+async def get_partner_dashboard(
+    company_id: str,
+    controller: NormalController = Depends(get_normal_controller)
+):
+    """협력사 ESG 자가진단 대시보드 데이터 조회"""
+    return controller.get_partner_dashboard(company_id)
+
+@normal_router.post("/partner/report/generate", summary="협력사 ESG 보고서 생성")
+async def generate_partner_report(
+    report_type: str,
+    company_id: str,
+    controller: NormalController = Depends(get_normal_controller)
+):
+    """협력사 ESG 보고서 자동 생성"""
+    return controller.generate_partner_report(report_type, company_id)
+
+@normal_router.get("/partner/schema/{industry}", summary="업종별 ESG 스키마 조회")
+async def get_esg_schema(
+    industry: str,
+    controller: NormalController = Depends(get_normal_controller)
+):
+    """업종별 ESG 데이터 스키마 조회"""
+    return controller.get_esg_schema(industry)
