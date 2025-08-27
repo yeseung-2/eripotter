@@ -62,7 +62,7 @@ from sqlalchemy import text
 try:
     engine = get_db_engine()
     with engine.connect() as conn:
-        conn.execute(text("SELECT 1"))
+        conn.execute(text("SELECT1"))
     logger.info("✅ 데이터베이스 연결 성공")
 except Exception as e:
     if "DATABASE_URL is not set" in str(e):
