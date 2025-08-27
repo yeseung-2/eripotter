@@ -309,7 +309,7 @@ export default function SupplyChainDashboardPage() {
 
               {/* 알림 */}
               <div className="relative">
-                <a href="/chat" className="p-2 text-gray-400 hover:text-gray-500 transition-colors">
+                <button className="p-2 text-gray-400 hover:text-gray-500 transition-colors">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
@@ -319,8 +319,24 @@ export default function SupplyChainDashboardPage() {
                     />
                   </svg>
                   <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white"></span>
-                </a>
+                </button>
               </div>
+
+              {/* 챗봇 */}
+              <button
+                onClick={() => handleNavigation("/chat")}
+                className="p-2 text-gray-400 hover:text-gray-500 transition-colors relative"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                  />
+                </svg>
+                <span className="absolute -top-1 -right-1 block h-4 w-4 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center">AI</span>
+              </button>
 
               {/* 프로필 */}
               <div className="flex items-center space-x-3">
@@ -374,7 +390,14 @@ export default function SupplyChainDashboardPage() {
                 <StatCard title="사회(S)" score={esgScores.social.score} />
                 <StatCard title="지배구조(G)" score={esgScores.governance.score} />
               </div>
-              <div className="flex justify-end p-8 pt-12">
+              <div className="flex justify-between items-center p-8 pt-12">
+                <button
+                  onClick={() => handleNavigation("/assessment")}
+                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 font-medium"
+                >
+                  <span>📋</span>
+                  <span>자가진단 실시하기</span>
+                </button>
                 <p className="text-sm text-gray-500">자가진단 실시일: 2024.02.15</p>
               </div>
             </div>
