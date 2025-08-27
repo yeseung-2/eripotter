@@ -23,11 +23,22 @@ class AccountService:
             hashed_password = hash_password(signup_data.user_pw)
             logger.info(f"🔐 비밀번호 해시화 완료: {signup_data.user_id}")
             
-            success = self.account_repository.create_user(
-                signup_data.user_id, 
-                hashed_password, 
-                signup_data.company_id
-            )
+            # 모든 필드를 포함하는 데이터 준비
+            user_data = {
+                "user_id": signup_data.user_id,
+                "user_pw": hashed_password,
+                "industry": signup_data.industry,
+                "bs_num": signup_data.bs_num,
+                "company_id": signup_data.company_id,
+                "company_add": signup_data.company_add,
+                "company_country": signup_data.company_country,
+                "manager_dept": signup_data.manager_dept,
+                "manager_name": signup_data.manager_name,
+                "manager_email": signup_data.manager_email,
+                "manager_phone": signup_data.manager_phone
+            }
+            
+            success = self.account_repository.create_user(user_data)
             
             if success:
                 logger.info(f"✅ 회원가입 성공: {signup_data.user_id}")
