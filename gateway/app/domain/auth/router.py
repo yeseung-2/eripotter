@@ -6,8 +6,6 @@ import httpx
 import os
 import logging
 import json
-from google.oauth2 import id_token
-from google.auth.transport import requests
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -37,6 +35,9 @@ oauth.register(
 async def verify_and_decode_token(token, request):
     """Google ID 토큰을 검증하고 디코드하는 함수"""
     try:
+        from google.oauth2 import id_token
+        from google.auth.transport import requests
+        
         logger.info("Verifying Google ID token...")
         
         # Google의 공개 키로 토큰 검증
@@ -55,6 +56,10 @@ async def verify_and_decode_token(token, request):
             
         return idinfo
         
+    except ImportError:
+        logger.warning("Google Auth library not available, skipping token verification")
+        # 토큰 검증을 건너뛰고 기본 처리
+        return await oauth.google.parse_id_token(request, {"id_token": token})
     except ValueError as e:
         logger.error(f"Token verification failed: {str(e)}")
         raise HTTPException(
