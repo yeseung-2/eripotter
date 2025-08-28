@@ -81,14 +81,20 @@ async def auth_callback(request: Request):
         # 1. Google OAuth 토큰 얻기
         token = await oauth.google.authorize_access_token(request)
         logger.info("🎟 Got OAuth tokens from Google")
+        logger.info(f"📦 Token response: {json.dumps(token, indent=2)}")  # 토큰 내용 확인
         
-        # 2. 사용자 정보 얻기
-        userinfo = await oauth.google.parse_id_token(request, token)
-        if not userinfo:
-            logger.error("❌ Failed to parse ID token")
-            return RedirectResponse(url=f"{FRONTEND_URL}/?error=invalid_token")
+        # 2. 사용자 정보 얻기 (userinfo endpoint 사용)
+        async with httpx.AsyncClient() as client:
+            headers = {"Authorization": f"Bearer {token['access_token']}"}
+            userinfo_response = await client.get("https://www.googleapis.com/oauth2/v3/userinfo", headers=headers)
+            userinfo = userinfo_response.json()
+            logger.info(f"👤 Userinfo response: {json.dumps(userinfo, indent=2)}")
             
-        logger.info(f"👤 User info: {userinfo.get('email')}")
+            if not userinfo:
+                logger.error("❌ Failed to get user info")
+                return RedirectResponse(url=f"{FRONTEND_URL}/?error=invalid_token")
+                
+            logger.info(f"👤 User email: {userinfo.get('email')}")
         
         # 3. Account 서비스로 인증 정보 전달
         async with httpx.AsyncClient() as client:
@@ -124,6 +130,7 @@ async def auth_callback(request: Request):
 
     except Exception as e:
         logger.error(f"❌ OAuth callback error: {str(e)}")
+        logger.error(f"❌ Error details: {str(type(e))}")  # 에러 타입도 로깅
         return RedirectResponse(
             url=f"{FRONTEND_URL}/?error=auth_failed"
         )
