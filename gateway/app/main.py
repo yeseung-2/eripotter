@@ -7,18 +7,25 @@ import httpx, os, logging
 from app.domain.auth.router import router as auth_router
 
 # ===== 환경변수 설정 =====
-ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL", "http://account-service:8001")
-ASSESSMENT_SERVICE_URL = os.getenv("ASSESSMENT_SERVICE_URL", "http://assessment-service:8002")
-CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "http://chatbot-service:8003")
+# 서비스 URL 설정
+ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL", "https://api.eripotter.com/account")  # Vercel 도메인
+ASSESSMENT_SERVICE_URL = os.getenv("ASSESSMENT_SERVICE_URL", "https://api.eripotter.com/assessment")  # Vercel 도메인
+CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "https://api.eripotter.com/chatbot")  # Vercel 도메인
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://eripotter.com")
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+
+# 개발 환경에서는 docker-compose의 서비스 이름을 사용
+if os.getenv("ENVIRONMENT") == "development":
+    ACCOUNT_SERVICE_URL = "http://account-service:8001"
+    ASSESSMENT_SERVICE_URL = "http://assessment-service:8002"
+    CHATBOT_SERVICE_URL = "http://chatbot-service:8003"
 
 if not JWT_SECRET_KEY:
     raise ValueError("JWT_SECRET_KEY must be set")
 
 # ===== 상수 설정 =====
 TIMEOUT = 60000  # 60초
-HEALTH_CHECK_TIMEOUT = 5  # 5초
+HEALTH_CHECK_TIMEOUT = 10  # 10초
 
 # ===== 로깅 설정 =====
 logging.basicConfig(level=logging.INFO)
@@ -67,29 +74,42 @@ def cors_headers_for(request: Request):
 # 헬스체크 엔드포인트
 @app.get("/health")
 async def health():
-    """간단한 헬스체크."""
+    """Gateway와 필수 의존성(Account Service) 헬스체크."""
     try:
-        # Account 서비스 헬스체크
+        # Account 서비스 헬스체크 - 필수 의존성
         async with httpx.AsyncClient(timeout=HEALTH_CHECK_TIMEOUT) as client:
             account_health = await client.get(f"{ACCOUNT_SERVICE_URL}/health")
             if account_health.status_code != 200:
-                raise Exception(f"Account service unhealthy: {account_health.status_code}")
-        
-        return {
-            "status": "healthy",
-            "service": "gateway",
-            "dependencies": {
-                "account": "healthy"
+                logger.error(f"Account service returned unhealthy status: {account_health.status_code}")
+                return JSONResponse(
+                    status_code=500,
+                    content={
+                        "status": "unhealthy",
+                        "service": "gateway",
+                        "error": "Account service is unhealthy",
+                        "timestamp": logging.Formatter().converter()
+                    }
+                )
+            
+            # 모든 검사 통과
+            return {
+                "status": "healthy",
+                "service": "gateway",
+                "dependencies": {
+                    "account": "healthy"
+                },
+                "timestamp": logging.Formatter().converter()
             }
-        }
+
     except Exception as e:
-        logger.error(f"Health check failed: {str(e)}")
+        logger.error(f"Account service health check failed: {str(e)}")
         return JSONResponse(
             status_code=500,
             content={
                 "status": "unhealthy",
                 "service": "gateway",
-                "error": str(e)
+                "error": f"Failed to connect to account service: {str(e)}",
+                "timestamp": logging.Formatter().converter()
             }
         )
 
