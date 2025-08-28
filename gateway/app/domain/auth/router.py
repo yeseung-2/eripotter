@@ -29,13 +29,13 @@ oauth.register(
     }
 )
 
-@router.get("/auth/google/login")  # /api/v1 prefix는 main.py에서 추가됨
+@router.get("/auth/google/login")
 async def google_login(request: Request):
-    # 프로덕션 콜백 URL 사용
+    # Google Cloud Console에 등록된 리디렉션 URL 사용
     redirect_uri = f"{FRONTEND_URL}/api/auth/google/callback"
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
-@router.get("/auth/google/callback")  # /api/v1 prefix는 main.py에서 추가됨
+@router.get("/auth/google/callback")
 async def auth_callback(request: Request):
     try:
         # 1. Google OAuth 토큰 얻기
