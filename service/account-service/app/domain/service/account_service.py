@@ -67,9 +67,12 @@ class AccountService:
             }
             access_token = self.create_access_token(token_data)
             
-            # 3. 마지막 로그인 시간 업데이트
-            self.repository.update_last_login(account.id)
-            logger.info("✅ Updated last login time")
+            # 3. 마지막 로그인 시간 업데이트 (별도 세션에서)
+            try:
+                self.repository.update_last_login(account.id)
+                logger.info("✅ Updated last login time")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to update last login time: {str(e)}")
             
             return TokenResponse(access_token=access_token)
             
