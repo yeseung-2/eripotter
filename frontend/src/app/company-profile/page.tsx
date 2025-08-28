@@ -38,6 +38,21 @@ export default function CompanyProfilePage() {
     phone_number: ''
   });
 
+  // JWT 토큰에서 oauth_sub 추출하는 함수
+  const extractOauthSubFromToken = (token: string) => {
+    try {
+      // JWT 토큰의 payload 부분 추출 (두 번째 부분)
+      const payload = token.split('.')[1];
+      // Base64 디코딩
+      const decodedPayload = JSON.parse(atob(payload));
+      console.log('JWT Payload:', decodedPayload);
+      return decodedPayload.oauth_sub;
+    } catch (error) {
+      console.error('JWT 토큰 파싱 실패:', error);
+      return null;
+    }
+  };
+
   // URL에서 토큰 가져오기 (useSearchParams 대신 window.location.search 사용)
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -47,6 +62,14 @@ export default function CompanyProfilePage() {
         // 토큰을 localStorage에 저장
         localStorage.setItem('access_token', token);
         console.log('Token saved:', token);
+        
+        // JWT 토큰에서 oauth_sub 추출하여 저장
+        const oauth_sub = extractOauthSubFromToken(token);
+        if (oauth_sub) {
+          localStorage.setItem('oauth_sub', oauth_sub);
+          console.log('OAuth sub saved:', oauth_sub);
+        }
+        
         setShowSuccessMessage(true);
         // 3초 후 메시지 숨기기
         setTimeout(() => setShowSuccessMessage(false), 3000);
