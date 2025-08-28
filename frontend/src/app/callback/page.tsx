@@ -11,9 +11,6 @@ function CallbackHandler() {
     const handleCallback = async () => {
       try {
         const error = searchParams.get('error');
-        const token = searchParams.get('token');
-
-        console.log('Callback received:', { error, token }); // 디버깅용 로그
 
         if (error) {
           console.error('Login error:', error);
@@ -21,19 +18,10 @@ function CallbackHandler() {
           return;
         }
 
-        if (token) {
-          console.log('Token received, storing...'); // 디버깅용 로그
-          
-          // 토큰 저장
-          localStorage.setItem('access_token', token);
-          console.log('Token stored successfully'); // 디버깅용 로그
-          
-          // 강제로 페이지 이동 (replace 사용)
-          window.location.replace('/company-profile');
-        } else {
-          console.error('No token received');
-          router.replace('/');
-        }
+        // 토큰 처리 없이 바로 company-profile 페이지로 이동
+        console.log('Login successful, redirecting to company profile...');
+        router.replace('/company-profile');
+        
       } catch (error) {
         console.error('Callback handling error:', error);
         router.replace('/');

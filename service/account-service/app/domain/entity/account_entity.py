@@ -20,11 +20,11 @@ class Account(Base):
     name = Column(String, nullable=False)
     profile_picture = Column(String, nullable=True)
     
-    # 기업 기본 정보
-    company_name = Column(String, nullable=False)  # 기업명
-    company_type = Column(Enum(CompanyType), nullable=False)  # 기업 구분
-    industry = Column(String, nullable=False)  # 업종
-    business_number = Column(String, nullable=False)  # 사업자 등록 번호
+    # 기업 기본 정보 - 초기에는 비어있을 수 있음
+    company_name = Column(String, nullable=True)  # 기업명
+    company_type = Column(Enum(CompanyType), nullable=True)  # 기업 구분
+    industry = Column(String, nullable=True)  # 업종
+    business_number = Column(String, nullable=True)  # 사업자 등록 번호
     
     # 기업 상세 정보
     establishment_date = Column(String, nullable=True)  # 설립일
@@ -37,9 +37,9 @@ class Account(Base):
     factory_address = Column(String, nullable=True)  # 주요 생산공장 위치
     production_items = Column(Text, nullable=True)  # 주요 생산품목
     
-    # 담당자 정보
-    department = Column(String, nullable=False)  # 부서/직책
-    phone_number = Column(String, nullable=False)  # 연락처
+    # 담당자 정보 - 초기에는 비어있을 수 있음
+    department = Column(String, nullable=True)  # 부서/직책
+    phone_number = Column(String, nullable=True)  # 연락처
     
     # 시스템 필드
     is_active = Column(Boolean, default=True)
