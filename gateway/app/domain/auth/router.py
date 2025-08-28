@@ -15,6 +15,7 @@ GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL", "http://account-service:8001")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://eripotter.com")
+GATEWAY_URL = os.getenv("GATEWAY_URL", "https://gateway-production-5d19.up.railway.app")
 
 if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
     raise ValueError("Missing Google OAuth credentials")
@@ -31,8 +32,8 @@ oauth.register(
 
 @router.get("/google/login")
 async def google_login(request: Request):
-    # Google Cloud Console에 등록된 리디렉션 URL과 일치시킴
-    redirect_uri = f"{FRONTEND_URL}/auth/google/callback"
+    # Gateway의 콜백 URL 사용
+    redirect_uri = f"{GATEWAY_URL}/auth/google/callback"
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 @router.get("/google/callback")
@@ -66,7 +67,7 @@ async def auth_callback(request: Request):
             access_token = data.get("access_token")
             
             # 4. 프론트엔드로 리다이렉트 (JWT 토큰과 함께)
-            redirect_url = f"{FRONTEND_URL}/company-profile?token={access_token}"
+            redirect_url = f"{FRONTEND_URL}/auth/google/callback?token={access_token}"
             return RedirectResponse(url=redirect_url)
 
     except Exception as e:
