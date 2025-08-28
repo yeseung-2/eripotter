@@ -2,18 +2,23 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import Response, JSONResponse
+from starlette.middleware.sessions import SessionMiddleware
 import httpx, os, logging
+from app.domain.auth.router import router as auth_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("gateway")
 
 app = FastAPI(title="MSA API Gateway", version="1.0.0")
 
+# Session 미들웨어 추가 (OAuth 상태 관리용)
+app.add_middleware(SessionMiddleware, secret_key=os.getenv("JWT_SECRET_KEY"))
+
 # ===== CORS 설정 =====
 WHITELIST = {
             "https://eripotter.com",
         "https://www.eripotter.com",              # www 도메인도 허용
-    "http://localhost:3000", "http://localhost:5173",  # 로컬 개발
+    "http://localhost:3000", "http://localhost:5173","http://localhost:3001"  # 로컬 개발
     # "https://sme-eripotter-com.vercel.app",     # Vercel 프리뷰를 쓰면 주석 해제
 }
 
@@ -127,6 +132,9 @@ async def chatbot_root(request: Request):
 @app.api_route("/api/chatbot/{path:path}", methods=["GET","POST","PUT","PATCH","DELETE"])
 async def chatbot_any(path: str, request: Request):
     return await _proxy(request, CHATBOT_SERVICE_URL, path)
+
+# Auth 라우터 추가 (마지막에 추가하여 다른 라우터와 충돌 방지)
+app.include_router(auth_router, prefix="/api/v1")
 
 if __name__ == "__main__":
     import uvicorn
