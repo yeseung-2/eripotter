@@ -120,6 +120,14 @@ const AssessmentPage = () => {
   };
 
   const handleSubmit = async () => {
+    // 인증 상태를 다시 한번 확인
+    const authStore = useAuthStore.getState();
+    if (!authStore.isAuthenticated || !authStore.user) {
+      alert('로그인이 필요합니다. 다시 로그인해주세요.');
+      router.push('/');
+      return;
+    }
+
     // 모든 문항에 답변했는지 확인
     const answeredQuestions = questions.filter(question => {
       const response = responses[question.id];
@@ -137,11 +145,15 @@ const AssessmentPage = () => {
 
     setSubmitting(true);
     try {
-      // 임시로 고정된 company_id 사용
-      const company_id = "삼성";
+      // 실제 사용자의 company_name을 company_id로 사용
+      const currentUser = authStore.user;
+      if (!currentUser || !currentUser.company_name) {
+        alert('기업 정보를 찾을 수 없습니다. 기업 프로필을 먼저 설정해주세요.');
+        return;
+      }
       
       const assessmentData = {
-        company_id: company_id,
+        company_id: currentUser.company_name,
         responses: questions.map(question => ({
           question_id: question.id,
           question_type: question.question_type,

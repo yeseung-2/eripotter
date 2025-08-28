@@ -58,8 +58,10 @@ const AssessmentResultPage = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      // 인증 체크
-      if (!isAuthenticated || !user) {
+      // 인증 상태를 다시 한번 확인
+      const authStore = useAuthStore.getState();
+      if (!authStore.isAuthenticated || !authStore.user) {
+        console.log('인증 상태 확인 실패:', { isAuthenticated: authStore.isAuthenticated, user: authStore.user });
         alert('로그인이 필요합니다.');
         router.push('/');
         return;
@@ -92,7 +94,7 @@ const AssessmentResultPage = () => {
         }
 
         // 2. 해당 회사의 자가진단 결과 가져오기
-        const company_id = user.company_id;
+        const company_id = authStore.user!.company_name || authStore.user!.company_id;
         const resultResponse = await axios.get(`/api/assessment/results/${company_id}`);
         
         if (resultResponse.data && resultResponse.data.results) {

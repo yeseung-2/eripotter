@@ -1,36 +1,47 @@
-from eripotter_common.database.base import get_db_engine
-import logging
-
-logger = logging.getLogger("report-service")
+from typing import List, Dict, Any, Optional
+from .rag_utils import RAGUtils
 
 class ReportService:
     def __init__(self):
-        self.engine = get_db_engine()
-
-    def get_all_reports(self):
-        """모든 보고서 목록 조회"""
-        return []
-
-    def get_report_by_id(self, report_id: str):
-        """특정 보고서 조회"""
-        return {"id": report_id}
-
-    def create_report_draft(self, report_data: dict):
-        """보고서 초안 생성"""
-        return report_data
-
-    def update_report(self, report_id: str, report_data: dict):
-        """보고서 업데이트"""
-        return {"id": report_id, **report_data}
-
-    def delete_report(self, report_id: str):
-        """보고서 삭제"""
-        return True
-
-    def generate_report_with_ai(self, report_id: str):
-        """AI를 통한 보고서 초안 생성"""
-        return {"report_id": report_id, "status": "generating"}
-
-    def get_metrics(self):
-        """메트릭 조회"""
-        return {}
+        # RAG 유틸리티 초기화
+        self.rag_utils = RAGUtils(collection_name="reports")
+    
+    def embed_document(self, document_id: str, content: str, metadata: Dict[str, Any] = None):
+        """문서를 벡터화하여 저장"""
+        return self.rag_utils.embed_text(document_id, content, metadata)
+    
+    def search_similar_documents(self, query: str, limit: int = 5):
+        """쿼리와 유사한 문서 검색"""
+        return self.rag_utils.search_similar(query, limit)
+    
+    def generate_report_draft(self, query: str, context_documents: List[Dict] = None):
+        """RAG를 사용하여 보고서 초안 생성"""
+        try:
+            # 관련 문서 검색
+            if context_documents is None:
+                context_documents = self.search_similar_documents(query, limit=5)
+            
+            # 보고서 작성 전문가 프롬프트
+            system_prompt = "당신은 전문적인 보고서 작성자입니다. 주어진 정보를 바탕으로 구조화된 보고서를 작성해주세요."
+            
+            result = self.rag_utils.generate_with_context(
+                query=query,
+                context_documents=context_documents,
+                system_prompt=system_prompt
+            )
+            
+            if result["status"] == "success":
+                return {
+                    "status": "success",
+                    "report_draft": result["response"],
+                    "context_documents": result["context_documents"]
+                }
+            else:
+                return result
+                
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+    
+    def delete_document(self, document_id: str):
+        """문서 삭제"""
+        return self.rag_utils.delete_text(document_id)

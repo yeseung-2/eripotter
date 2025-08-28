@@ -14,10 +14,14 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import axios from '@/lib/axios';
+import { useAuthStore } from '@/store/useStore';
 
 export default function CompanyProfilePage() {
+  const { user } = useAuthStore();
   const [isEditing, setIsEditing] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     company_name: '',
     company_type: '',
@@ -49,6 +53,85 @@ export default function CompanyProfilePage() {
       }
     }
   }, []);
+
+  // 기존 프로필 데이터 로드
+  useEffect(() => {
+    const loadProfile = async () => {
+      // user가 없어도 account 테이블에서 데이터를 가져올 수 있도록 수정
+      try {
+        // localStorage에서 oauth_sub 가져오기 (Google OAuth 로그인 시 저장됨)
+        const oauth_sub = localStorage.getItem('oauth_sub');
+        if (!oauth_sub) {
+          console.log('OAuth sub가 없습니다. 로그인이 필요합니다.');
+          return;
+        }
+
+        const response = await axios.get(`/api/account/me?oauth_sub=${oauth_sub}`);
+        if (response.data) {
+          const profile = response.data;
+          console.log('로드된 프로필 데이터:', profile);
+          setFormData({
+            company_name: profile.company_name || '',
+            company_type: profile.company_type || '',
+            industry: profile.industry || '',
+            business_number: profile.business_number || '',
+            establishment_date: profile.establishment_date || '',
+            employee_count: profile.employee_count?.toString() || '',
+            annual_revenue: profile.annual_revenue || '',
+            business_area: profile.business_area || '',
+            factory_count: profile.factory_count?.toString() || '',
+            factory_address: profile.factory_address || '',
+            production_items: profile.production_items || '',
+            department: profile.department || '',
+            phone_number: profile.phone_number || ''
+          });
+        }
+      } catch (error) {
+        console.error('프로필 로드 실패:', error);
+      }
+    };
+
+    loadProfile();
+  }, []);
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    setLoading(true);
+    try {
+      // localStorage에서 oauth_sub 가져오기
+      const oauth_sub = localStorage.getItem('oauth_sub');
+      if (!oauth_sub) {
+        alert('로그인이 필요합니다.');
+        return;
+      }
+
+      const profileData = {
+        ...formData,
+        employee_count: formData.employee_count ? parseInt(formData.employee_count) : null,
+        factory_count: formData.factory_count ? parseInt(formData.factory_count) : null
+      };
+
+      console.log('저장할 프로필 데이터:', profileData);
+      await axios.put(`/api/account/me/profile?oauth_sub=${oauth_sub}`, profileData);
+      
+      setShowSuccessMessage(true);
+      setIsEditing(false);
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+    } catch (error) {
+      console.error('프로필 저장 실패:', error);
+      alert('프로필 저장에 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -127,7 +210,7 @@ export default function CompanyProfilePage() {
             </Button>
           </div>
 
-          <form className="space-y-6">
+          <form className="space-y-6" onSubmit={handleSubmit}>
             {/* 기업 기본 정보 */}
             <div className="space-y-4">
               <h2 className="text-xl font-semibold flex items-center gap-2">
@@ -144,12 +227,18 @@ export default function CompanyProfilePage() {
                     id="company_name" 
                     placeholder="기업명을 입력하세요" 
                     disabled={!isEditing}
+                    value={formData.company_name}
+                    onChange={(e) => handleInputChange('company_name', e.target.value)}
                   />
                 </div>
                 
                 <div className="space-y-2">
                   <Label htmlFor="company_type">기업 구분</Label>
-                  <Select disabled={!isEditing}>
+                  <Select 
+                    disabled={!isEditing}
+                    value={formData.company_type}
+                    onValueChange={(value) => handleInputChange('company_type', value)}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="기업 구분 선택" />
                     </SelectTrigger>
@@ -169,6 +258,8 @@ export default function CompanyProfilePage() {
                     id="industry" 
                     placeholder="업종을 입력하세요" 
                     disabled={!isEditing}
+                    value={formData.industry}
+                    onChange={(e) => handleInputChange('industry', e.target.value)}
                   />
                 </div>
 
@@ -178,6 +269,8 @@ export default function CompanyProfilePage() {
                     id="business_number" 
                     placeholder="000-00-00000" 
                     disabled={!isEditing}
+                    value={formData.business_number}
+                    onChange={(e) => handleInputChange('business_number', e.target.value)}
                   />
                 </div>
               </div>
@@ -199,6 +292,8 @@ export default function CompanyProfilePage() {
                     id="establishment_date" 
                     type="date" 
                     disabled={!isEditing}
+                    value={formData.establishment_date}
+                    onChange={(e) => handleInputChange('establishment_date', e.target.value)}
                   />
                 </div>
 
@@ -209,6 +304,8 @@ export default function CompanyProfilePage() {
                     type="number" 
                     placeholder="0" 
                     disabled={!isEditing}
+                    value={formData.employee_count}
+                    onChange={(e) => handleInputChange('employee_count', e.target.value)}
                   />
                 </div>
 
@@ -218,6 +315,8 @@ export default function CompanyProfilePage() {
                     id="annual_revenue" 
                     placeholder="예: 1000만원" 
                     disabled={!isEditing}
+                    value={formData.annual_revenue}
+                    onChange={(e) => handleInputChange('annual_revenue', e.target.value)}
                   />
                 </div>
 
@@ -227,6 +326,8 @@ export default function CompanyProfilePage() {
                     id="business_area" 
                     placeholder="주요 사업 분야를 입력하세요" 
                     disabled={!isEditing}
+                    value={formData.business_area}
+                    onChange={(e) => handleInputChange('business_area', e.target.value)}
                   />
                 </div>
               </div>
@@ -305,8 +406,12 @@ export default function CompanyProfilePage() {
             {/* 저장 버튼 */}
             {isEditing && (
               <div className="flex justify-end space-x-4">
-                <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-                  변경사항 저장
+                <Button 
+                  type="submit" 
+                  className="bg-blue-600 hover:bg-blue-700"
+                  disabled={loading}
+                >
+                  {loading ? '저장 중...' : '변경사항 저장'}
                 </Button>
               </div>
             )}
