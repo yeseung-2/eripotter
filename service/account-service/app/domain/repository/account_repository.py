@@ -29,6 +29,8 @@ class AccountRepository:
             db.add(account)
             db.commit()
             db.refresh(account)
+            # 세션에서 분리하여 반환
+            db.expunge(account)
             return account
 
     def update_company_profile(self, oauth_sub: str, profile_data: CompanyProfile) -> Optional[Account]:
@@ -83,5 +85,6 @@ class AccountRepository:
             from datetime import datetime
             account.last_login = datetime.utcnow()
             db.commit()
-            db.refresh(account)
+            # 세션에서 분리하여 반환
+            db.expunge(account)
             return account
