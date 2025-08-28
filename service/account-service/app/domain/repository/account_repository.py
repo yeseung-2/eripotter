@@ -29,7 +29,8 @@ class AccountRepository:
                 oauth_sub=account_data.oauth_sub,
                 email=account_data.email,
                 name=account_data.name,
-                profile_picture=account_data.profile_picture
+                profile_picture=account_data.profile_picture,
+                email_verified=account_data.email_verified
             )
             db.add(account)
             db.commit()

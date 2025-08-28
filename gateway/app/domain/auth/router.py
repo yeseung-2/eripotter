@@ -132,9 +132,9 @@ async def auth_callback(request: Request):
                 
                 logger.info("🔑 Generated JWT token")
                 
-                # 4. 프론트엔드로 리다이렉트
-                redirect_url = f"{FRONTEND_URL}/callback?token={access_token}"
-                logger.info(f"➡️ Redirecting to frontend: {redirect_url}")
+                # 4. 프론트엔드로 리다이렉트 (company-profile 페이지로)
+                redirect_url = f"{FRONTEND_URL}/company-profile?token={access_token}"
+                logger.info(f"➡️ Redirecting to company profile: {redirect_url}")
                 return RedirectResponse(url=redirect_url)
             else:
                 logger.error("❌ Email not verified")

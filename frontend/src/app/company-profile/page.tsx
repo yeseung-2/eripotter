@@ -13,10 +13,22 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 
 export default function CompanyProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
+  const searchParams = useSearchParams();
+  
+  // URL에서 토큰 가져오기
+  useEffect(() => {
+    const token = searchParams.get('token');
+    if (token) {
+      // 토큰을 localStorage에 저장
+      localStorage.setItem('access_token', token);
+      console.log('Token saved:', token);
+    }
+  }, [searchParams]);
 
   return (
     <div className="container mx-auto py-8 px-4">
