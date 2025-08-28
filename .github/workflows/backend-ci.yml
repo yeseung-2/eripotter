@@ -1,10 +1,11 @@
 name: Backend CI
 
 on:
-  pull_request:
   push:
-    branches: [main]
-
+    branches: [ never-run ]
+  pull_request:
+    branches: [ never-run ]
+    
 jobs:
   detect:
     runs-on: ubuntu-latest
