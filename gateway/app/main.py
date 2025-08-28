@@ -4,7 +4,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import Response, JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
 import httpx, os, logging
+from datetime import datetime, timezone
 from app.domain.auth.router import router as auth_router
+
+def now_iso():
+    return datetime.now(timezone.utc).isoformat()
 
 # ===== 환경변수 설정 =====
 # 서비스 URL 설정 (Railway 실제 URL)
@@ -24,11 +28,38 @@ if not JWT_SECRET_KEY:
     raise ValueError("JWT_SECRET_KEY must be set")
 
 # ===== 상수 설정 =====
-TIMEOUT = 60000  # 60초
+TIMEOUT = 60  # 60초
 HEALTH_CHECK_TIMEOUT = 10  # 10초
 
+# 타임아웃 관련 상세 설정
+CONNECT_TIMEOUT = 5  # 연결 타임아웃 5초
+READ_TIMEOUT = TIMEOUT  # 읽기 타임아웃은 전체 타임아웃과 동일하게
+
 # ===== 로깅 설정 =====
-logging.basicConfig(level=logging.INFO)
+import json
+from time import time
+from typing import Any, Dict
+
+class JSONFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        log_data: Dict[str, Any] = {
+            "timestamp": now_iso(),
+            "level": record.levelname,
+            "message": record.getMessage(),
+            "service": "gateway"
+        }
+        if hasattr(record, "duration_ms"):
+            log_data["duration_ms"] = record.duration_ms
+        if hasattr(record, "status_code"):
+            log_data["status_code"] = record.status_code
+        if hasattr(record, "error"):
+            log_data["error"] = str(record.error)
+        return json.dumps(log_data)
+
+# JSON 형식 로깅 설정
+handler = logging.StreamHandler()
+handler.setFormatter(JSONFormatter())
+logging.basicConfig(level=logging.INFO, handlers=[handler])
 logger = logging.getLogger("gateway")
 
 app = FastAPI(title="MSA API Gateway", version="1.0.0")
@@ -51,13 +82,32 @@ WHITELIST = {
     "https://accounts.google.com"
 }
 
+# 개발 환경에서는 모든 origin 허용
+if os.getenv("ENVIRONMENT") == "development":
+    CORS_ORIGINS = ["*"]
+    logger.warning("개발 환경: 모든 CORS origin 허용")
+else:
+    CORS_ORIGINS = list(WHITELIST)
+    logger.info(f"프로덕션 환경: CORS whitelist 적용 ({len(CORS_ORIGINS)}개 도메인)")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Railway 배포를 위해 임시로 모든 origin 허용
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"]
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=[
+        "Content-Type", 
+        "Authorization", 
+        "Accept", 
+        "Origin", 
+        "X-Requested-With",
+        "X-Request-ID"
+    ],
+    expose_headers=[
+        "Content-Length",
+        "Content-Type",
+        "X-Request-ID"
+    ]
 )
 
 def cors_headers_for(request: Request):
@@ -72,35 +122,71 @@ def cors_headers_for(request: Request):
     }
 
 # 헬스체크 엔드포인트
+@app.get("/livez")
+async def livez():
+    """프로세스 생존 여부만 확인 (Railway Healthcheck용)"""
+    return {
+        "status": "alive",
+        "service": "gateway",
+        "timestamp": now_iso(),
+    }
+
+@app.get("/readyz")
+async def readyz():
+    """의존성 서비스(Account Service) 준비 상태 확인"""
+    try:
+        async with httpx.AsyncClient(timeout=HEALTH_CHECK_TIMEOUT) as client:
+            r = await client.get(f"{ACCOUNT_SERVICE_URL}/health")
+            if r.status_code != 200:
+                return JSONResponse(
+                    status_code=503,
+                    content={
+                        "status": "unready",
+                        "service": "gateway",
+                        "dependencies": {"account": "unhealthy"},
+                        "timestamp": now_iso(),
+                    },
+                )
+        return {
+            "status": "ready",
+            "service": "gateway",
+            "dependencies": {"account": "healthy"},
+            "timestamp": now_iso(),
+        }
+    except Exception as e:
+        logger.error(f"Account service readiness check failed: {str(e)}")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unready",
+                "service": "gateway",
+                "error": f"account check failed: {str(e)}",
+                "timestamp": now_iso(),
+            },
+        )
+
 @app.get("/health")
 async def health():
-    """Gateway와 필수 의존성(Account Service) 헬스체크."""
+    """레거시 헬스체크 엔드포인트 - readyz와 동일한 로직"""
     try:
-        # Account 서비스 헬스체크 - 필수 의존성
         async with httpx.AsyncClient(timeout=HEALTH_CHECK_TIMEOUT) as client:
-            account_health = await client.get(f"{ACCOUNT_SERVICE_URL}/health")
-            if account_health.status_code != 200:
-                logger.error(f"Account service returned unhealthy status: {account_health.status_code}")
+            r = await client.get(f"{ACCOUNT_SERVICE_URL}/health")
+            if r.status_code != 200:
                 return JSONResponse(
                     status_code=500,
                     content={
                         "status": "unhealthy",
                         "service": "gateway",
                         "error": "Account service is unhealthy",
-                        "timestamp": logging.Formatter().converter()
-                    }
+                        "timestamp": now_iso(),
+                    },
                 )
-            
-            # 모든 검사 통과
-            return {
-                "status": "healthy",
-                "service": "gateway",
-                "dependencies": {
-                    "account": "healthy"
-                },
-                "timestamp": logging.Formatter().converter()
-            }
-
+        return {
+            "status": "healthy",
+            "service": "gateway",
+            "dependencies": {"account": "healthy"},
+            "timestamp": now_iso(),
+        }
     except Exception as e:
         logger.error(f"Account service health check failed: {str(e)}")
         return JSONResponse(
@@ -109,8 +195,8 @@ async def health():
                 "status": "unhealthy",
                 "service": "gateway",
                 "error": f"Failed to connect to account service: {str(e)}",
-                "timestamp": logging.Formatter().converter()
-            }
+                "timestamp": now_iso(),
+            },
         )
 
 @app.options("/{path:path}")
@@ -121,7 +207,15 @@ async def options_handler(path: str, request: Request):
 # ---- 단일 프록시 유틸 ----
 async def _proxy(request: Request, upstream_base: str, rest: str):
     url = upstream_base.rstrip("/") + "/" + rest.lstrip("/")
-    logger.info(f"🔗 프록시 요청: {request.method} {request.url.path} -> {url}")
+    start_time = time()
+    request_id = request.headers.get("X-Request-ID", "-")
+    
+    logger.info(f"프록시 요청 시작", extra={
+        "request_id": request_id,
+        "method": request.method,
+        "path": request.url.path,
+        "upstream_url": url
+    })
 
     # 원본 요청 복제
     headers = dict(request.headers)
@@ -130,23 +224,67 @@ async def _proxy(request: Request, upstream_base: str, rest: str):
     params = dict(request.query_params)
 
     try:
-        async with httpx.AsyncClient(timeout=TIMEOUT, follow_redirects=True) as client:
+        timeout_settings = httpx.Timeout(
+            connect=CONNECT_TIMEOUT,
+            read=READ_TIMEOUT,
+            write=TIMEOUT,
+            pool=TIMEOUT
+        )
+        async with httpx.AsyncClient(timeout=timeout_settings, follow_redirects=True) as client:
             upstream = await client.request(
                 request.method, url, params=params, content=body, headers=headers
             )
-            logger.info(f"✅ 프록시 응답: {upstream.status_code} {url}")
+            duration = int((time() - start_time) * 1000)
+            logger.info("프록시 요청 완료", extra={
+                "request_id": request_id,
+                "status_code": upstream.status_code,
+                "duration_ms": duration,
+                "upstream_url": url
+            })
+            
+    except httpx.TimeoutException as e:
+        logger.error("프록시 타임아웃", extra={
+            "request_id": request_id,
+            "error": str(e),
+            "upstream_url": url,
+            "duration_ms": int((time() - start_time) * 1000)
+        })
+        return JSONResponse(
+            status_code=504,
+            content={"error": "Gateway Timeout", "detail": str(e)},
+            headers=cors_headers_for(request),
+        )
+    except httpx.ConnectError as e:
+        logger.error("프록시 연결 실패", extra={
+            "request_id": request_id,
+            "error": str(e),
+            "upstream_url": url
+        })
+        return JSONResponse(
+            status_code=502,
+            content={"error": "Bad Gateway", "detail": "서비스 연결 실패"},
+            headers=cors_headers_for(request),
+        )
     except httpx.HTTPError as e:
-        logger.error(f"❌ 프록시 HTTP 오류: {e} {url}")
+        logger.error("프록시 HTTP 오류", extra={
+            "request_id": request_id,
+            "error": str(e),
+            "upstream_url": url
+        })
         return JSONResponse(
             status_code=502,
             content={"error": "Bad Gateway", "detail": str(e)},
             headers=cors_headers_for(request),
         )
     except Exception as e:
-        logger.error(f"❌ 프록시 일반 오류: {e} {url}")
+        logger.error("프록시 처리 실패", extra={
+            "request_id": request_id,
+            "error": str(e),
+            "upstream_url": url
+        })
         return JSONResponse(
             status_code=500,
-            content={"error": "Gateway Error", "detail": str(e)},
+            content={"error": "Internal Gateway Error", "detail": "내부 처리 오류"},
             headers=cors_headers_for(request),
         )
 
