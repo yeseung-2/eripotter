@@ -8,24 +8,34 @@ function CallbackHandler() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    // URL에서 토큰과 에러 파라미터 확인
-    const error = searchParams.get('error');
-    const token = searchParams.get('token');
+    const handleCallback = async () => {
+      try {
+        const error = searchParams.get('error');
+        const token = searchParams.get('token');
 
-    if (error) {
-      console.error('Login error:', error);
-      router.push('/');
-      return;
-    }
+        if (error) {
+          console.error('Login error:', error);
+          router.push('/');
+          return;
+        }
 
-    if (token) {
-      // 토큰 저장
-      localStorage.setItem('access_token', token);
-      router.push('/company-profile');
-    } else {
-      // 토큰이 없으면 홈으로
-      router.push('/');
-    }
+        if (token) {
+          // 토큰 저장
+          localStorage.setItem('access_token', token);
+          
+          // 프로필 페이지로 이동
+          router.push('/company-profile');
+        } else {
+          console.error('No token received');
+          router.push('/');
+        }
+      } catch (error) {
+        console.error('Callback handling error:', error);
+        router.push('/');
+      }
+    };
+
+    handleCallback();
   }, [router, searchParams]);
 
   return (
