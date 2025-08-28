@@ -133,9 +133,8 @@ async def chatbot_root(request: Request):
 async def chatbot_any(path: str, request: Request):
     return await _proxy(request, CHATBOT_SERVICE_URL, path)
 
-# Auth 라우터 추가 - 두 가지 경로에 마운트
-app.include_router(auth_router, prefix="/api/auth")  # API 경로
-app.include_router(auth_router, prefix="/auth")      # 콜백 경로
+# Auth 라우터 추가 - 콜백 경로만 사용
+app.include_router(auth_router)
 
 if __name__ == "__main__":
     import uvicorn
