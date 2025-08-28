@@ -75,3 +75,12 @@ ENV/
 
 # Alembic
 alembic/*.ini
+
+# OAuth and Secret files
+**/Oauth_result.txt
+**/user_info.txt
+**/*_result.txt
+**/*_info.txt
+**/token_*.txt
+**/auth_*.txt
+**/oauth_*.txt
