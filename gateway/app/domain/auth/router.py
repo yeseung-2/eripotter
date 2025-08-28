@@ -80,7 +80,7 @@ async def auth_callback(request: Request):
         
         # 1. Google OAuth 토큰 얻기
         token = await oauth.google.authorize_access_token(request)
-        logger.info("🎟 Got OAuth tokens from Google")
+        logger.info("😂😂😂😂😂😂😂😂 Got OAuth tokens from Google")
         logger.info(f"📦 Token response: {json.dumps(token, indent=2)}")  # 토큰 내용 확인
         
         # 2. 사용자 정보 얻기 (userinfo endpoint 사용)
@@ -88,6 +88,7 @@ async def auth_callback(request: Request):
             headers = {"Authorization": f"Bearer {token['access_token']}"}
             userinfo_response = await client.get("https://www.googleapis.com/oauth2/v3/userinfo", headers=headers)
             userinfo = userinfo_response.json()
+            logger.info("😂😂😂😂😂😂😂😂 사용자 정보 얻기 성공")
             logger.info(f"👤 Userinfo response: {json.dumps(userinfo, indent=2)}")
             
             if not userinfo:
@@ -112,21 +113,32 @@ async def auth_callback(request: Request):
                     "email_verified": userinfo.get("email_verified")
                 }
             )
+            logger.info(f"📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤")
             
-            if response.status_code != 200:
-                logger.error(f"❌ Account service error: {response.text}")
-                return RedirectResponse(url=f"{FRONTEND_URL}/?error=account_service_error")
+            # email_verified 확인
+            email_verified = userinfo.get("email_verified", False)
+            logger.info(f"📧📧📧📧📧📧📧📧📧📧📧📧📧📧📧📧📧📧📧📧📧📧 Email verified: {email_verified}")
+            logger.info(f"📧📧📧📧📧📧📧📧📧📧📧📧📧📧📧📧📧📧📧📧📧📧 ")
             
-            logger.info("✅ Successfully got response from account service")
-            data = response.json()
-            access_token = data.get("access_token")
-            
-            logger.info("🔑 Generated JWT token")
-            
-            # 4. 프론트엔드로 리다이렉트
-            redirect_url = f"{FRONTEND_URL}/callback?token={access_token}"
-            logger.info(f"➡️ Redirecting to frontend: {redirect_url}")
-            return RedirectResponse(url=redirect_url)
+            if email_verified:
+                logger.info("✅ Email verified, proceeding with account service")
+                if response.status_code != 200:
+                    logger.error(f"❌ Account service error: {response.text}")
+                    return RedirectResponse(url=f"{FRONTEND_URL}/?error=account_service_error")
+                
+                logger.info("✅ Successfully got response from account service")
+                data = response.json()
+                access_token = data.get("access_token")
+                
+                logger.info("🔑 Generated JWT token")
+                
+                # 4. 프론트엔드로 리다이렉트
+                redirect_url = f"{FRONTEND_URL}/callback?token={access_token}"
+                logger.info(f"➡️ Redirecting to frontend: {redirect_url}")
+                return RedirectResponse(url=redirect_url)
+            else:
+                logger.error("❌ Email not verified")
+                return RedirectResponse(url=f"{FRONTEND_URL}/?error=email_not_verified")
 
     except Exception as e:
         logger.error(f"❌ OAuth callback error: {str(e)}")
