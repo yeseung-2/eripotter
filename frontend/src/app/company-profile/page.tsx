@@ -13,46 +13,11 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import Link from "next/link";
-import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
-
-// URL 파라미터 처리를 위한 별도 컴포넌트
-function TokenHandler() {
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  const searchParams = useSearchParams();
-  
-  // URL에서 토큰 가져오기
-  useEffect(() => {
-    const token = searchParams.get('token');
-    if (token) {
-      // 토큰을 localStorage에 저장
-      localStorage.setItem('access_token', token);
-      console.log('Token saved:', token);
-      setShowSuccessMessage(true);
-      // 3초 후 메시지 숨기기
-      setTimeout(() => setShowSuccessMessage(false), 3000);
-    }
-  }, [searchParams]);
-
-  return (
-    <>
-      {/* 성공 메시지 */}
-      {showSuccessMessage && (
-        <div className="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
-          <div className="flex items-center">
-            <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-            </svg>
-            <span>로그인이 성공했습니다! 이제 회사 정보를 입력해주세요.</span>
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
+import { useState, useEffect } from "react";
 
 export default function CompanyProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [formData, setFormData] = useState({
     company_name: '',
     company_type: '',
@@ -69,12 +34,35 @@ export default function CompanyProfilePage() {
     phone_number: ''
   });
 
+  // URL에서 토큰 가져오기 (useSearchParams 대신 window.location.search 사용)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const token = urlParams.get('token');
+      if (token) {
+        // 토큰을 localStorage에 저장
+        localStorage.setItem('access_token', token);
+        console.log('Token saved:', token);
+        setShowSuccessMessage(true);
+        // 3초 후 메시지 숨기기
+        setTimeout(() => setShowSuccessMessage(false), 3000);
+      }
+    }
+  }, []);
+
   return (
     <div className="container mx-auto py-8 px-4">
-      {/* Suspense로 감싼 TokenHandler */}
-      <Suspense fallback={<div>Loading...</div>}>
-        <TokenHandler />
-      </Suspense>
+      {/* 성공 메시지 */}
+      {showSuccessMessage && (
+        <div className="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+          <div className="flex items-center">
+            <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <span>로그인이 성공했습니다! 이제 회사 정보를 입력해주세요.</span>
+          </div>
+        </div>
+      )}
       
       {/* 상단 서비스 네비게이션 */}
       <div className="mb-8 bg-white rounded-xl shadow-lg p-6">
