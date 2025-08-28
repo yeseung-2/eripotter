@@ -134,7 +134,7 @@ async def chatbot_any(path: str, request: Request):
     return await _proxy(request, CHATBOT_SERVICE_URL, path)
 
 # Auth 라우터 추가 (마지막에 추가하여 다른 라우터와 충돌 방지)
-app.include_router(auth_router, prefix="/api/v1")
+app.include_router(auth_router)
 
 if __name__ == "__main__":
     import uvicorn
