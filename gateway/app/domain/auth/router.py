@@ -29,13 +29,13 @@ oauth.register(
     }
 )
 
-@router.get("/auth/google/login")
+@router.get("/google/login")
 async def google_login(request: Request):
     # Google Cloud Console에 등록된 리디렉션 URL과 일치시킴
     redirect_uri = f"{FRONTEND_URL}/auth/google/callback"
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
-@router.get("/auth/google/callback")
+@router.get("/google/callback")
 async def auth_callback(request: Request):
     try:
         # 1. Google OAuth 토큰 얻기
