@@ -32,41 +32,6 @@ oauth.register(
     }
 )
 
-async def verify_and_decode_token(token, request):
-    """Google ID 토큰을 검증하고 디코드하는 함수"""
-    try:
-        from google.oauth2 import id_token
-        from google.auth.transport import requests
-        
-        logger.info("Verifying Google ID token...")
-        
-        # Google의 공개 키로 토큰 검증
-        idinfo = id_token.verify_oauth2_token(
-            token, 
-            requests.Request(), 
-            GOOGLE_CLIENT_ID
-        )
-        
-        logger.info(f"Token verified successfully. User info: {json.dumps(idinfo, indent=2)}")
-        
-        # 토큰 발급자 확인
-        if idinfo['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
-            logger.error("Wrong token issuer!")
-            raise ValueError('Wrong issuer.')
-            
-        return idinfo
-        
-    except ImportError:
-        logger.warning("Google Auth library not available, skipping token verification")
-        # 토큰 검증을 건너뛰고 기본 처리
-        return await oauth.google.parse_id_token(request, {"id_token": token})
-    except ValueError as e:
-        logger.error(f"Token verification failed: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token"
-        )
-
 @router.get("/google/login")
 async def google_login(request: Request):
     try:
@@ -108,14 +73,13 @@ async def auth_callback(request: Request):
         logger.info("Got OAuth tokens from Google")
         logger.debug(f"Token response: {json.dumps(token, indent=2)}")
         
-        # 2. ID 토큰 검증
-        id_token_value = token.get('id_token')
-        if not id_token_value:
-            logger.error("No ID token in OAuth response")
-            return RedirectResponse(url=f"{FRONTEND_URL}/?error=no_id_token")
+        # 2. 사용자 정보 얻기
+        userinfo = await oauth.google.parse_id_token(request, token)
+        if not userinfo:
+            logger.error("Failed to parse ID token")
+            return RedirectResponse(url=f"{FRONTEND_URL}/?error=invalid_token")
             
-        userinfo = await verify_and_decode_token(id_token_value, request)
-        logger.info(f"Verified user email: {userinfo.get('email')}")
+        logger.info(f"Successfully parsed user info: {json.dumps(userinfo, indent=2)}")
         
         # 3. Account 서비스로 인증 정보 전달
         async with httpx.AsyncClient() as client:
