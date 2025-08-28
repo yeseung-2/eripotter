@@ -61,8 +61,8 @@ class AccountService:
             
             # 2. JWT 토큰 생성
             token_data = {
-                "sub": str(account.id),
-                "email": account.email,
+                "sub": str(account["id"]),
+                "email": account["email"],
                 "oauth_sub": auth_data.sub
             }
             access_token = self.create_access_token(token_data)

@@ -6,18 +6,28 @@ from ..entity.account_entity import Account
 from ..model.account_model import CompanyProfile, AccountCreate
 
 class AccountRepository:
-    def get_by_oauth_sub(self, oauth_sub: str) -> Optional[Account]:
-        """OAuth sub로 계정 조회"""
+    def get_by_oauth_sub(self, oauth_sub: str) -> Optional[dict]:
+        """OAuth sub로 계정 조회 - 딕셔너리 반환"""
         with get_session() as db:
-            return db.query(Account).filter(Account.oauth_sub == oauth_sub).first()
+            account = db.query(Account).filter(Account.oauth_sub == oauth_sub).first()
+            if account:
+                return {
+                    "id": account.id,
+                    "oauth_sub": account.oauth_sub,
+                    "email": account.email,
+                    "name": account.name,
+                    "profile_picture": account.profile_picture,
+                    "email_verified": account.email_verified
+                }
+            return None
 
     def get_by_email(self, email: str) -> Optional[Account]:
         """이메일로 계정 조회"""
         with get_session() as db:
             return db.query(Account).filter(Account.email == email).first()
 
-    def create_account(self, account_data: AccountCreate) -> Account:
-        """OAuth 로그인 후 최초 계정 생성"""
+    def create_account(self, account_data: AccountCreate) -> dict:
+        """OAuth 로그인 후 최초 계정 생성 - 딕셔너리 반환"""
         with get_session() as db:
             account = Account(
                 oauth_sub=account_data.oauth_sub,
@@ -28,16 +38,15 @@ class AccountRepository:
             )
             db.add(account)
             db.commit()
-            # ID만 가져와서 새로운 객체 생성
-            account_id = account.id
-            return Account(
-                id=account_id,
-                oauth_sub=account_data.oauth_sub,
-                email=account_data.email,
-                name=account_data.name,
-                profile_picture=account_data.profile_picture,
-                email_verified=account_data.email_verified
-            )
+            # 딕셔너리로 반환하여 세션 바인딩 문제 해결
+            return {
+                "id": account.id,
+                "oauth_sub": account.oauth_sub,
+                "email": account.email,
+                "name": account.name,
+                "profile_picture": account.profile_picture,
+                "email_verified": account.email_verified
+            }
 
     def update_company_profile(self, oauth_sub: str, profile_data: CompanyProfile) -> Optional[Account]:
         """기업 프로필 정보 업데이트"""

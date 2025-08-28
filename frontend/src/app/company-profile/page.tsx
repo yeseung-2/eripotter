@@ -18,6 +18,22 @@ import { useSearchParams } from "next/navigation";
 
 export default function CompanyProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [formData, setFormData] = useState({
+    company_name: '',
+    company_type: '',
+    industry: '',
+    business_number: '',
+    establishment_date: '',
+    employee_count: '',
+    annual_revenue: '',
+    business_area: '',
+    factory_count: '',
+    factory_address: '',
+    production_items: '',
+    department: '',
+    phone_number: ''
+  });
   const searchParams = useSearchParams();
   
   // URL에서 토큰 가져오기
@@ -27,11 +43,26 @@ export default function CompanyProfilePage() {
       // 토큰을 localStorage에 저장
       localStorage.setItem('access_token', token);
       console.log('Token saved:', token);
+      setShowSuccessMessage(true);
+      // 3초 후 메시지 숨기기
+      setTimeout(() => setShowSuccessMessage(false), 3000);
     }
   }, [searchParams]);
 
   return (
     <div className="container mx-auto py-8 px-4">
+      {/* 성공 메시지 */}
+      {showSuccessMessage && (
+        <div className="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+          <div className="flex items-center">
+            <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <span>로그인이 성공했습니다! 이제 회사 정보를 입력해주세요.</span>
+          </div>
+        </div>
+      )}
+      
       {/* 상단 서비스 네비게이션 */}
       <div className="mb-8 bg-white rounded-xl shadow-lg p-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
