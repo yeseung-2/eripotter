@@ -26,7 +26,7 @@ export default function LoginPage() {
             Welcome
           </h1>
           <p className="text-gray-600">
-            생산성 향상을 위한 첫걸음을 시작하세요
+            공급망 관리를 위한 첫걸음을 시작하세요
           </p>
         </div>
 
