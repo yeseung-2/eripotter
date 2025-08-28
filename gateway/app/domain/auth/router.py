@@ -6,10 +6,17 @@ import httpx
 import os
 import logging
 import json
+import sys
 
-# 로깅 설정
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# 로깅 설정 강화
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger("auth_router")
 
 router = APIRouter()
 
@@ -36,10 +43,11 @@ oauth.register(
 async def google_login(request: Request):
     try:
         redirect_uri = "https://gateway-production-5d19.up.railway.app/auth/google/callback"
-        logger.info(f"Starting Google login with redirect_uri: {redirect_uri}")
+        logger.info("🚀 Starting Google login process")
+        logger.info(f"📍 Redirect URI: {redirect_uri}")
         
         request.session['oauth_state'] = os.urandom(16).hex()
-        logger.info(f"Generated OAuth state: {request.session['oauth_state']}")
+        logger.info(f"🔐 Generated OAuth state: {request.session['oauth_state']}")
         
         return await oauth.google.authorize_redirect(
             request,
@@ -47,44 +55,45 @@ async def google_login(request: Request):
             state=request.session['oauth_state']
         )
     except Exception as e:
-        logger.error(f"Login error: {str(e)}")
+        logger.error(f"❌ Login error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/google/callback")
 async def auth_callback(request: Request):
     try:
-        logger.info("Received callback from Google")
+        logger.info("👋 Received callback from Google")
         
         # state 검증
         state = request.query_params.get('state')
         stored_state = request.session.get('oauth_state')
         
-        logger.info(f"Checking state - Received: {state}, Stored: {stored_state}")
+        logger.info("🔍 Checking OAuth state")
+        logger.info(f"📥 Received state: {state}")
+        logger.info(f"💾 Stored state: {stored_state}")
         
         if not state or not stored_state or state != stored_state:
-            logger.error(f"State mismatch: got {state}, expected {stored_state}")
+            logger.error("❌ State mismatch!")
             return RedirectResponse(url=f"{FRONTEND_URL}/?error=invalid_state")
         
         del request.session['oauth_state']
-        logger.info("State verified and cleared from session")
+        logger.info("✅ State verified and cleared")
         
         # 1. Google OAuth 토큰 얻기
         token = await oauth.google.authorize_access_token(request)
-        logger.info("Got OAuth tokens from Google")
-        logger.debug(f"Token response: {json.dumps(token, indent=2)}")
+        logger.info("🎟 Got OAuth tokens from Google")
         
         # 2. 사용자 정보 얻기
         userinfo = await oauth.google.parse_id_token(request, token)
         if not userinfo:
-            logger.error("Failed to parse ID token")
+            logger.error("❌ Failed to parse ID token")
             return RedirectResponse(url=f"{FRONTEND_URL}/?error=invalid_token")
             
-        logger.info(f"Successfully parsed user info: {json.dumps(userinfo, indent=2)}")
+        logger.info(f"👤 User info: {userinfo.get('email')}")
         
         # 3. Account 서비스로 인증 정보 전달
         async with httpx.AsyncClient() as client:
             account_url = f"{ACCOUNT_SERVICE_URL}/api/v1/accounts/auth/google"
-            logger.info(f"Sending user info to account service: {account_url}")
+            logger.info(f"📤 Sending user info to account service: {account_url}")
             
             response = await client.post(
                 account_url,
@@ -93,28 +102,28 @@ async def auth_callback(request: Request):
                     "email": userinfo.get("email"),
                     "name": userinfo.get("name"),
                     "picture": userinfo.get("picture"),
-                    "hd": userinfo.get("hd"),  # Google Workspace 도메인
+                    "hd": userinfo.get("hd"),
                     "email_verified": userinfo.get("email_verified")
                 }
             )
             
             if response.status_code != 200:
-                logger.error(f"Account service error: {response.text}")
+                logger.error(f"❌ Account service error: {response.text}")
                 return RedirectResponse(url=f"{FRONTEND_URL}/?error=account_service_error")
             
-            logger.info("Successfully got response from account service")
+            logger.info("✅ Successfully got response from account service")
             data = response.json()
             access_token = data.get("access_token")
             
-            logger.info("Generated JWT token for user")
+            logger.info("🔑 Generated JWT token")
             
             # 4. 프론트엔드로 리다이렉트
             redirect_url = f"{FRONTEND_URL}/callback?token={access_token}"
-            logger.info(f"Redirecting to frontend: {redirect_url}")
+            logger.info(f"➡️ Redirecting to frontend: {redirect_url}")
             return RedirectResponse(url=redirect_url)
 
     except Exception as e:
-        logger.error(f"OAuth callback error: {str(e)}")
+        logger.error(f"❌ OAuth callback error: {str(e)}")
         return RedirectResponse(
             url=f"{FRONTEND_URL}/?error=auth_failed"
         )
