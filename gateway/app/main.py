@@ -125,8 +125,13 @@ async def chatbot_root(request: Request):
 async def chatbot_any(path: str, request: Request):
     return await _proxy(request, CHATBOT_SERVICE_URL, path)
 
-# Auth 라우터 추가 (prefix 제거하여 /auth/google/* 경로 유지)
-app.include_router(auth_router)
+# Google OAuth 콜백 URL을 위한 특별 라우트
+@app.get("/auth/google/callback")
+async def google_callback(request: Request):
+    return await auth_router.auth_callback(request)
+
+# Auth 라우터는 /api/auth 아래에 마운트
+app.include_router(auth_router, prefix="/api/auth")
 
 if __name__ == "__main__":
     import uvicorn
