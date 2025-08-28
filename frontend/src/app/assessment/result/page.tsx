@@ -32,8 +32,7 @@ interface ApiQuestion {
   item_name: string;
   question_text?: string;
   question_type?: string;
-  levels_json?: Choices;
-  choices_json?: Choices;
+  choices?: Choices;  // API 응답의 choices 필드
   category?: string;
   weight?: number;
 }
@@ -55,74 +54,7 @@ const AssessmentResultPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 샘플 문항 데이터 (실제로는 API에서 가져올 예정)
-  const sampleQuestions: Question[] = [
-    {
-      id: 1,
-      question_text: "세부적인 면에 대해 꼼꼼하게 주의를 기울이지 못하거나 학업에서 부주의한 실수를 한다.",
-      question_type: "four_level",
-      choices: {
-        "0": { text: "전혀 그렇지 않다", score: 0 },
-        "1": { text: "가끔 그렇다", score: 1 },
-        "2": { text: "자주 그렇다", score: 2 },
-        "3": { text: "매우 자주 그렇다", score: 3 }
-      },
-      category: "주의력",
-      weight: 1
-    },
-    {
-      id: 2,
-      question_text: "손발을 가만히 두지 못하거나 의자에 앉아서도 몸을 꼼지락거린다.",
-      question_type: "four_level",
-      choices: {
-        "0": { text: "전혀 그렇지 않다", score: 0 },
-        "1": { text: "가끔 그렇다", score: 1 },
-        "2": { text: "자주 그렇다", score: 2 },
-        "3": { text: "매우 자주 그렇다", score: 3 }
-      },
-      category: "과잉행동",
-      weight: 1
-    },
-    {
-      id: 3,
-      question_text: "일을 하거나 놀이를 할 때 지속적으로 주의를 집중하는데 어려움이 있다.",
-      question_type: "four_level",
-      choices: {
-        "0": { text: "전혀 그렇지 않다", score: 0 },
-        "1": { text: "가끔 그렇다", score: 1 },
-        "2": { text: "자주 그렇다", score: 2 },
-        "3": { text: "매우 자주 그렇다", score: 3 }
-      },
-      category: "주의력",
-      weight: 1
-    },
-    {
-      id: 4,
-      question_text: "자리에 앉아 있어야 하는 교실이나 다른 상황에서 앉아있지 못한다.",
-      question_type: "four_level",
-      choices: {
-        "0": { text: "전혀 그렇지 않다", score: 0 },
-        "1": { text: "가끔 그렇다", score: 1 },
-        "2": { text: "자주 그렇다", score: 2 },
-        "3": { text: "매우 자주 그렇다", score: 3 }
-      },
-      category: "과잉행동",
-      weight: 1
-    },
-    {
-      id: 5,
-      question_text: "다른 사람이 마주보고 이야기 할 때 경청하지 않는 것처럼 보인다.",
-      question_type: "four_level",
-      choices: {
-        "0": { text: "전혀 그렇지 않다", score: 0 },
-        "1": { text: "가끔 그렇다", score: 1 },
-        "2": { text: "자주 그렇다", score: 2 },
-        "3": { text: "매우 자주 그렇다", score: 3 }
-      },
-      category: "주의력",
-      weight: 1
-    }
-  ];
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -137,25 +69,27 @@ const AssessmentResultPage = () => {
         setLoading(true);
         
         // 1. 문항 데이터 가져오기
-        let questionData = sampleQuestions;
         try {
           const questionResponse = await axios.get('/api/assessment/kesg');
           if (questionResponse.data && questionResponse.data.items && questionResponse.data.items.length > 0) {
-            questionData = questionResponse.data.items.map((item: ApiQuestion) => {
+            const questionData = questionResponse.data.items.map((item: ApiQuestion) => {
               return {
                 id: item.id,
                 question_text: item.question_text || item.item_name,
                 question_type: item.question_type || "four_level",
-                choices: item.question_type === 'five_choice' ? item.choices_json : item.levels_json || {},
+                choices: item.choices || {},  // choices 필드 사용
                 category: item.category || "자가진단",
                 weight: 1
               };
             });
+            setQuestions(questionData);
+          } else {
+            setQuestions([]);
           }
         } catch (error: Error | unknown) {
-          console.error('문항 데이터 로드 실패, 샘플 데이터 사용:', error);
+          console.error('문항 데이터 로드 실패:', error);
+          setQuestions([]);
         }
-        setQuestions(questionData);
 
         // 2. 해당 회사의 자가진단 결과 가져오기
         const company_id = user.company_id;
@@ -164,7 +98,7 @@ const AssessmentResultPage = () => {
         if (resultResponse.data && resultResponse.data.results) {
           // 문항 정보와 결과를 합치기
           const resultsWithQuestions = resultResponse.data.results.map((result: AssessmentResult) => {
-            const question = questionData.find(q => q.id === result.question_id);
+            const question = questions.find((q: Question) => q.id === result.question_id);
             return {
               ...result,
               question_text: question?.question_text || `문항 ${result.question_id}`,
@@ -185,7 +119,7 @@ const AssessmentResultPage = () => {
     };
 
     fetchData();
-  }, [isAuthenticated, user, router, sampleQuestions]);
+  }, [isAuthenticated, user, router, questions]);
 
   const getAnswerText = (result: AssessmentResult) => {
     const question = questions.find(q => q.id === result.question_id);

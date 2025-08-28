@@ -19,8 +19,7 @@ interface ApiQuestion {
   item_name: string;
   question_text?: string;
   question_type?: string;
-  levels_json?: Choices;
-  choices_json?: Choices;
+  choices?: Choices;  // API 응답의 choices 필드
   category?: string;
   weight?: number;
 }
@@ -47,243 +46,7 @@ const AssessmentPage = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  // 임시 샘플 데이터 (나중에 DB에서 가져올 예정)
-  const sampleQuestions: Question[] = [
-    {
-      id: 1,
-      question_text: "세부적인 면에 대해 꼼꼼하게 주의를 기울이지 못하거나 학업에서 부주의한 실수를 한다.",
-      question_type: "four_level",
-      choices: {
-        "0": { text: "전혀 그렇지 않다", score: 0 },
-        "1": { text: "가끔 그렇다", score: 1 },
-        "2": { text: "자주 그렇다", score: 2 },
-        "3": { text: "매우 자주 그렇다", score: 3 }
-      },
-      category: "주의력",
-      weight: 1
-    },
-    {
-      id: 2,
-      question_text: "손발을 가만히 두지 못하거나 의자에 앉아서도 몸을 꼼지락거린다.",
-      question_type: "four_level",
-      choices: {
-        "0": { text: "전혀 그렇지 않다", score: 0 },
-        "1": { text: "가끔 그렇다", score: 1 },
-        "2": { text: "자주 그렇다", score: 2 },
-        "3": { text: "매우 자주 그렇다", score: 3 }
-      },
-      category: "과잉행동",
-      weight: 1
-    },
-    {
-      id: 3,
-      question_text: "일을 하거나 놀이를 할 때 지속적으로 주의를 집중하는데 어려움이 있다.",
-      question_type: "four_level",
-      choices: {
-        "0": { text: "전혀 그렇지 않다", score: 0 },
-        "1": { text: "가끔 그렇다", score: 1 },
-        "2": { text: "자주 그렇다", score: 2 },
-        "3": { text: "매우 자주 그렇다", score: 3 }
-      },
-      category: "주의력",
-      weight: 1
-    },
-    {
-      id: 4,
-      question_text: "자리에 앉아 있어야 하는 교실이나 다른 상황에서 앉아있지 못한다.",
-      question_type: "four_level",
-      choices: {
-        "0": { text: "전혀 그렇지 않다", score: 0 },
-        "1": { text: "가끔 그렇다", score: 1 },
-        "2": { text: "자주 그렇다", score: 2 },
-        "3": { text: "매우 자주 그렇다", score: 3 }
-      },
-      category: "과잉행동",
-      weight: 1
-    },
-    {
-      id: 5,
-      question_text: "다른 사람이 마주보고 이야기 할 때 경청하지 않는 것처럼 보인다.",
-      question_type: "four_level",
-      choices: {
-        "0": { text: "전혀 그렇지 않다", score: 0 },
-        "1": { text: "가끔 그렇다", score: 1 },
-        "2": { text: "자주 그렇다", score: 2 },
-        "3": { text: "매우 자주 그렇다", score: 3 }
-      },
-      category: "주의력",
-      weight: 1
-    },
-    {
-      id: 6,
-      question_text: "그렇게 하면 안 되는 상황에서 지나치게 뛰어다니거나 기어오른다.",
-      question_type: "four_level",
-      choices: {
-        "0": { text: "전혀 그렇지 않다", score: 0 },
-        "1": { text: "가끔 그렇다", score: 1 },
-        "2": { text: "자주 그렇다", score: 2 },
-        "3": { text: "매우 자주 그렇다", score: 3 }
-      },
-      category: "과잉행동",
-      weight: 1
-    },
-    {
-      id: 7,
-      question_text: "지시를 따르지 않고, 일을 끝내지 못한다.",
-      question_type: "four_level",
-      choices: {
-        "0": { text: "전혀 그렇지 않다", score: 0 },
-        "1": { text: "가끔 그렇다", score: 1 },
-        "2": { text: "자주 그렇다", score: 2 },
-        "3": { text: "매우 자주 그렇다", score: 3 }
-      },
-      category: "주의력",
-      weight: 1
-    },
-    {
-      id: 8,
-      question_text: "여가 활동이나 재미있는 일에 조용히 참여하기가 어렵다.",
-      question_type: "four_level",
-      choices: {
-        "0": { text: "전혀 그렇지 않다", score: 0 },
-        "1": { text: "가끔 그렇다", score: 1 },
-        "2": { text: "자주 그렇다", score: 2 },
-        "3": { text: "매우 자주 그렇다", score: 3 }
-      },
-      category: "과잉행동",
-      weight: 1
-    },
-    {
-      id: 9,
-      question_text: "과제와 일을 체계적으로 하지 못한다.",
-      question_type: "four_level",
-      choices: {
-        "0": { text: "전혀 그렇지 않다", score: 0 },
-        "1": { text: "가끔 그렇다", score: 1 },
-        "2": { text: "자주 그렇다", score: 2 },
-        "3": { text: "매우 자주 그렇다", score: 3 }
-      },
-      category: "주의력",
-      weight: 1
-    },
-    {
-      id: 10,
-      question_text: "끊임없이 무엇인가를 하거나 마치 모터가 돌아가듯 움직인다.",
-      question_type: "four_level",
-      choices: {
-        "0": { text: "전혀 그렇지 않다", score: 0 },
-        "1": { text: "가끔 그렇다", score: 1 },
-        "2": { text: "자주 그렇다", score: 2 },
-        "3": { text: "매우 자주 그렇다", score: 3 }
-      },
-      category: "과잉행동",
-      weight: 1
-    },
-    {
-      id: 11,
-      question_text: "지속적인 노력이 요구되는 과제(학교공부나 숙제)를 하지 않으려 한다.",
-      question_type: "four_level",
-      choices: {
-        "0": { text: "전혀 그렇지 않다", score: 0 },
-        "1": { text: "가끔 그렇다", score: 1 },
-        "2": { text: "자주 그렇다", score: 2 },
-        "3": { text: "매우 자주 그렇다", score: 3 }
-      },
-      category: "주의력",
-      weight: 1
-    },
-    {
-      id: 12,
-      question_text: "지나치게 말을 많이 한다.",
-      question_type: "four_level",
-      choices: {
-        "0": { text: "전혀 그렇지 않다", score: 0 },
-        "1": { text: "가끔 그렇다", score: 1 },
-        "2": { text: "자주 그렇다", score: 2 },
-        "3": { text: "매우 자주 그렇다", score: 3 }
-      },
-      category: "과잉행동",
-      weight: 1
-    },
-    {
-      id: 13,
-      question_text: "과제나 일을 하는데 필요한 물건들은 잃어버린다.",
-      question_type: "four_level",
-      choices: {
-        "0": { text: "전혀 그렇지 않다", score: 0 },
-        "1": { text: "가끔 그렇다", score: 1 },
-        "2": { text: "자주 그렇다", score: 2 },
-        "3": { text: "매우 자주 그렇다", score: 3 }
-      },
-      category: "주의력",
-      weight: 1
-    },
-    {
-      id: 14,
-      question_text: "질문이 채 끝나기도 전에 성급하게 대답한다.",
-      question_type: "four_level",
-      choices: {
-        "0": { text: "전혀 그렇지 않다", score: 0 },
-        "1": { text: "가끔 그렇다", score: 1 },
-        "2": { text: "자주 그렇다", score: 2 },
-        "3": { text: "매우 자주 그렇다", score: 3 }
-      },
-      category: "과잉행동",
-      weight: 1
-    },
-    {
-      id: 15,
-      question_text: "쉽게 산만해 진다.",
-      question_type: "four_level",
-      choices: {
-        "0": { text: "전혀 그렇지 않다", score: 0 },
-        "1": { text: "가끔 그렇다", score: 1 },
-        "2": { text: "자주 그렇다", score: 2 },
-        "3": { text: "매우 자주 그렇다", score: 3 }
-      },
-      category: "주의력",
-      weight: 1
-    },
-    {
-      id: 16,
-      question_text: "차례를 기다리는데 어려움이 있다.",
-      question_type: "four_level",
-      choices: {
-        "0": { text: "전혀 그렇지 않다", score: 0 },
-        "1": { text: "가끔 그렇다", score: 1 },
-        "2": { text: "자주 그렇다", score: 2 },
-        "3": { text: "매우 자주 그렇다", score: 3 }
-      },
-      category: "과잉행동",
-      weight: 1
-    },
-    {
-      id: 17,
-      question_text: "일상적으로 하는 일을 잊어버린다.",
-      question_type: "four_level",
-      choices: {
-        "0": { text: "전혀 그렇지 않다", score: 0 },
-        "1": { text: "가끔 그렇다", score: 1 },
-        "2": { text: "자주 그렇다", score: 2 },
-        "3": { text: "매우 자주 그렇다", score: 3 }
-      },
-      category: "주의력",
-      weight: 1
-    },
-    {
-      id: 18,
-      question_text: "다른 사람을 방해하거나 간섭한다.",
-      question_type: "four_level",
-      choices: {
-        "0": { text: "전혀 그렇지 않다", score: 0 },
-        "1": { text: "가끔 그렇다", score: 1 },
-        "2": { text: "자주 그렇다", score: 2 },
-        "3": { text: "매우 자주 그렇다", score: 3 }
-      },
-      category: "과잉행동",
-      weight: 1
-    }
-  ];
+
 
   React.useEffect(() => {
     const fetchQuestions = async () => {
@@ -303,7 +66,7 @@ const AssessmentPage = () => {
               id: item.id,
               question_text: item.question_text || item.item_name,
               question_type: item.question_type || "three_level",
-              choices: item.question_type === 'five_choice' ? item.choices_json : item.levels_json || {},
+              choices: item.choices || {},  // choices 필드 사용
               category: item.category || "자가진단",
               weight: 1
             };
@@ -312,13 +75,12 @@ const AssessmentPage = () => {
           setQuestions(transformedQuestions);
           console.log('변환된 문항:', transformedQuestions);
         } else {
-          console.log('kesg 데이터가 비어있어서 샘플 데이터를 사용합니다.');
-          setQuestions(sampleQuestions);
+          console.log('kesg 데이터가 비어있습니다.');
+          setQuestions([]);
         }
       } catch (error) {
         console.error('kesg 테이블 조회 실패:', error);
-        console.log('샘플 데이터로 대체합니다.');
-        setQuestions(sampleQuestions); // 에러 시 샘플 데이터 사용
+        setQuestions([]); // 에러 시 빈 배열로 설정
       } finally {
         setLoading(false);
       }
@@ -332,7 +94,7 @@ const AssessmentPage = () => {
     // }
 
     fetchQuestions();
-  }, [isAuthenticated, user, router, sampleQuestions]);
+  }, [isAuthenticated, user, router]);
 
   const handleResponseChange = (questionId: number, value: number | number[], questionType: string) => {
     setResponses(prev => {
