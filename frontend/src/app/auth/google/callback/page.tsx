@@ -13,25 +13,30 @@ function CallbackHandler() {
         const error = searchParams.get('error');
         const token = searchParams.get('token');
 
+        console.log('Callback received:', { error, token }); // 디버깅용 로그
+
         if (error) {
           console.error('Login error:', error);
-          router.push('/');
+          router.replace('/');
           return;
         }
 
         if (token) {
+          console.log('Token received, storing...'); // 디버깅용 로그
+          
           // 토큰 저장
           localStorage.setItem('access_token', token);
+          console.log('Token stored successfully'); // 디버깅용 로그
           
-          // 프로필 페이지로 이동
-          router.push('/company-profile');
+          // 강제로 페이지 이동 (replace 사용)
+          window.location.replace('/company-profile');
         } else {
           console.error('No token received');
-          router.push('/');
+          router.replace('/');
         }
       } catch (error) {
         console.error('Callback handling error:', error);
-        router.push('/');
+        router.replace('/');
       }
     };
 

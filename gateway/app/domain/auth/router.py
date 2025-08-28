@@ -15,6 +15,7 @@ GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL", "http://account-service:8001")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://eripotter.com")
+GATEWAY_URL = "https://gateway-production-5d19.up.railway.app"  # 고정 URL 사용
 
 if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
     raise ValueError("Missing Google OAuth credentials")
@@ -31,8 +32,8 @@ oauth.register(
 
 @router.get("/google/login")
 async def google_login(request: Request):
-    # 현재 요청의 호스트를 사용
-    redirect_uri = str(request.base_url) + "auth/google/callback"
+    # 정확한 리디렉션 URI 사용
+    redirect_uri = f"{GATEWAY_URL}/auth/google/callback"
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 @router.get("/google/callback")
