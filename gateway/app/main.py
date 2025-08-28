@@ -50,7 +50,6 @@ ASSESSMENT_SERVICE_URL = os.getenv("ASSESSMENT_SERVICE_URL", "http://localhost:8
 CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "http://localhost:8003")
 TIMEOUT = float(os.getenv("UPSTREAM_TIMEOUT", "20"))
 
-# 헬스체크 엔드포인트 (prefix 없이)
 @app.get("/health")
 async def health(): 
     return {"status": "healthy", "service": "gateway"}
