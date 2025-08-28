@@ -3,5 +3,5 @@ builder = "DOCKERFILE"
 
 [deploy]
 startCommand = "uvicorn app.main:app --host 0.0.0.0 --port 8080"
-healthcheckPath = "/health"
+healthcheckPath = "/livez"
 healthcheckTimeout = 10
