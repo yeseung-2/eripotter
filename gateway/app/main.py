@@ -12,14 +12,21 @@ logger = logging.getLogger("gateway")
 app = FastAPI(title="MSA API Gateway", version="1.0.0")
 
 # Session 미들웨어 추가 (OAuth 상태 관리용)
-app.add_middleware(SessionMiddleware, secret_key=os.getenv("JWT_SECRET_KEY"))
+app.add_middleware(
+    SessionMiddleware, 
+    secret_key=os.getenv("JWT_SECRET_KEY"),
+    same_site="none",  # CORS 허용
+    secure=True       # HTTPS 필수
+)
 
 # ===== CORS 설정 =====
 WHITELIST = {
-            "https://eripotter.com",
-        "https://www.eripotter.com",              # www 도메인도 허용
-    "http://localhost:3000", "http://localhost:5173","http://localhost:3001"  # 로컬 개발
-    # "https://sme-eripotter-com.vercel.app",     # Vercel 프리뷰를 쓰면 주석 해제
+    "https://eripotter.com",
+    "https://www.eripotter.com",
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://localhost:3001",
+    "https://accounts.google.com"  # Google OAuth 도메인 추가
 }
 
 # 미들웨어(기본 방어막) - allow_origins는 넓게 두되 credentials 고려
@@ -29,6 +36,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 def cors_headers_for(request: Request):
@@ -41,15 +49,11 @@ def cors_headers_for(request: Request):
             "Access-Control-Allow-Credentials": "true",
             "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
             "Access-Control-Allow-Headers": request.headers.get("access-control-request-headers", "*"),
+            "Access-Control-Expose-Headers": "*"
         }
-    # 화이트리스트 밖이면 CORS 헤더 미부착(브라우저가 차단)
     return {}
 
-ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL")
-ASSESSMENT_SERVICE_URL = os.getenv("ASSESSMENT_SERVICE_URL", "http://localhost:8002")
-CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "http://localhost:8003")
-TIMEOUT = float(os.getenv("UPSTREAM_TIMEOUT", "20"))
-
+# 헬스체크 엔드포인트
 @app.get("/health")
 async def health(): 
     return {"status": "healthy", "service": "gateway"}
@@ -78,7 +82,6 @@ async def _proxy(request: Request, upstream_base: str, rest: str):
             logger.info(f"✅ 프록시 응답: {upstream.status_code} {url}")
     except httpx.HTTPError as e:
         logger.error(f"❌ 프록시 HTTP 오류: {e} {url}")
-        # 예외가 나도 CORS 헤더는 항상 달아준다
         return JSONResponse(
             status_code=502,
             content={"error": "Bad Gateway", "detail": str(e)},
@@ -112,7 +115,6 @@ async def _proxy(request: Request, upstream_base: str, rest: str):
 # ---- account-service 프록시 ----
 @app.api_route("/api/account/{path:path}", methods=["GET","POST","PUT","PATCH","DELETE"])
 async def account_any(path: str, request: Request):
-    # /api/account/signup -> /signup로 변환
     return await _proxy(request, ACCOUNT_SERVICE_URL, path)
 
 # ---- assessment-service 프록시 ----
