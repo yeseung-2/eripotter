@@ -1,90 +1,79 @@
-"""
-Account Repository - 순수한 데이터 접근 로직
-"""
-from sqlalchemy import create_engine, text
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
-import logging
-from typing import Optional, Dict, Any
-
-logger = logging.getLogger("account-repository")
+from sqlalchemy.orm import Session
+from sqlalchemy import or_
+from typing import Optional, List
+from contextlib import contextmanager
+from eripotter_common.database import get_session
+from ..entity.account_entity import Account
+from ..model.account_model import CompanyProfile, AccountCreate
 
 class AccountRepository:
-    def __init__(self, engine):
-        self.engine = engine
-    
-    def create_user(self, user_data: dict) -> bool:
-        """사용자 생성(해시된 비밀번호)"""
-        try:
-            with self.engine.connect() as conn:
-                logger.info(f"Executing SQL with data: {user_data}")
-                logger.info(f"Executing SQL with cleaned data: {user_data}")
-                conn.execute(
-                    text("""
-                    INSERT INTO auth (
-                        user_id, user_pw, industry, bs_num, company_id,
-                        company_add, company_country, manager_dept,
-                        manager_name, manager_email, manager_phone
-                    ) VALUES (
-                        :user_id, :user_pw, :industry, :bs_num, :company_id,
-                        :company_add, :company_country, :manager_dept,
-                        :manager_name, :manager_email, :manager_phone
-                    )
-                """),
-                    user_data
-                )
-                conn.commit()
-            logger.info(f"✅ 사용자 생성 성공: {user_data['user_id']}")
-            return True
-        except IntegrityError as e:
-            logger.warning(f"⚠️ 사용자 이미 존재: {user_data['user_id']} | 오류: {e}")
-            return False
-        except SQLAlchemyError as e:
-            logger.error(f"❌ 사용자 생성 중 데이터베이스 오류: {e}")
-            logger.error(f"📋 상세 정보: user_id={user_data['user_id']}, company_id={user_data.get('company_id', 'N/A')}")
-            raise
-        except Exception as e:
-            logger.error(f"❌ 사용자 생성 중 예상치 못한 오류: {e}")
-            logger.error(f"📋 상세 정보: user_id={user_data['user_id']}, company_id={user_data.get('company_id', 'N/A')}")
-            raise
-    
-    def get_user(self, user_id: str) -> Optional[Dict[str, Any]]:
-        """사용자 조회"""
-        try:
-            with self.engine.connect() as conn:
-                row = conn.execute(
-                    text("""SELECT user_id, company_id, user_pw
-                            FROM auth WHERE user_id = :user_id"""),
-                    {"user_id": user_id},
-                ).fetchone()
+    @contextmanager
+    def get_db(self) -> Session:
+        with get_session() as session:
+            yield session
+
+    def get_by_oauth_sub(self, oauth_sub: str) -> Optional[Account]:
+        """OAuth sub로 계정 조회"""
+        with self.get_db() as db:
+            return db.query(Account).filter(Account.oauth_sub == oauth_sub).first()
+
+    def get_by_email(self, email: str) -> Optional[Account]:
+        """이메일로 계정 조회"""
+        with self.get_db() as db:
+            return db.query(Account).filter(Account.email == email).first()
+
+    def create_account(self, account_data: AccountCreate) -> Account:
+        """OAuth 로그인 후 최초 계정 생성"""
+        with self.get_db() as db:
+            account = Account(
+                oauth_sub=account_data.oauth_sub,
+                email=account_data.email,
+                name=account_data.name,
+                profile_picture=account_data.profile_picture
+            )
+            db.add(account)
+            db.commit()
+            db.refresh(account)
+            return account
+
+    def update_company_profile(self, oauth_sub: str, profile_data: CompanyProfile) -> Optional[Account]:
+        """기업 프로필 정보 업데이트"""
+        with self.get_db() as db:
+            account = db.query(Account).filter(Account.oauth_sub == oauth_sub).first()
+            if not account:
+                return None
             
-            if row:
-                logger.info(f"✅ 사용자 조회 성공: {user_id}")
-                return {
-                    "user_id": row.user_id,
-                    "company_id": row.company_id,
-                    "user_pw": row.user_pw
-                }
-            logger.info(f"ℹ️ 사용자 없음: {user_id}")
-            return None
-        except SQLAlchemyError as e:
-            logger.error(f"❌ 사용자 조회 중 데이터베이스 오류: {e}")
-            logger.error(f"📋 상세 정보: user_id={user_id}")
-            raise
-        except Exception as e:
-            logger.error(f"❌ 사용자 조회 중 예상치 못한 오류: {e}")
-            logger.error(f"📋 상세 정보: user_id={user_id}")
-            raise
-    
-    def get_user_count(self) -> int:
-        """사용자 수 조회"""
-        try:
-            with self.engine.connect() as conn:
-                count = conn.execute(text("SELECT COUNT(*) FROM auth")).scalar()
-            logger.info(f"✅ 사용자 수 조회 성공: {count}명")
-            return count
-        except SQLAlchemyError as e:
-            logger.error(f"❌ 사용자 수 조회 중 데이터베이스 오류: {e}")
-            raise
-        except Exception as e:
-            logger.error(f"❌ 사용자 수 조회 중 예상치 못한 오류: {e}")
-            raise
+            # 모델의 모든 필드를 업데이트
+            for field, value in profile_data.dict().items():
+                setattr(account, field, value)
+            
+            db.commit()
+            db.refresh(account)
+            return account
+
+    def search_companies(self, query: str) -> List[Account]:
+        """기업명, 업종으로 회사 검색"""
+        with self.get_db() as db:
+            return db.query(Account).filter(
+                or_(
+                    Account.company_name.ilike(f"%{query}%"),
+                    Account.industry.ilike(f"%{query}%")
+                )
+            ).all()
+
+    def get_by_business_number(self, business_number: str) -> Optional[Account]:
+        """사업자 등록 번호로 계정 조회"""
+        with self.get_db() as db:
+            return db.query(Account).filter(Account.business_number == business_number).first()
+
+    def update_profile_picture(self, oauth_sub: str, profile_picture_url: str) -> Optional[Account]:
+        """프로필 사진 URL 업데이트"""
+        with self.get_db() as db:
+            account = db.query(Account).filter(Account.oauth_sub == oauth_sub).first()
+            if not account:
+                return None
+            
+            account.profile_picture = profile_picture_url
+            db.commit()
+            db.refresh(account)
+            return account

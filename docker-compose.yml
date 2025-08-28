@@ -28,6 +28,7 @@ services:
       - ./gateway:/app
     environment:
       - PYTHONUNBUFFERED=1
+      - FRONTEND_URL=${FRONTEND_URL:-https://eripotter.com}
       - ACCOUNT_SERVICE_URL=${ACCOUNT_SERVICE_URL}
       - ASSESSMENT_SERVICE_URL=${ASSESSMENT_SERVICE_URL}
       - CHATBOT_SERVICE_URL=${CHATBOT_SERVICE_URL}
@@ -37,6 +38,10 @@ services:
       - REPORT_SERVICE_URL=${REPORT_SERVICE_URL}
       - SHARING_SERVICE_URL=${SHARING_SERVICE_URL}
       - SOLUTION_SERVICE_URL=${SOLUTION_SERVICE_URL}
+      - JWT_ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+    env_file:
+      - ./gateway/.env
     restart: always
     depends_on:
       - account-service
