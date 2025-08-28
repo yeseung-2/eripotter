@@ -21,7 +21,8 @@ WHITELIST = {
     "https://www.eripotter.com",
     "http://localhost:3000",
     "http://localhost:3001",
-    "http://localhost:5173"
+    "http://localhost:5173",
+    "https://accounts.google.com"  # Google OAuth 도메인 추가
 }
 
 app.add_middleware(
@@ -124,8 +125,8 @@ async def chatbot_root(request: Request):
 async def chatbot_any(path: str, request: Request):
     return await _proxy(request, CHATBOT_SERVICE_URL, path)
 
-# Auth 라우터 추가
-app.include_router(auth_router, prefix="/api/v1")
+# Auth 라우터 추가 (prefix 제거하여 /auth/google/* 경로 유지)
+app.include_router(auth_router)
 
 if __name__ == "__main__":
     import uvicorn
