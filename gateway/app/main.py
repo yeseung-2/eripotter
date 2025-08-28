@@ -7,10 +7,10 @@ import httpx, os, logging
 from app.domain.auth.router import router as auth_router
 
 # ===== 환경변수 설정 =====
-# 서비스 URL 설정
-ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL", "https://api.eripotter.com/account")  # Vercel 도메인
-ASSESSMENT_SERVICE_URL = os.getenv("ASSESSMENT_SERVICE_URL", "https://api.eripotter.com/assessment")  # Vercel 도메인
-CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "https://api.eripotter.com/chatbot")  # Vercel 도메인
+# 서비스 URL 설정 (Railway 실제 URL)
+ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL", "https://account-service-production-a0cc.up.railway.app")
+ASSESSMENT_SERVICE_URL = os.getenv("ASSESSMENT_SERVICE_URL", "https://assessment-service-production-f3b1.up.railway.app")
+CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "https://chatbot-service-production-fb76.up.railway.app")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://eripotter.com")
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 
