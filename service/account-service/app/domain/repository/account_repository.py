@@ -28,10 +28,16 @@ class AccountRepository:
             )
             db.add(account)
             db.commit()
-            db.refresh(account)
-            # 세션에서 분리하여 반환
-            db.expunge(account)
-            return account
+            # ID만 가져와서 새로운 객체 생성
+            account_id = account.id
+            return Account(
+                id=account_id,
+                oauth_sub=account_data.oauth_sub,
+                email=account_data.email,
+                name=account_data.name,
+                profile_picture=account_data.profile_picture,
+                email_verified=account_data.email_verified
+            )
 
     def update_company_profile(self, oauth_sub: str, profile_data: CompanyProfile) -> Optional[Account]:
         """기업 프로필 정보 업데이트"""
@@ -85,6 +91,29 @@ class AccountRepository:
             from datetime import datetime
             account.last_login = datetime.utcnow()
             db.commit()
-            # 세션에서 분리하여 반환
-            db.expunge(account)
-            return account
+            # 새로운 객체 생성하여 반환
+            return Account(
+                id=account.id,
+                oauth_sub=account.oauth_sub,
+                email=account.email,
+                name=account.name,
+                profile_picture=account.profile_picture,
+                company_name=account.company_name,
+                company_type=account.company_type,
+                industry=account.industry,
+                business_number=account.business_number,
+                establishment_date=account.establishment_date,
+                employee_count=account.employee_count,
+                annual_revenue=account.annual_revenue,
+                business_area=account.business_area,
+                factory_count=account.factory_count,
+                factory_address=account.factory_address,
+                production_items=account.production_items,
+                department=account.department,
+                phone_number=account.phone_number,
+                is_active=account.is_active,
+                email_verified=account.email_verified,
+                created_at=account.created_at,
+                updated_at=account.updated_at,
+                last_login=account.last_login
+            )
