@@ -78,3 +78,16 @@ class AccountRepository:
             db.commit()
             db.refresh(account)
             return account
+
+    def update_last_login(self, account_id: int) -> Optional[Account]:
+        """마지막 로그인 시간 업데이트"""
+        with self.get_db() as db:
+            account = db.query(Account).filter(Account.id == account_id).first()
+            if not account:
+                return None
+            
+            from datetime import datetime
+            account.last_login = datetime.utcnow()
+            db.commit()
+            db.refresh(account)
+            return account
