@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+import logging
 from ..domain.controller.account_controller import AccountController
 
 logger = logging.getLogger("account-router")
