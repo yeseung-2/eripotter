@@ -29,13 +29,14 @@ oauth.register(
     }
 )
 
-@router.get("/auth/google/login")
+@router.get("/api/auth/google/login")
 async def google_login(request: Request):
-    # Gateway의 콜백 URL 사용
-    redirect_uri = f"{request.base_url}api/v1/auth/google/callback"
+    # 프로덕션 콜백 URL 사용
+    redirect_uri = f"{FRONTEND_URL}/api/auth/google/callback"
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
-@router.get("/auth/google/callback")
+@router.get("/api/auth/google/callback")
+>>>>>>> feature/yes
 async def auth_callback(request: Request):
     try:
         # 1. Google OAuth 토큰 얻기
@@ -45,7 +46,7 @@ async def auth_callback(request: Request):
         # 2. Account 서비스로 인증 정보 전달
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{ACCOUNT_SERVICE_URL}/api/v1/accounts/auth/google",  # account_router의 auth 엔드포인트
+                f"{ACCOUNT_SERVICE_URL}/api/v1/accounts/auth/google",
                 json={
                     "sub": userinfo.get("sub"),
                     "email": userinfo.get("email"),

@@ -136,6 +136,7 @@ async def chatbot_any(path: str, request: Request):
 # Auth 라우터 추가 (마지막에 추가하여 다른 라우터와 충돌 방지)
 app.include_router(auth_router, prefix="/api/v1")
 
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", "8080")))
