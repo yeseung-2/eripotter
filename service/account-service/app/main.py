@@ -3,9 +3,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from eripotter_common.database import engine
 from .domain.entity.account_entity import Base
 from .router.account_router import router as account_router
+from .domain.statement.account_migration import migrate_account_table
+import logging
+
+# 로깅 설정
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # 데이터베이스 테이블 생성
 Base.metadata.create_all(bind=engine)
+
+# 마이그레이션 실행
+try:
+    migrate_account_table()
+except Exception as e:
+    logger.warning(f"마이그레이션 실패 (이미 적용된 경우): {str(e)}")
 
 # FastAPI 앱 생성
 app = FastAPI(
