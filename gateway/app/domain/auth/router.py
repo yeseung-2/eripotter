@@ -38,7 +38,8 @@ oauth.register(
 @router.get("/google/login")
 async def google_login(request: Request):
     try:
-        redirect_uri = f"{GATEWAY_URL}/auth/google/callback"
+        # Google Cloud Console에 등록된 리디렉션 URL과 일치시킴
+        redirect_uri = "https://gateway-production-5d19.up.railway.app/auth/google/callback"
         logger.info(f"Starting Google login with redirect_uri: {redirect_uri}")
         return await oauth.google.authorize_redirect(request, redirect_uri)
     except Exception as e:
@@ -82,7 +83,7 @@ async def auth_callback(request: Request):
             data = response.json()
             access_token = data.get("access_token")
             
-            # 4. 프론트엔드로 리다이렉트
+            # 4. 프론트엔드로 리다이렉트 (JWT 토큰과 함께)
             redirect_url = f"{FRONTEND_URL}/auth/google/callback?token={access_token}"
             logger.info(f"Redirecting to frontend: {redirect_url}")
             return RedirectResponse(url=redirect_url)
