@@ -16,6 +16,8 @@ class GoogleAuthData(BaseModel):
     email: str
     name: str
     picture: Optional[str] = None
+    hd: Optional[str] = None  # Google Workspace 도메인
+    email_verified: Optional[bool] = None
 
 class AccountCreate(BaseModel):
     """OAuth 로그인 후 최초 계정 생성"""
@@ -23,6 +25,7 @@ class AccountCreate(BaseModel):
     email: EmailStr
     name: str
     profile_picture: Optional[str] = None
+    email_verified: Optional[bool] = None
 
 class CompanyProfile(BaseModel):
     """기업 프로필 정보 입력/수정"""
