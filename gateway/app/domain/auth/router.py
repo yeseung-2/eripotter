@@ -117,7 +117,7 @@ async def auth_callback(request: Request):
             
             # email_verified 확인
             email_verified = userinfo.get("email_verified", False)
-            logger.info(f"📧 Email verified: {email_verified}")
+            logger.info(f"📧📧📧📧📧📧📧📧📧📧📧📧📧📧📧📧📧📧📧📧📧📧 Email verified: {email_verified}")
             
             if email_verified:
                 logger.info("✅ Email verified, proceeding with account service")
