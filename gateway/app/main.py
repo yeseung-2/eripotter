@@ -167,31 +167,44 @@ async def readyz():
 
 @app.get("/health")
 async def health():
-    """레거시 헬스체크 엔드포인트 - 배포 안정성을 위해 항상 200 반환.
-    실제 의존성 준비 상태는 /readyz를 사용하세요."""
-    dep = {"account": "unknown"}
+    """Gateway와 필수 의존성(Account Service) 헬스체크."""
     try:
+        # Account 서비스 헬스체크 - 필수 의존성
         async with httpx.AsyncClient(timeout=HEALTH_CHECK_TIMEOUT) as client:
-            r = await client.get(f"{ACCOUNT_SERVICE_URL}/health")
-            dep["account"] = "healthy" if r.status_code == 200 else f"status_{r.status_code}"
-            logger.info("Account service health check", extra={
-                "status_code": r.status_code,
-                "service": "account"
-            })
-    except Exception as e:
-        error_type = e.__class__.__name__
-        dep["account"] = f"error: {error_type}"
-        logger.error(f"Account service health check failed", extra={
-            "error_type": error_type,
-            "error": str(e)
-        })
+            account_health = await client.get(f"{ACCOUNT_SERVICE_URL}/health")
+            if account_health.status_code != 200:
+                logger.error(f"Account service returned unhealthy status: {account_health.status_code}")
+                return JSONResponse(
+                    status_code=500,
+                    content={
+                        "status": "unhealthy",
+                        "service": "gateway",
+                        "error": "Account service is unhealthy",
+                        "timestamp": now_iso()
+                    }
+                )
+            
+            # 모든 검사 통과
+            return {
+                "status": "healthy",
+                "service": "gateway",
+                "dependencies": {
+                    "account": "healthy"
+                },
+                "timestamp": now_iso()
+            }
 
-    return {
-        "status": "alive",
-        "service": "gateway",
-        "dependencies": dep,
-        "timestamp": now_iso(),
-    }
+    except Exception as e:
+        logger.error(f"Account service health check failed: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "status": "unhealthy",
+                "service": "gateway",
+                "error": f"Failed to connect to account service: {str(e)}",
+                "timestamp": now_iso()
+            }
+        )
 
 @app.options("/{path:path}")
 async def options_handler(path: str, request: Request):
