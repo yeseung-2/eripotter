@@ -50,6 +50,7 @@ ASSESSMENT_SERVICE_URL = os.getenv("ASSESSMENT_SERVICE_URL", "http://localhost:8
 CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "http://localhost:8003")
 TIMEOUT = float(os.getenv("UPSTREAM_TIMEOUT", "20"))
 
+# 헬스체크 엔드포인트 (prefix 없이)
 @app.get("/health")
 async def health(): 
     return {"status": "healthy", "service": "gateway"}
@@ -135,7 +136,6 @@ async def chatbot_any(path: str, request: Request):
 
 # Auth 라우터 추가 (마지막에 추가하여 다른 라우터와 충돌 방지)
 app.include_router(auth_router, prefix="/api/v1")
-
 
 if __name__ == "__main__":
     import uvicorn
