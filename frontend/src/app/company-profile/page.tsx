@@ -13,27 +13,12 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
-export default function CompanyProfilePage() {
-  const [isEditing, setIsEditing] = useState(false);
+// URL 파라미터 처리를 위한 별도 컴포넌트
+function TokenHandler() {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  const [formData, setFormData] = useState({
-    company_name: '',
-    company_type: '',
-    industry: '',
-    business_number: '',
-    establishment_date: '',
-    employee_count: '',
-    annual_revenue: '',
-    business_area: '',
-    factory_count: '',
-    factory_address: '',
-    production_items: '',
-    department: '',
-    phone_number: ''
-  });
   const searchParams = useSearchParams();
   
   // URL에서 토큰 가져오기
@@ -50,7 +35,7 @@ export default function CompanyProfilePage() {
   }, [searchParams]);
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <>
       {/* 성공 메시지 */}
       {showSuccessMessage && (
         <div className="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
@@ -62,6 +47,34 @@ export default function CompanyProfilePage() {
           </div>
         </div>
       )}
+    </>
+  );
+}
+
+export default function CompanyProfilePage() {
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState({
+    company_name: '',
+    company_type: '',
+    industry: '',
+    business_number: '',
+    establishment_date: '',
+    employee_count: '',
+    annual_revenue: '',
+    business_area: '',
+    factory_count: '',
+    factory_address: '',
+    production_items: '',
+    department: '',
+    phone_number: ''
+  });
+
+  return (
+    <div className="container mx-auto py-8 px-4">
+      {/* Suspense로 감싼 TokenHandler */}
+      <Suspense fallback={<div>Loading...</div>}>
+        <TokenHandler />
+      </Suspense>
       
       {/* 상단 서비스 네비게이션 */}
       <div className="mb-8 bg-white rounded-xl shadow-lg p-6">
