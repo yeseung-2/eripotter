@@ -95,32 +95,14 @@ WHITELIST = {
     "https://accounts.google.com"
 }
 
-# 개발 환경에서는 모든 origin 허용
-if os.getenv("ENVIRONMENT") == "development":
-    CORS_ORIGINS = ["*"]
-    logger.warning("개발 환경: 모든 CORS origin 허용")
-else:
-    CORS_ORIGINS = list(WHITELIST)
-    logger.info(f"프로덕션 환경: CORS whitelist 적용 ({len(CORS_ORIGINS)}개 도메인)")
-
+# CORS 설정 - 배포 안정성을 위해 임시로 모든 origin 허용
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
+    allow_origins=["*"],  # 배포 안정성을 위해 임시로 모든 origin 허용
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=[
-        "Content-Type", 
-        "Authorization", 
-        "Accept", 
-        "Origin", 
-        "X-Requested-With",
-        "X-Request-ID"
-    ],
-    expose_headers=[
-        "Content-Length",
-        "Content-Type",
-        "X-Request-ID"
-    ]
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 def cors_headers_for(request: Request):
