@@ -64,13 +64,26 @@ logger = logging.getLogger("gateway")
 
 app = FastAPI(title="MSA API Gateway", version="1.0.0")
 
-# Session 미들웨어 추가 (OAuth 상태 관리용)
-app.add_middleware(
-    SessionMiddleware, 
-    secret_key=JWT_SECRET_KEY,
-    same_site="lax",  # Railway는 HTTPS가 아닐 수 있음
-    secure=False      # Railway는 HTTPS가 아닐 수 있음
-)
+# 헬스체크 엔드포인트를 먼저 등록
+@app.get("/livez", methods=["GET", "HEAD"])
+async def livez():
+    """프로세스 생존 여부만 확인 (Railway Healthcheck용)"""
+    return {
+        "status": "alive",
+        "service": "gateway",
+        "timestamp": now_iso(),
+    }
+
+# Session 미들웨어는 JWT_SECRET_KEY가 있을 때만 추가
+if JWT_SECRET_KEY:
+    app.add_middleware(
+        SessionMiddleware, 
+        secret_key=JWT_SECRET_KEY,
+        same_site="lax",  # Railway는 HTTPS가 아닐 수 있음
+        secure=False      # Railway는 HTTPS가 아닐 수 있음
+    )
+else:
+    logger.warning("JWT_SECRET_KEY not set - session middleware disabled")
 
 # ===== CORS 설정 =====
 WHITELIST = {

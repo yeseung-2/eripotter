@@ -8,26 +8,38 @@ import os
 router = APIRouter()
 
 # OAuth 설정
-config = Config('.env')
-oauth = OAuth(config)
+router = APIRouter()
+oauth = None
 
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+def setup_oauth():
+    """OAuth 설정을 초기화합니다. 실패시 None을 반환합니다."""
+    global oauth
+    try:
+        config = Config('.env')
+        oauth = OAuth(config)
+
+        client_id = os.getenv("GOOGLE_CLIENT_ID")
+        client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+        
+        if client_id and client_secret:
+            oauth.register(
+                name='google',
+                server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+                client_id=client_id,
+                client_secret=client_secret,
+                client_kwargs={
+                    'scope': 'openid email profile'
+                }
+            )
+            return True
+        return False
+    except Exception as e:
+        print(f"OAuth setup failed: {e}")
+        return False
+
+# 공통 설정
 ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL", "http://account-service:8001")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://eripotter.com")
-
-if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
-    raise ValueError("Missing Google OAuth credentials")
-
-oauth.register(
-    name='google',
-    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
-    client_id=GOOGLE_CLIENT_ID,
-    client_secret=GOOGLE_CLIENT_SECRET,
-    client_kwargs={
-        'scope': 'openid email profile'
-    }
-)
 
 @router.get("/auth/google/login")
 async def google_login(request: Request):
