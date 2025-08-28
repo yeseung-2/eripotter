@@ -4,7 +4,6 @@ from starlette.config import Config
 from starlette.responses import RedirectResponse
 import httpx
 import os
-from urllib.parse import quote
 
 router = APIRouter()
 
@@ -16,7 +15,6 @@ GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL", "http://account-service:8001")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://eripotter.com")
-GATEWAY_URL = os.getenv("GATEWAY_URL", "https://gateway-production-5d19.up.railway.app")
 
 if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
     raise ValueError("Missing Google OAuth credentials")
@@ -33,8 +31,8 @@ oauth.register(
 
 @router.get("/google/login")
 async def google_login(request: Request):
-    # URL 인코딩된 콜백 URL 사용
-    redirect_uri = quote(f"{GATEWAY_URL}/auth/google/callback", safe='')
+    # 현재 요청의 호스트를 사용
+    redirect_uri = str(request.base_url) + "auth/google/callback"
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 @router.get("/google/callback")
