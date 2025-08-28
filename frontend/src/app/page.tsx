@@ -14,7 +14,7 @@ export default function LoginPage() {
 
   const handleGoogleLogin = () => {
     // Google OAuth 로그인 엔드포인트로 리다이렉트
-    window.location.href = join("/google/login");  // URL 패턴 수정
+    window.location.href = join("/api/auth/google/login");  // URL 패턴 수정
   };
 
   return (
