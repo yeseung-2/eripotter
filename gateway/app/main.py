@@ -13,7 +13,15 @@ logger = logging.getLogger("gateway")
 app = FastAPI(title="MSA API Gateway", version="1.0.0")
 
 # Session 미들웨어 추가 (OAuth 상태 관리용)
-app.add_middleware(SessionMiddleware, secret_key=os.getenv("JWT_SECRET_KEY"))
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-here")
+app.add_middleware(
+    SessionMiddleware, 
+    secret_key=SECRET_KEY,
+    session_cookie="session",
+    max_age=3600,  # 1시간
+    same_site="lax",
+    https_only=True
+)
 
 # CORS 설정
 WHITELIST = {
@@ -22,7 +30,7 @@ WHITELIST = {
     "http://localhost:3000",
     "http://localhost:3001",
     "http://localhost:5173",
-    "https://accounts.google.com"  # Google OAuth 도메인 추가
+    "https://accounts.google.com"
 }
 
 app.add_middleware(
@@ -125,13 +133,9 @@ async def chatbot_root(request: Request):
 async def chatbot_any(path: str, request: Request):
     return await _proxy(request, CHATBOT_SERVICE_URL, path)
 
-# Google OAuth 콜백 URL을 위한 특별 라우트
-@app.get("/auth/google/callback")
-async def google_callback(request: Request):
-    return await auth_router.auth_callback(request)
-
-# Auth 라우터는 /api/auth 아래에 마운트
-app.include_router(auth_router, prefix="/api/auth")
+# Auth 라우터 추가 - 두 가지 경로에 마운트
+app.include_router(auth_router, prefix="/api/auth")  # API 경로
+app.include_router(auth_router, prefix="/auth")      # 콜백 경로
 
 if __name__ == "__main__":
     import uvicorn
