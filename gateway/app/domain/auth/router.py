@@ -36,7 +36,6 @@ async def google_login(request: Request):
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 @router.get("/api/auth/google/callback")
->>>>>>> feature/yes
 async def auth_callback(request: Request):
     try:
         # 1. Google OAuth 토큰 얻기
