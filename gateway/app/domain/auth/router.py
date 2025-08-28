@@ -4,6 +4,7 @@ from starlette.config import Config
 from starlette.responses import RedirectResponse
 import httpx
 import os
+from urllib.parse import quote
 
 router = APIRouter()
 
@@ -32,8 +33,8 @@ oauth.register(
 
 @router.get("/google/login")
 async def google_login(request: Request):
-    # Gateway의 콜백 URL 사용
-    redirect_uri = f"{GATEWAY_URL}/auth/google/callback"
+    # URL 인코딩된 콜백 URL 사용
+    redirect_uri = quote(f"{GATEWAY_URL}/auth/google/callback", safe='')
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 @router.get("/google/callback")
