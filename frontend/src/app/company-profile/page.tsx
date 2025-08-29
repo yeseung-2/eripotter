@@ -184,7 +184,7 @@ export default function CompanyProfilePage() {
       
       {/* 상단 서비스 네비게이션 */}
       <div className="mb-8 bg-white rounded-xl shadow-lg p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* AI 상담 */}
           <Link href="/chat" className="group">
             <Card className="hover:shadow-md transition-all cursor-pointer h-full">
@@ -210,7 +210,7 @@ export default function CompanyProfilePage() {
                   </svg>
                 </div>
                 <h3 className="text-lg font-semibold mb-2">자가진단</h3>
-                <p className="text-sm text-gray-600">곻급망 실사 대응</p>
+                <p className="text-sm text-gray-600">공급망 실사 대응</p>
               </CardContent>
             </Card>
           </Link>
@@ -226,6 +226,21 @@ export default function CompanyProfilePage() {
                 </div>
                 <h3 className="text-lg font-semibold mb-2">데이터 업로드</h3>
                 <p className="text-sm text-gray-600">생산성 분석을 위한 데이터를 업로드하세요</p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          {/* 보고서 작성 */}
+          <Link href="/report/create" className="group">
+            <Card className="hover:shadow-md transition-all cursor-pointer h-full">
+              <CardContent className="p-6 flex flex-col items-center text-center">
+                <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mb-4 group-hover:bg-orange-200 transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold mb-2">보고서 작성</h3>
+                <p className="text-sm text-gray-600">ESG 보고서를 작성하고 관리하세요</p>
               </CardContent>
             </Card>
           </Link>
