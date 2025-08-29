@@ -55,12 +55,12 @@ app.add_middleware(
 logger.info("✅ CORS 미들웨어 설정 완료")
 
 # ---------- Import Routers ----------
-# try:
-#     from .router.report_router import report_router
-#     logger.info("✅ 라우터 import 완료")
-# except Exception as e:
-#     logger.error(f"❌ 라우터 import 실패: {e}")
-#     raise
+try:
+    from .router.report_router import report_router
+    logger.info("✅ 라우터 import 완료")
+except Exception as e:
+    logger.error(f"❌ 라우터 import 실패: {e}")
+    raise
 
 # ---------- Database Initialization ----------
 logger.info("🗄️ 데이터베이스 초기화 시도...")
@@ -81,7 +81,7 @@ except Exception as e:
     logger.warning(traceback.format_exc())
 
 # ---------- Include Routers ----------
-# app.include_router(report_router)
+app.include_router(report_router)
 
 # ---------- Root Route ----------
 logger.info("🏠 Root Route 설정 중...")
@@ -115,6 +115,12 @@ def root():
             "GET /reports/health"
         ]
     }
+
+# 테스트용 간단한 엔드포인트
+@app.get("/health", summary="Health Check")
+def health():
+    logger.info("📡 Health Check 엔드포인트 호출됨")
+    return {"status": "healthy", "service": "report-service"}
 
 # ---------- Middleware ----------
 @app.middleware("http")
