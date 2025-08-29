@@ -1,3 +1,3 @@
-from .account_repository import AccountRepository
+from .regulation_repository import RegulationRepository
 
-__all__ = ["AccountRepository"]
+__all__ = ["RegulationRepository"]
