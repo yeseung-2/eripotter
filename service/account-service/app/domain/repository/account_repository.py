@@ -63,8 +63,8 @@ class AccountRepository:
                 "email_verified": account.email_verified
             }
 
-    def update_company_profile(self, oauth_sub: str, profile_data: CompanyProfile) -> Optional[Account]:
-        """기업 프로필 정보 업데이트"""
+    def update_company_profile(self, oauth_sub: str, profile_data: CompanyProfile) -> Optional[dict]:
+        """기업 프로필 정보 업데이트 - 딕셔너리 반환"""
         with get_session() as db:
             account = db.query(Account).filter(Account.oauth_sub == oauth_sub).first()
             if not account:
@@ -77,10 +77,34 @@ class AccountRepository:
             
             db.commit()
             db.refresh(account)
-            return account
+            
+            # 딕셔너리로 반환하여 세션 바인딩 문제 해결
+            return {
+                "id": account.id,
+                "oauth_sub": account.oauth_sub,
+                "email": account.email,
+                "name": account.name,
+                "profile_picture": account.profile_picture,
+                "company_name": account.company_name,
+                "company_type": account.company_type,
+                "industry": account.industry,
+                "business_number": account.business_number,
+                "establishment_date": account.establishment_date,
+                "employee_count": account.employee_count,
+                "annual_revenue": account.annual_revenue,
+                "business_area": account.business_area,
+                "factory_count": account.factory_count,
+                "factory_address": account.factory_address,
+                "production_items": account.production_items,
+                "department": account.department,
+                "phone_number": account.phone_number,
+                "email_verified": account.email_verified,
+                "created_at": account.created_at,
+                "updated_at": account.updated_at
+            }
 
-    def create_company_profile(self, oauth_sub: str, profile_data: CompanyProfile) -> Optional[Account]:
-        """기업 프로필 정보 생성"""
+    def create_company_profile(self, oauth_sub: str, profile_data: CompanyProfile) -> Optional[dict]:
+        """기업 프로필 정보 생성 - 딕셔너리 반환"""
         with get_session() as db:
             account = db.query(Account).filter(Account.oauth_sub == oauth_sub).first()
             if not account:
@@ -93,7 +117,31 @@ class AccountRepository:
             
             db.commit()
             db.refresh(account)
-            return account
+            
+            # 딕셔너리로 반환하여 세션 바인딩 문제 해결
+            return {
+                "id": account.id,
+                "oauth_sub": account.oauth_sub,
+                "email": account.email,
+                "name": account.name,
+                "profile_picture": account.profile_picture,
+                "company_name": account.company_name,
+                "company_type": account.company_type,
+                "industry": account.industry,
+                "business_number": account.business_number,
+                "establishment_date": account.establishment_date,
+                "employee_count": account.employee_count,
+                "annual_revenue": account.annual_revenue,
+                "business_area": account.business_area,
+                "factory_count": account.factory_count,
+                "factory_address": account.factory_address,
+                "production_items": account.production_items,
+                "department": account.department,
+                "phone_number": account.phone_number,
+                "email_verified": account.email_verified,
+                "created_at": account.created_at,
+                "updated_at": account.updated_at
+            }
 
     def search_companies(self, query: str) -> List[Account]:
         """기업명, 업종으로 회사 검색"""

@@ -105,32 +105,8 @@ class AccountService:
             
             updated_account = self.repository.update_company_profile(oauth_sub, profile_data)
             if updated_account:
-                # Account 객체를 딕셔너리로 변환
-                account_dict = {
-                    "id": updated_account.id,
-                    "oauth_sub": updated_account.oauth_sub,
-                    "email": updated_account.email,
-                    "name": updated_account.name,
-                    "profile_picture": updated_account.profile_picture,
-                    "company_name": updated_account.company_name,
-                    "company_type": updated_account.company_type,
-                    "industry": updated_account.industry,
-                    "business_number": updated_account.business_number,
-                    "establishment_date": updated_account.establishment_date,
-                    "employee_count": updated_account.employee_count,
-                    "annual_revenue": updated_account.annual_revenue,
-                    "business_area": updated_account.business_area,
-                    "factory_count": updated_account.factory_count,
-                    "factory_address": updated_account.factory_address,
-                    "production_items": updated_account.production_items,
-                    "department": updated_account.department,
-                    "phone_number": updated_account.phone_number,
-                    "email_verified": updated_account.email_verified,
-                    "created_at": updated_account.created_at,
-                    "updated_at": updated_account.updated_at
-                }
                 logger.info("✅ Successfully updated company profile")
-                return account_dict
+                return updated_account  # 이미 딕셔너리로 반환됨
             else:
                 raise ValueError("Failed to update company profile")
             
@@ -155,32 +131,8 @@ class AccountService:
             
             created_account = self.repository.create_company_profile(oauth_sub, profile_data)
             if created_account:
-                # Account 객체를 딕셔너리로 변환
-                account_dict = {
-                    "id": created_account.id,
-                    "oauth_sub": created_account.oauth_sub,
-                    "email": created_account.email,
-                    "name": created_account.name,
-                    "profile_picture": created_account.profile_picture,
-                    "company_name": created_account.company_name,
-                    "company_type": created_account.company_type,
-                    "industry": created_account.industry,
-                    "business_number": created_account.business_number,
-                    "establishment_date": created_account.establishment_date,
-                    "employee_count": created_account.employee_count,
-                    "annual_revenue": created_account.annual_revenue,
-                    "business_area": created_account.business_area,
-                    "factory_count": created_account.factory_count,
-                    "factory_address": created_account.factory_address,
-                    "production_items": created_account.production_items,
-                    "department": created_account.department,
-                    "phone_number": created_account.phone_number,
-                    "email_verified": created_account.email_verified,
-                    "created_at": created_account.created_at,
-                    "updated_at": created_account.updated_at
-                }
                 logger.info("✅ Successfully created company profile")
-                return account_dict
+                return created_account  # 이미 딕셔너리로 반환됨
             else:
                 raise ValueError("Failed to create company profile")
             

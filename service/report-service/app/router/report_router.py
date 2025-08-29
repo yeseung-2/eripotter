@@ -3,8 +3,8 @@ Report Router - ESG 매뉴얼 기반 보고서 API 라우팅
 """
 from fastapi import APIRouter, Depends
 from typing import Dict, Any, Optional
-from ..controller.report_controller import ReportController, get_report_controller
-from ..model.report_model import (
+from ..domain.controller.report_controller import ReportController, get_report_controller
+from ..domain.model.report_model import (
     ReportCreateRequest, ReportCreateResponse,
     ReportGetResponse, ReportUpdateRequest, ReportUpdateResponse,
     ReportDeleteResponse, ReportListResponse, ReportCompleteRequest, ReportCompleteResponse,
