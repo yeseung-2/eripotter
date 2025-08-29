@@ -17,6 +17,11 @@ export default function LoginPage() {
     window.location.href = join("/api/auth/google/login");  // URL 패턴 수정
   };
 
+  const handleReportCreate = () => {
+    // 보고서 작성 페이지로 이동
+    router.push('/report/create');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center p-4">
       <Card className="w-full max-w-sm bg-white rounded-3xl shadow-2xl px-8 py-12">
@@ -54,6 +59,17 @@ export default function LoginPage() {
             />
           </svg>
           <span>Google 계정으로 로그인</span>
+        </Button>
+
+        {/* Report Create Button */}
+        <Button
+          onClick={handleReportCreate}
+          className="w-full py-6 mb-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl flex items-center justify-center space-x-2 text-lg font-medium"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          <span>보고서 작성</span>
         </Button>
 
         <div className="text-center text-sm text-gray-600 mt-8">
