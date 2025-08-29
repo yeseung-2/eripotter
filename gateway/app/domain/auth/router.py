@@ -99,7 +99,7 @@ async def auth_callback(request: Request):
         
         # 3. Account 서비스로 인증 정보 전달
         async with httpx.AsyncClient() as client:
-            account_url = f"{ACCOUNT_SERVICE_URL}/api/v1/accounts/auth/google"
+            account_url = f"{ACCOUNT_SERVICE_URL}/accounts/auth/google"
             logger.info(f"📤 Sending user info to account service: {account_url}")
             
             response = await client.post(
