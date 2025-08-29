@@ -1,28 +1,45 @@
 """
 Report Service main ㅡ MSA 프랙탈 구조
 """
-from dotenv import load_dotenv, find_dotenv
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
 import logging, sys, traceback, os
 
 # ---------- Logging ----------
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,  # DEBUG 레벨로 변경
     format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
     handlers=[logging.StreamHandler(sys.stdout)],
     force=True,
 )
 logger = logging.getLogger("report-service")
 
+logger.info("🚀 Report Service 시작 중...")
+
 # ---------- .env ----------
-if os.getenv("RAILWAY_ENVIRONMENT") != "true":
-    load_dotenv(find_dotenv())
+logger.info("📁 .env 파일 로드 시도...")
+try:
+    from dotenv import load_dotenv, find_dotenv
+    if os.getenv("RAILWAY_ENVIRONMENT") != "true":
+        load_dotenv(find_dotenv())
+    logger.info("✅ .env 로드 완료")
+except Exception as e:
+    logger.warning(f"⚠️ .env 로드 실패: {e}")
+    logger.warning(traceback.format_exc())
 
 # ---------- FastAPI ----------
+logger.info("🔧 FastAPI import 시도...")
+try:
+    from fastapi import FastAPI, Request, HTTPException
+    from fastapi.middleware.cors import CORSMiddleware
+    logger.info("✅ FastAPI import 완료")
+except Exception as e:
+    logger.error(f"❌ FastAPI import 실패: {e}")
+    logger.error(traceback.format_exc())
+    raise
+
+logger.info("🏗️ FastAPI 앱 생성 중...")
 app = FastAPI(title="Report Service API", description="Report 서비스", version="1.0.0")
 
+logger.info("🔒 CORS 미들웨어 설정 중...")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -35,25 +52,42 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+logger.info("✅ CORS 미들웨어 설정 완료")
 
 # ---------- Import Routers ----------
-from .router.report_router import report_router
+# try:
+#     from .router.report_router import report_router
+#     logger.info("✅ 라우터 import 완료")
+# except Exception as e:
+#     logger.error(f"❌ 라우터 import 실패: {e}")
+#     raise
 
 # ---------- Database Initialization ----------
+logger.info("🗄️ 데이터베이스 초기화 시도...")
 try:
+    logger.info("📦 eripotter_common.database.base import 시도...")
     from eripotter_common.database.base import Base
+    logger.info("✅ Base import 완료")
+    
+    logger.info("🔧 engine import 시도...")
     from eripotter_common.database.base import engine
+    logger.info("✅ engine import 완료")
+    
+    logger.info("🏗️ 테이블 생성 시도...")
     Base.metadata.create_all(bind=engine)
     logger.info("✅ 데이터베이스 초기화 완료")
 except Exception as e:
     logger.warning(f"⚠️ 데이터베이스 초기화 실패: {e}")
+    logger.warning(traceback.format_exc())
 
 # ---------- Include Routers ----------
-app.include_router(report_router)
+# app.include_router(report_router)
 
 # ---------- Root Route ----------
+logger.info("🏠 Root Route 설정 중...")
 @app.get("/", summary="Root")
 def root():
+    logger.info("📡 Root 엔드포인트 호출됨")
     return {
         "status": "ok", 
         "service": "report-service", 
@@ -96,7 +130,15 @@ async def log_requests(request: Request, call_next):
         raise
 
 # ---------- Entrypoint ----------
+logger.info("🎯 Entrypoint 설정 완료")
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", "8007"))
-    logger.info(f"💻 서비스 시작 - 포트: {port}")
-    uvicorn.run("app.main:app", host="0.0.0.0", port=port, log_level="info", access_log=True)
+    logger.info("🚀 직접 실행 모드 시작...")
+    try:
+        import uvicorn
+        port = int(os.getenv("PORT", "8007"))
+        logger.info(f"💻 서비스 시작 - 포트: {port}")
+        uvicorn.run("app.main:app", host="0.0.0.0", port=port, log_level="info", access_log=True)
+    except Exception as e:
+        logger.error(f"❌ 서비스 시작 실패: {e}")
+        logger.error(traceback.format_exc())
+        raise
