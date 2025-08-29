@@ -62,8 +62,8 @@ def _get_llm():
 # ===== 유틸 본체 =====
 class RAGUtils:
     def __init__(self, collection_name: Optional[str] = None):
-        qurl = os.getenv("QDRANT_URL", "http://localhost:6333")
-        key = os.getenv("QDRANT_API_KEY")
+        qurl = os.getenv("QDRANT_URL", "https://qdrant-production-1efa.up.railway.app")
+        key = os.getenv("QDRANT__SERVICE__API_KEY")  # Railway 실제 변수명에 맞게 수정
         p = urlparse(qurl)
         self.qdrant_client = QdrantClient(
             host=p.hostname, port=p.port or (443 if p.scheme == "https" else 80),

@@ -39,6 +39,10 @@ app.add_middleware(
 # ---------- Import Routers ----------
 from .router.report_router import report_router
 
+# ---------- Database Initialization ----------
+from eripotter_common.database import engine, Base
+Base.metadata.create_all(bind=engine)
+
 # ---------- Include Routers ----------
 app.include_router(report_router)
 
@@ -49,13 +53,27 @@ def root():
         "status": "ok", 
         "service": "report-service", 
         "endpoints": [
-            "/reports", 
-            "/reports/esg/generate",
-            "/reports/esg/section", 
-            "/reports/esg/search-manual",
-            "/reports/esg/templates",
-            "/reports/health", 
-            "/metrics"
+            # 기본 CRUD
+            "POST /reports",
+            "GET /reports/{topic}/{company_name}",
+            "PUT /reports", 
+            "DELETE /reports/{topic}/{company_name}",
+            "POST /reports/complete",
+            
+            # 목록 조회
+            "GET /reports/company/{company_name}",
+            "GET /reports/company/{company_name}/type/{report_type}",
+            "GET /reports/status/{company_name}",
+            
+            # ESG 매뉴얼 기반 지표 API
+            "GET /reports/indicator/{indicator_id}/summary",
+            "GET /reports/indicator/{indicator_id}/input-fields",
+            "POST /reports/indicator/{indicator_id}/draft",
+            "POST /reports/indicator/{indicator_id}/save",
+            "GET /reports/indicator/{indicator_id}/data",
+            
+            # 헬스체크
+            "GET /reports/health"
         ]
     }
 
