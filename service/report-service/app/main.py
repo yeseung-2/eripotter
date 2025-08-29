@@ -56,7 +56,7 @@ logger.info("✅ CORS 미들웨어 설정 완료")
 
 # ---------- Import Routers ----------
 try:
-    from .router.report_router import report_router
+    from .router.report_router import router as report_router
     logger.info("✅ 라우터 import 완료")
 except Exception as e:
     logger.error(f"❌ 라우터 import 실패: {e}")
