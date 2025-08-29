@@ -109,6 +109,8 @@ services:
     volumes:
       - ./service/normal-service/app:/app/app
       - ./service/normal-service/requirements.txt:/app/requirements.txt
+      - ./service/monitoring-train/model:/app/model
+      - ./service/monitoring-train/data:/app/data
     environment:
       - PYTHONUNBUFFERED=1
       - DATABASE_URL=${DATABASE_URL}
@@ -193,7 +195,6 @@ services:
 
 volumes:
   postgres_data:
-
 networks:
   msa_network:
     driver: bridge

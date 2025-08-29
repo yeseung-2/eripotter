@@ -1,3 +1,3 @@
-from .account_repository import AccountRepository
+from .substance_mapping_repository import SubstanceMappingRepository
 
-__all__ = ["AccountRepository"]
+__all__ = ["SubstanceMappingRepository"]

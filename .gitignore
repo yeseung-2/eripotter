@@ -1,7 +1,50 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# Dependencies
+**/node_modules
+**/.pnp
+**/.pnp.*
+**/.yarn/*
+!**/.yarn/patches
+!**/.yarn/plugins
+!**/.yarn/releases
+!**/.yarn/versions
+
+# Testing
+**/coverage
+
+# Next.js
+**/.next/
+**/out/
+
+# Production
+**/build
+**/dist
+
+# Misc
+.DS_Store
+*.pem
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.log
+
 # Environment variables
-.env
-docker.env
-*.env
+.env*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
 
 # Python
 __pycache__/
@@ -9,68 +52,73 @@ __pycache__/
 *$py.class
 *.so
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# Virtual environments
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.venv
 venv/
-env/
 ENV/
-env.bak/
-venv.bak/
 
 # IDE
-.vscode/
 .idea/
+.vscode/
 *.swp
 *.swo
-*~
 
-# OS
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+# Project specific
+/llm/
+/vectordb/
+/document/
+/data/
 
-# Logs
+# Alembic
+alembic/*.ini
+
+# Database setup files (contain sensitive information)
+railway_table_setup_final.sql
+run_railway_sql.py
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Model files (large files)
+*.bin
+*.pt
+*.pth
+*.onnx
+*.faiss
+*.pkl
+*.safetensors
+
+# Training data files
+service/monitoring-train/data/*.csv
+service/monitoring-train/data/*.jsonl
+service/monitoring-train/data/*.xlsx
+service/monitoring-train/*.csv
+service/monitoring-train/model/bomi-ai/
+service/monitoring-train/checkpoints/
+
+# Log files
 *.log
 logs/
-
-# Database
-*.db
-*.sqlite3
+log/
 
 # Docker
 .dockerignore
 
-# Node.js (for frontend)
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
+# OS files
+Thumbs.db
+.DS_Store
+*.swp
+*.swo
+*~
 
-# Next.js
-.next/
-out/
-
-# Production builds
-build/
-dist/
+# IDE
+.vscode/
+.idea/
+*.sublime-*

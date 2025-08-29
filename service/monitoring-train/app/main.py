@@ -38,9 +38,11 @@ app.add_middleware(
 
 # ---------- Import Routers ----------
 from .router.assesment_router import assessment_router
+from .router.learning_router import router as learning_router
 
 # ---------- Include Routers ----------
 app.include_router(assessment_router)
+app.include_router(learning_router)
 
 # ---------- Root Route ----------
 @app.get("/", summary="Root")
