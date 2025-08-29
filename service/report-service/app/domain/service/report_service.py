@@ -420,3 +420,4 @@ class ReportService:
         except Exception as e:
             logger.exception("지표 데이터 조회 실패")
             return None
+    

@@ -1,13 +1,20 @@
+# 기본 의존성
 eripotter-common==0.1.4
 uvicorn[standard]==0.24.0
 psycopg2-binary==2.9.9
 alembic==1.13.1
+python-multipart==0.0.9
 
-# RAG 관련 패키지 (chatbot-service와 동일한 버전)
+# RAG 관련 패키지 (필수만 포함)
 qdrant-client==1.15.1
-sentence-transformers==5.1.0
 openai>=1.0.0
 langchain>=0.1.20,<0.2
 langchain-community>=0.0.33,<0.1
 langchain-openai>=0.0.8,<0.1
-python-multipart==0.0.9
+
+# sentence-transformers는 필요시에만 설치 (매우 큰 패키지)
+# 사용 시나리오:
+# - EMBEDDER=minilm 환경변수 설정 시 필요
+# - 기본값은 EMBEDDER=bge-m3 또는 EMBEDDER=openai
+# - 제거 시 minilm 모드에서 openai로 자동 fallback
+# sentence-transformers==5.1.0

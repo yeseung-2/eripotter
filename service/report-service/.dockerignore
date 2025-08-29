@@ -1,0 +1,61 @@
+# Git 관련
+.git
+.gitignore
+
+# Python 관련
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env
+pip-log.txt
+pip-delete-this-directory.txt
+.tox
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.git
+.mypy_cache
+.pytest_cache
+.hypothesis
+
+# IDE 관련
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS 관련
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# 문서 및 기타
+README.md
+*.md
+docs/
+tests/
+test_*
+*_test.py
+
+# 불필요한 디렉토리
+tables_gpt/
+*.log
+logs/
+temp/
+tmp/
+
+# 환경 변수
+.env
+.env.local
+.env.*.local

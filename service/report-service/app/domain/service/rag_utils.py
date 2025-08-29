@@ -23,12 +23,24 @@ def _get_embedder():
             return m.encode([f"query: {t}" for t in texts], normalize_embeddings=True).tolist()
         return encode, dim, "bge-m3"
     elif emb == "minilm":
-        from sentence_transformers import SentenceTransformer
-        m = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-        dim = 384
-        def encode(texts: List[str]) -> List[List[float]]:
-            return m.encode(texts, normalize_embeddings=True).tolist()
-        return encode, dim, "minilm"
+        try:
+            from sentence_transformers import SentenceTransformer
+            m = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+            dim = 384
+            def encode(texts: List[str]) -> List[List[float]]:
+                return m.encode(texts, normalize_embeddings=True).tolist()
+            return encode, dim, "minilm"
+        except ImportError:
+            logger.warning("sentence-transformers not installed, falling back to openai")
+            # fallback to openai
+            from openai import OpenAI
+            client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+            model = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-large")
+            dim = 3072
+            def encode(texts: List[str]) -> List[List[float]]:
+                out = client.embeddings.create(model=model, input=texts)
+                return [e.embedding for e in out.data]
+            return encode, dim, "openai"
     elif emb == "openai":
         from openai import OpenAI
         client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
