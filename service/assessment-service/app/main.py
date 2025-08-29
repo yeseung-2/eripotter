@@ -20,10 +20,6 @@ logger = logging.getLogger("assessment-service")
 if os.getenv("RAILWAY_ENVIRONMENT") != "true":
     load_dotenv(find_dotenv())
 
-# ---------- Database ----------
-from .common.db import get_db_engine
-db_engine = get_db_engine()
-
 # ---------- FastAPI ----------
 app = FastAPI(title="Assessment Service API", description="Assessment 서비스", version="1.0.0")
 
@@ -41,7 +37,7 @@ app.add_middleware(
 )
 
 # ---------- Import Routers ----------
-from .router.assesment_router import assessment_router
+from .router.assessment_router import assessment_router
 
 # ---------- Include Routers ----------
 app.include_router(assessment_router)

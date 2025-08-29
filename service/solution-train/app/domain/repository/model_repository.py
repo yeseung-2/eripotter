@@ -2,7 +2,6 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from loguru import logger
-from app.common.db import get_db
 from app.domain.entity.model_entity import ModelEntity
 
 class ModelRepository:

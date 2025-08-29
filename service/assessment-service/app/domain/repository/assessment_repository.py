@@ -1,292 +1,187 @@
-from sqlalchemy import create_engine, text
-from sqlalchemy.exc import SQLAlchemyError
-import logging
-from typing import List, Dict, Any, Optional
-from ..model.assessment_model import KesgItem
+"""
+Assessment Repository - Mock Repository Layer
+DB 연결 없이 임시 데이터 반환
+"""
 
-logger = logging.getLogger("assessment-repository")
+from pydantic import BaseModel
+from typing import List, Optional, Dict, Union
+from datetime import datetime
 
+class KesgEntity(BaseModel):
+    """KESG 테이블 엔티티 - Railway PostgreSQL 구조와 동일"""
+    id: int
+    classification: Optional[str] = None
+    domain: Optional[str] = None
+    category: Optional[str] = None
+    item_name: Optional[str] = None
+    item_desc: Optional[str] = None
+    metric_desc: Optional[str] = None
+    data_source: Optional[str] = None
+    data_period: Optional[str] = None
+    data_method: Optional[str] = None
+    data_detail: Optional[str] = None
+    question_type: Optional[str] = None
+    levels_json: Optional[List[Dict[str, Union[str, int]]]] = None
+    choices_json: Optional[List[Dict[str, Union[str, int]]]] = None
+    scoring_json: Optional[Dict[str, int]] = None
+    weight: Optional[float] = None
+
+    def to_dict(self) -> Dict[str, Union[str, int, float, List[Dict[str, Union[str, int]]], Dict[str, int], None]]:
+        """엔티티를 딕셔너리로 변환"""
+        return {
+            'id': self.id,
+            'classification': self.classification,
+            'domain': self.domain,
+            'category': self.category,
+            'item_name': self.item_name,
+            'item_desc': self.item_desc,
+            'metric_desc': self.metric_desc,
+            'data_source': self.data_source,
+            'data_period': self.data_period,
+            'data_method': self.data_method,
+            'data_detail': self.data_detail,
+            'question_type': self.question_type,
+            'levels_json': self.levels_json,
+            'choices_json': self.choices_json,
+            'scoring_json': self.scoring_json,
+            'weight': self.weight
+        }
+
+
+class AssessmentEntity(BaseModel):
+    """Assessment 테이블 엔티티"""
+    id: int
+    company_name: str
+    question_id: int
+    question_type: str
+    level_no: Optional[int] = None
+    choice_ids: Optional[List[int]] = None
+    score: int
+    timestamp: Optional[datetime] = None
+
+    def to_dict(self) -> Dict[str, Union[str, int, List[int], datetime, None]]:
+        """엔티티를 딕셔너리로 변환"""
+        return {
+            'id': self.id,
+            'company_name': self.company_name,
+            'question_id': self.question_id,
+            'question_type': self.question_type,
+            'level_no': self.level_no,
+            'choice_ids': self.choice_ids,
+            'score': self.score,
+            'timestamp': self.timestamp
+        }
+
+
+# Mock Repository 클래스
 class AssessmentRepository:
-    def __init__(self, database_url: str):
-        self.database_url = database_url
-        self.engine = create_engine(database_url)
+    # 클래스 변수로 변경하여 인스턴스 간에도 데이터 유지
+    _storage: List[Dict[str, Union[str, int, List[int], None]]] = []
     
-    def get_kesg_items(self) -> List[KesgItem]:
-        """kesg 테이블에서 모든 데이터 조회"""
-        try:
-            with self.engine.connect() as conn:
-                query = text("SELECT id, item_name, question_type, levels_json, choices_json FROM kesg ORDER BY id")
-                result = conn.execute(query)
-                
-                items = []
-                for row in result:
-                    # question_type에 따라 적절한 choices 데이터 설정
-                    choices_data = None
-                    if row.question_type in ['three_level', 'five_level']:
-                        choices_data = row.levels_json
-                    elif row.question_type == 'five_choice':
-                        choices_data = row.choices_json
-                    
-                    items.append(KesgItem(
-                        id=row.id,
-                        item_name=row.item_name,
-                        question_type=row.question_type,
-                        choices=choices_data,
-                        category="자가진단"
-                    ))
-                
-                logger.info(f"✅ kesg 테이블에서 {len(items)}개 항목 조회 성공")
-                return items
-                
-        except SQLAlchemyError as e:
-            logger.error(f"❌ kesg 테이블 조회 중 데이터베이스 오류: {e}")
-            raise
-        except Exception as e:
-            logger.error(f"❌ kesg 테이블 조회 중 예상치 못한 오류: {e}")
-            raise
-    
-    def get_kesg_item_by_id(self, item_id: int) -> Optional[KesgItem]:
-        """특정 ID의 kesg 항목 조회"""
-        try:
-            with self.engine.connect() as conn:
-                query = text("SELECT id, item_name, question_type, levels_json, choices_json FROM kesg WHERE id = :item_id")
-                result = conn.execute(query, {"item_id": item_id})
-                row = result.fetchone()
-                
-                if row:
-                    # question_type에 따라 적절한 choices 데이터 설정
-                    choices_data = None
-                    if row.question_type in ['three_level', 'five_level']:
-                        choices_data = row.levels_json
-                    elif row.question_type == 'five_choice':
-                        choices_data = row.choices_json
-                    
-                    return KesgItem(
-                        id=row.id,
-                        item_name=row.item_name,
-                        question_type=row.question_type,
-                        choices=choices_data,
-                        category="자가진단"
-                    )
-                return None
-                
-        except SQLAlchemyError as e:
-            logger.error(f"❌ kesg 항목 조회 중 데이터베이스 오류: {e}")
-            raise
-        except Exception as e:
-            logger.error(f"❌ kesg 항목 조회 중 예상치 못한 오류: {e}")
-            raise
-    
-    def save_assessment_responses(self, submissions: List[Dict[str, Any]]) -> bool:
-        """assessment 테이블에 응답 데이터 저장"""
-        try:
-            with self.engine.connect() as conn:
-                # 트랜잭션 시작
-                trans = conn.begin()
-                try:
-                    for submission in submissions:
-                        query = text("""
-                            INSERT INTO assessment (
-                                company_id, question_id, question_type, 
-                                level_no, choice_ids, score, timestamp
-                            ) VALUES (
-                                :company_id, :question_id, :question_type,
-                                :level_no, :choice_ids, :score, NOW()
-                            )
-                        """)
-                        
-                        conn.execute(query, {
-                            'company_id': submission['company_id'],
-                            'question_id': submission['question_id'],
-                            'question_type': submission['question_type'],
-                            'level_no': submission.get('level_no'),
-                            'choice_ids': submission.get('choice_ids'),
-                            'score': submission['score']
-                        })
-                    
-                    # 트랜잭션 커밋
-                    trans.commit()
-                    logger.info(f"✅ {len(submissions)}개 응답 데이터 저장 완료")
-                    return True
-                    
-                except Exception as e:
-                    # 오류 발생 시 롤백
-                    trans.rollback()
-                    logger.error(f"❌ 응답 데이터 저장 실패: {e}")
-                    raise
-                    
-        except SQLAlchemyError as e:
-            logger.error(f"❌ 데이터베이스 오류: {e}")
-            raise
-        except Exception as e:
-            logger.error(f"❌ 예상치 못한 오류: {e}")
-            raise
-    
-    def calculate_score(self, question_id: int, question_type: str, selected_value: Any) -> int:
-        """점수 계산"""
-        try:
-            with self.engine.connect() as conn:
-                # kesg 테이블에서 해당 문항의 levels_json 또는 scoring_json 조회
-                query = text("""
-                    SELECT levels_json, scoring_json 
-                    FROM kesg 
-                    WHERE id = :question_id
-                """)
-                result = conn.execute(query, {'question_id': question_id})
-                row = result.fetchone()
-                
-                if not row:
-                    logger.warning(f"⚠️ question_id {question_id}에 해당하는 kesg 데이터가 없습니다.")
-                    return 0
-                
-                if question_type in ['three_level', 'five_level']:
-                    # 단계형: levels_json에서 점수 계산
-                    levels_json = row.levels_json
-                    if isinstance(levels_json, list) and isinstance(selected_value, int):
-                        for level in levels_json:
-                            if level.get('level_no') == selected_value:
-                                return level.get('score', 0)
-                    return 0
-                    
-                elif question_type == 'five_choice':
-                    # 선택형: scoring_json에서 점수 계산
-                    scoring_json = row.scoring_json
-                    if isinstance(scoring_json, list) and isinstance(selected_value, list):
-                        total_score = 0
-                        for choice_id in selected_value:
-                            for choice in scoring_json:
-                                if choice.get('id') == choice_id:
-                                    total_score += choice.get('score', 0)
-                        return total_score
-                    return 0
-                    
-                else:
-                    logger.warning(f"⚠️ 알 수 없는 question_type: {question_type}")
-                    return 0
-                    
-        except SQLAlchemyError as e:
-            logger.error(f"❌ 점수 계산 중 데이터베이스 오류: {e}")
-            return 0
-        except Exception as e:
-            logger.error(f"❌ 점수 계산 중 예상치 못한 오류: {e}")
-            return 0
-    
-    def calculate_scores_batch(self, submissions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """배치로 점수 계산 (성능 최적화)"""
-        try:
-            # 모든 question_id 수집
-            question_ids = [submission['question_id'] for submission in submissions]
-            
-            with self.engine.connect() as conn:
-                # 한 번의 쿼리로 모든 kesg 데이터 조회
-                query = text("""
-                    SELECT id, levels_json, scoring_json 
-                    FROM kesg 
-                    WHERE id = ANY(:question_ids)
-                """)
-                result = conn.execute(query, {'question_ids': question_ids})
-                kesg_data = {row.id: {'levels_json': row.levels_json, 'scoring_json': row.scoring_json} for row in result}
-                
-                # 각 submission에 대해 점수 계산
-                for submission in submissions:
-                    question_id = submission['question_id']
-                    question_type = submission['question_type']
-                    selected_value = submission.get('level_no') or submission.get('choice_ids')
-                    
-                    if question_id not in kesg_data:
-                        logger.warning(f"⚠️ question_id {question_id}에 해당하는 kesg 데이터가 없습니다.")
-                        submission['score'] = 0
-                        continue
-                    
-                    kesg_item = kesg_data[question_id]
-                    
-                    if question_type in ['three_level', 'five_level']:
-                        # 단계형: levels_json에서 점수 계산
-                        levels_json = kesg_item['levels_json']
-                        if isinstance(levels_json, list) and isinstance(selected_value, int):
-                            for level in levels_json:
-                                if level.get('level_no') == selected_value:
-                                    submission['score'] = level.get('score', 0)
-                                    break
-                            else:
-                                submission['score'] = 0
-                        else:
-                            submission['score'] = 0
-                            
-                    elif question_type == 'five_choice':
-                        # 선택형: scoring_json에서 점수 계산
-                        scoring_json = kesg_item['scoring_json']
-                        if isinstance(scoring_json, list) and isinstance(selected_value, list):
-                            total_score = 0
-                            for choice_id in selected_value:
-                                for choice in scoring_json:
-                                    if choice.get('id') == choice_id:
-                                        total_score += choice.get('score', 0)
-                            submission['score'] = total_score
-                        else:
-                            submission['score'] = 0
-                            
-                    else:
-                        logger.warning(f"⚠️ 알 수 없는 question_type: {question_type}")
-                        submission['score'] = 0
-                
-                return submissions
-                    
-        except SQLAlchemyError as e:
-            logger.error(f"❌ 배치 점수 계산 중 데이터베이스 오류: {e}")
-            # 오류 시 기본 점수 0으로 설정
-            for submission in submissions:
-                submission['score'] = 0
-            return submissions
-        except Exception as e:
-            logger.error(f"❌ 배치 점수 계산 중 예상치 못한 오류: {e}")
-            # 오류 시 기본 점수 0으로 설정
-            for submission in submissions:
-                submission['score'] = 0
-            return submissions
-    
-    def get_company_results(self, company_id: str) -> List[Dict[str, Any]]:
-        """특정 회사의 자가진단 결과 조회"""
-        try:
-            logger.info(f"📝 회사별 결과 조회 요청: company_id={company_id}")
-            
-            with self.engine.connect() as conn:
-                query = text("""
-                    SELECT 
-                        id,
-                        company_id,
-                        question_id,
-                        question_type,
-                        level_no,
-                        choice_ids,
-                        score,
-                        timestamp
-                    FROM assessment 
-                    WHERE company_id = :company_id
-                    ORDER BY timestamp DESC, question_id ASC
-                """)
-                
-                result = conn.execute(query, {'company_id': company_id})
-                results = []
-                
-                for row in result:
-                    results.append({
-                        'id': row.id,
-                        'company_id': row.company_id,
-                        'question_id': row.question_id,
-                        'question_type': row.question_type,
-                        'level_no': row.level_no,
-                        'choice_ids': row.choice_ids,
-                        'score': row.score,
-                        'timestamp': row.timestamp.isoformat() if row.timestamp else None
-                    })
-                
-                logger.info(f"✅ 회사별 결과 조회 성공: {len(results)}개 결과")
-                return results
-                
-        except SQLAlchemyError as e:
-            logger.error(f"❌ 회사별 결과 조회 중 데이터베이스 오류: {e}")
-            raise
-        except Exception as e:
-            logger.error(f"❌ 회사별 결과 조회 중 예상치 못한 오류: {e}")
-            raise
+    def __init__(self):
+        # 인스턴스 변수는 제거하고 클래스 변수 사용
+        pass
+
+    def get_kesg_items(self) -> List[Dict[str, Union[str, int, float, List[Dict[str, Union[str, int]]], Dict[str, int], None]]]:
+        """하드코딩된 kesg 문항 리스트"""
+        return [
+            {
+                "id": 1,
+                "classification": "E-1-3",
+                "domain": "환경",
+                "category": "환경경영 체계",
+                "item_name": "환경정책 수립",
+                "item_desc": "조직의 고유한 제품, 생산 및 서비스 활동에 의해 필연적으로 발생되는 부정적인 환경영향을 최소화하기 위한 정책",
+                "metric_desc": "환경경영을 위한 조직의 중장기 환경정책에 따른 실천적 목표와 세부적인 계획",
+                "data_source": "환경경영시스템, 중장기 환경정책, 연간 환경정책 관련 계획 및 보고서",
+                "data_period": "직전 회계연도 기준",
+                "data_method": "N/A",
+                "data_detail": "N/A",
+                "question_type": "five_level",
+                "levels_json": [
+                    {
+                        "level_no": 1,
+                        "label": "1단계",
+                        "desc": "환경경영을 추진하기 위한 연간 환경정책, 정량적 환경목표가 수립되어 있지 않음",
+                        "score": 0
+                    },
+                    {
+                        "level_no": 2,
+                        "label": "2단계",
+                        "desc": "연간 환경정책, 정량적 환경목표 및 환경경영계획은 수립되어 있으나 방침 및 목표, 계획에 대한 관련 근거가 없이 형식적으로 수립되어 있음",
+                        "score": 25
+                    },
+                    {
+                        "level_no": 3,
+                        "label": "3단계",
+                        "desc": "연간 환경정책, 정량적 환경목표 및 추진계획은 조직의 외부 및 내부 이슈를 고려하여 체계적으로 수립되어 있으며 모니터링, 측정, 분석 및 평가하고 있음",
+                        "score": 50
+                    },
+                    {
+                        "level_no": 4,
+                        "label": "4단계",
+                        "desc": "예산을 반영한 중장기 환경정책, 정량적 환경목표 및 추진계획이 체계적으로 수립되어 있으며 정기적으로 모니터링, 측정, 분석 및 평가하여 피드백을 통한 환경성과 및 개선활동 실적을 보유하고 있음",
+                        "score": 75
+                    },
+                    {
+                        "level_no": 5,
+                        "label": "5단계",
+                        "desc": "4단계 + 조직의 영향력과 통제력 범위에 있는 사업장(자회사, 종속법인, 연결실체)까지를 포함",
+                        "score": 100
+                    }
+                ],
+                "choices_json": None,
+                "scoring_json": None,
+                "weight": 1.0
+            },
+            {
+                "id": 2,
+                "classification": "G-1-1",
+                "domain": "지배구조",
+                "category": "윤리경영",
+                "item_name": "윤리경영 체계",
+                "item_desc": "비윤리 행위 방지 체계 구축 여부",
+                "metric_desc": "윤리경영 방침 및 내부 통제 시스템",
+                "data_source": "내부 규정, 윤리경영 보고서",
+                "data_period": "직전 회계연도 기준",
+                "data_method": "N/A",
+                "data_detail": "N/A",
+                "question_type": "five_choice",
+                "levels_json": None,
+                "choices_json": [
+                    {"id": 1, "text": "ISO37001(부패방지경영시스템) 인증을 받은 경우"},
+                    {"id": 2, "text": "비윤리 행위에 대한 내부신고 및 모니터링 체계를 갖추고 있는 경우"},
+                    {"id": 3, "text": "비윤리 행위 예방을 위한 교육 및 훈련이 이루어지고 있는 경우"},
+                    {"id": 4, "text": "비윤리 행위 발생 시 징계 등 조치 및 개선을 위한 프로세스를 갖추고 있는 경우"},
+                    {"id": 5, "text": "비윤리 행위 발생 및 사후조치에 관한 정보공개 체계를 갖추고 있는 경우"}
+                ],
+                "scoring_json": 
+                    {
+                    "1": 0,
+                    "2": 25,
+                    "3": 50,
+                    "4": 75,
+                    "5": 100
+                    },
+                "weight": 1.0
+            }
+        ]
+
+    def get_kesg_item_by_id(self, item_id: int) -> Optional[Dict[str, Union[str, int, float, List[Dict[str, Union[str, int]]], Dict[str, int], None]]]:
+        return next((i for i in self.get_kesg_items() if i["id"] == item_id), None)
+
+    def get_kesg_scoring_data(self, question_ids: List[int]) -> Dict[int, Dict[str, Union[str, int, float, List[Dict[str, Union[str, int]]], Dict[str, int], None]]]:
+        return {item["id"]: item for item in self.get_kesg_items() if item["id"] in question_ids}
+
+    def save_assessment_responses(self, submissions: List[Dict[str, Union[str, int, List[int], None]]]) -> bool:
+        print(f"🔍 Mock Repository: 저장할 데이터: {submissions}")
+        self._storage.extend(submissions)
+        print(f"🔍 Mock Repository: 현재 저장된 데이터: {self._storage}")
+        return True
+
+    def get_company_results(self, company_name: str) -> List[Dict[str, Union[str, int, List[int], None]]]:
+        print(f"🔍 Mock Repository: 조회 요청 company_name: '{company_name}'")
+        print(f"🔍 Mock Repository: 저장된 모든 데이터: {self._storage}")
+        results = [s for s in self._storage if s["company_name"] == company_name]
+        print(f"🔍 Mock Repository: 조회 결과: {results}")
+        return results

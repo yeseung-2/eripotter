@@ -33,19 +33,19 @@ restart-gateway:
 
 ## assessment-service
 build-assessment:
-	docker-compose build assesment-service
+	docker-compose build assessment-service
 
 up-assessment:
-	docker-compose up -d assesment-service
+	docker-compose up -d assessment-service
 
 down-assessment:
-	docker-compose stop assesment-service
+	docker-compose stop assessment-service
 
 logs-assessment:
-	docker-compose logs -f assesment-service
+	docker-compose logs -f assessment-service
 
 restart-assessment:
-	docker-compose stop assesment-service && docker-compose up -d assesment-service
+	docker-compose stop assessment-service && docker-compose up -d assessment-service
 
 ## chatbot-service
 build-chatbot:

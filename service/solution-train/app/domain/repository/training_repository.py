@@ -2,7 +2,6 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, desc
 from loguru import logger
-from app.common.db import get_db
 from app.domain.entity.training_entity import TrainingJobEntity, TrainingDataEntity
 
 class TrainingRepository:

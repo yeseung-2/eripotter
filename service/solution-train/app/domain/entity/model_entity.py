@@ -1,6 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, Float
 from sqlalchemy.sql import func
-from app.common.db import Base
 from datetime import datetime
 
 class ModelEntity(Base):

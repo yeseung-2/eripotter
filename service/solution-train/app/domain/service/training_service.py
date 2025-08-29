@@ -14,7 +14,6 @@ from transformers import (
 )
 from datasets import Dataset
 from loguru import logger
-from app.common.config import settings
 from app.domain.model.llm_model import TrainingRequest, TrainingJobResponse, TrainingStatus
 from app.domain.entity.training_entity import TrainingJobEntity
 from app.domain.repository.training_repository import TrainingRepository

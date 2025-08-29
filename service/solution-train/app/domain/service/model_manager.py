@@ -2,7 +2,6 @@ import os
 import shutil
 from typing import List, Optional, Dict, Any
 from loguru import logger
-from app.common.config import settings
 from app.domain.entity.model_entity import ModelEntity
 from app.domain.repository.model_repository import ModelRepository
 from app.domain.model.llm_model import ModelInfoResponse, ModelType

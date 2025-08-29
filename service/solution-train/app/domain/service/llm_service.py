@@ -3,7 +3,6 @@ import torch
 from typing import List, Optional, Dict, Any
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from loguru import logger
-from app.common.config import settings
 from app.domain.model.llm_model import ChatRequest, ChatResponse
 from app.domain.service.model_manager import ModelManager
 
