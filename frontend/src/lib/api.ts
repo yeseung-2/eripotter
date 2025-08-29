@@ -1,23 +1,33 @@
-export const API_BASE = process.env.NEXT_PUBLIC_REPORT_API_URL as string;
+export const API_BASE = process.env.NEXT_PUBLIC_REPORT_API_URL || "http://localhost:8000";
 
 async function httpJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json() as Promise<T>;
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<T>;
+  } catch (error) {
+    console.error(`API 호출 실패 (${path}):`, error);
+    throw error;
+  }
 }
 
 async function httpText(path: string, init?: RequestInit): Promise<string> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.text();
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.text();
+  } catch (error) {
+    console.error(`API 호출 실패 (${path}):`, error);
+    throw error;
+  }
 }
 
 // ===== API =====

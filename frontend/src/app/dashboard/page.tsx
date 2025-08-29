@@ -307,6 +307,15 @@ export default function SupplyChainDashboardPage() {
                 <span>ESG 데이터 업로드</span>
               </button>
 
+              {/* 보고서 작성 버튼 */}
+              <button
+                onClick={() => handleNavigation("/report/write")}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+              >
+                <span>📝</span>
+                <span>보고서 작성</span>
+              </button>
+
               {/* 알림 */}
               <div className="relative">
                 <button className="p-2 text-gray-400 hover:text-gray-500 transition-colors">
@@ -443,7 +452,16 @@ export default function SupplyChainDashboardPage() {
 
         {activeTab === "reports" && (
           <div className={`rounded-2xl border ${THEME.border} ${THEME.cardBg} p-6 shadow-sm`}>
-            <h2 className="text-xl font-semibold text-slate-900 mb-2">리포트</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-slate-900">리포트</h2>
+              <button
+                onClick={() => handleNavigation("/report/write")}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+              >
+                <span>📝</span>
+                <span>보고서 작성</span>
+              </button>
+            </div>
             <p className="text-slate-600">점수 추세, 산업 벤치마크, 개선 권고안(양호/위험/우수별) PDF 내보내기 기능이 제공됩니다.</p>
           </div>
         )}

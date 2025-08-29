@@ -3,7 +3,13 @@ import { useEffect, useMemo, useState } from "react";
 import { getAllIndicators } from "@/lib/api";
 import type { Indicator, IndicatorListResponse } from "@/types/report";
 
-export default function IndicatorPicker({ onPick }: { onPick: (ind: Indicator) => void }) {
+export default function IndicatorPicker({ 
+  onPick, 
+  onError 
+}: { 
+  onPick: (ind: Indicator) => void;
+  onError?: (error: boolean) => void;
+}) {
   const [data, setData] = useState<Indicator[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
@@ -11,9 +17,17 @@ export default function IndicatorPicker({ onPick }: { onPick: (ind: Indicator) =
 
   useEffect(() => {
     (async () => {
-      const res: IndicatorListResponse = await getAllIndicators();
-      setData(res.indicators);
-      setLoading(false);
+      try {
+        const res: IndicatorListResponse = await getAllIndicators();
+        setData(res.indicators);
+      } catch (error) {
+        console.error("지표 목록 로딩 실패:", error);
+        // 에러 발생 시 빈 배열로 설정
+        setData([]);
+        onError?.(true);
+      } finally {
+        setLoading(false);
+      }
     })();
   }, []);
 
@@ -30,7 +44,16 @@ export default function IndicatorPicker({ onPick }: { onPick: (ind: Indicator) =
     [data, q, cat]
   );
 
-  if (loading) return <div className="p-4">지표 불러오는 중…</div>;
+  if (loading) return <div className="p-4 text-center text-slate-500">지표 불러오는 중…</div>;
+  
+  if (data.length === 0) {
+    return (
+      <div className="p-4 text-center">
+        <div className="text-slate-500 mb-2">지표를 불러올 수 없습니다.</div>
+        <div className="text-xs text-slate-400">API 서버가 실행 중인지 확인해주세요.</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">
