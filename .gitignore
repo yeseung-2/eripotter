@@ -104,8 +104,8 @@ service/monitoring-train/checkpoints/
 # Allow reg_test1.xlsx for production use
 !service/monitoring-train/data/reg_test1.xlsx
 
-# Note: BOMI AI model is managed by Git LFS
-# service/monitoring-train/model/bomi-ai/ is tracked by .gitattributes
+# Note: BOMI AI model is excluded (too large for GitHub)
+service/normal-service/app/domain/model/bomi-ai/
 
 # Base model (BGE-M3)
 llm_bge-m3/
