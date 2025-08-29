@@ -145,6 +145,11 @@ async def report_any(path: str, request: Request):
         return await _proxy(request, REPORT_SERVICE_URL, "/indicators")
     return await _proxy(request, REPORT_SERVICE_URL, f"/{path}")
 
+# /report/indicators 직접 라우팅 (프론트엔드에서 사용하는 경로)
+@app.api_route("/report/indicators", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+async def report_indicators_direct(request: Request):
+    return await _proxy(request, REPORT_SERVICE_URL, "/indicators")
+
 # Auth 라우터를 두 경로에 마운트
 app.include_router(auth_router, prefix="/api/auth")  # 프론트엔드 API 요청용
 app.include_router(auth_router, prefix="/auth")      # Google 콜백용
