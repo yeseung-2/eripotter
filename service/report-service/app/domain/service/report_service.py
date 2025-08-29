@@ -1,5 +1,5 @@
 """
-Report Service - ESG 매뉴얼 기반 보고서 비즈니스 로직 처리
+Report Service - ESG 매뉴얼 기반 보고서 비즈니스 로직 처리 (스키마/예외 정합성 개선)
 """
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
@@ -19,8 +19,10 @@ from langchain.schema import SystemMessage, HumanMessage
 import logging
 import os
 import re
+import json
 
 logger = logging.getLogger(__name__)
+
 
 class ReportService:
     """ESG 매뉴얼 기반 보고서 비즈니스 로직 서비스"""
@@ -35,7 +37,7 @@ class ReportService:
             max_tokens=3000,
             openai_api_key=os.getenv("OPENAI_API_KEY")
         )
-        self.doc_root = os.getenv("DOC_ROOT", ".")  # 표/이미지 등 로컬 리소스 루트
+        self.doc_root = os.getenv("DOC_ROOT", ".")
 
     # ===== CRUD =====
     def create_report(self, request: ReportCreateRequest) -> ReportCreateResponse:
@@ -54,7 +56,6 @@ class ReportService:
                 report_type=request.report_type,
                 title=request.title,
                 content=request.content,
-                # Entity 속성은 meta지만, 레포지토리에서 올바르게 매핑해야 함
                 metadata=request.metadata
             )
 
@@ -65,6 +66,7 @@ class ReportService:
             )
         except Exception as e:
             logger.exception("보고서 생성 실패")
+            # 실패 시에도 모델 스키마를 만족해야 하므로 기본값 제공
             return ReportCreateResponse(
                 success=False, message=f"보고서 생성 중 오류가 발생했습니다: {str(e)}",
                 report_id=0, topic=request.topic,
@@ -75,12 +77,8 @@ class ReportService:
         try:
             report = self.report_repository.get_report(request.topic, request.company_name)
             if not report:
-                return ReportGetResponse(
-                    success=False, message="보고서를 찾을 수 없습니다.",
-                    id=0, topic=request.topic, company_name=request.company_name,
-                    report_type="", title=None, content=None, metadata=None,
-                    status="", created_at=None, updated_at=None
-                )
+                # ❗ 모델 스키마(created_at: datetime)가 엄격하므로 실패는 예외로 넘긴다
+                raise ValueError("보고서를 찾을 수 없습니다.")
 
             return ReportGetResponse(
                 success=True, message="보고서를 성공적으로 조회했습니다.",
@@ -91,12 +89,8 @@ class ReportService:
             )
         except Exception as e:
             logger.exception("보고서 조회 실패")
-            return ReportGetResponse(
-                success=False, message=f"보고서 조회 중 오류가 발생했습니다: {str(e)}",
-                id=0, topic=request.topic, company_name=request.company_name,
-                report_type="", title=None, content=None, metadata=None,
-                status="", created_at=None, updated_at=None
-            )
+            # 여기서는 예외를 올려 Controller가 HTTPException으로 변환
+            raise
 
     def update_report(self, request: ReportUpdateRequest) -> ReportUpdateResponse:
         try:
@@ -185,11 +179,7 @@ class ReportService:
 
     # ===== RAG / Indicator =====
     def search_indicator(self, indicator_id: str, limit: int = 5) -> List[Dict[str, Any]]:
-        """
-        지표별 ESG 매뉴얼 검색.
-        - 기본: indicator_id로 의미 검색
-        - 결과 필드 표준화
-        """
+        """지표별 ESG 매뉴얼 검색 (payload 표준화)"""
         try:
             raw = self.esg_manual_rag.search_similar(indicator_id, limit=limit)
             if isinstance(raw, dict) and raw.get("status") == "error":
@@ -206,7 +196,8 @@ class ReportService:
                     "pages": r.get("pages", []),
                     "tables": r.get("tables", []),
                     "images": r.get("images", []),
-                    "order": r.get("order", 0)
+                    "order": r.get("order", 0),
+                    "score": r.get("score", 0.0),
                 })
             return processed
         except Exception as e:
@@ -258,24 +249,20 @@ class ReportService:
 
         for line in lines:
             line = line.strip()
-            # 항목명
             m = re.match(r"^\d+\.\s+(?:\*\*)?(.+?)(?:\*\*)?$", line)
             if m:
                 if current.get("항목"):
                     rows.append(current)
                 current = {"항목": m.group(1).strip()}
                 continue
-            # 단위
             if "**단위**" in line:
                 m = re.search(r"\*\*단위\*\*:\s*(.+)", line)
                 if m:
                     current["단위"] = m.group(1).strip()
-            # 연도
             elif "**연도별 데이터**" in line:
                 m = re.search(r"\*\*연도별 데이터\*\*:\s*(.+)", line)
                 if m:
                     current["연도"] = m.group(1).strip()
-            # 설명
             elif "**설명**" in line:
                 m = re.search(r"\*\*설명\*\*:\s*(.+)", line)
                 if m:
@@ -310,7 +297,6 @@ class ReportService:
 
             system = SystemMessage(content="""
             너는 ESG 보고서 작성 지원 도우미야.
-
             사용자가 제공한 지표 설명(청크), 작성 가이드를 바탕으로,
             **이 지표를 작성하기 위해 추가로 입력받아야 할 데이터를** 정리해줘.
 
@@ -327,7 +313,7 @@ class ReportService:
             4. 설명
             """)
             작성_블록 = self.extract_작성내용(chunks)
-            user = HumanMessage(content=f"[지표 ID: {indicator_id}]\n\n{'\n'.join(chunks)}\n\n[작성 내용]\n{작성_블록}")
+            user = HumanMessage(content=f"[지표 ID: {indicator_id}]\n\n{chr(10).join(chunks)}\n\n[작성 내용]\n{작성_블록}")
             resp = self.llm.invoke([system, user])
             parsed = self.parse_markdown_to_fields(resp.content)
 
@@ -343,7 +329,6 @@ class ReportService:
                 return "해당 지표에 대한 정보를 찾을 수 없습니다."
 
             chunks = [d.get("content", "") for d in docs]
-            # 표 HTML 읽기 (절대 요약/생략 금지)
             table_paths: List[str] = []
             for d in docs:
                 table_paths.extend(d.get("tables", []) or [])
@@ -367,7 +352,6 @@ class ReportService:
             - 표의 수치를 본문에 반복해서 쓰지 말 것(표로만 제시).
             """)
 
-            # 입력값 문자열화
             flat_inputs: List[str] = []
             for k, v in inputs.items():
                 if isinstance(v, dict):
@@ -423,14 +407,11 @@ class ReportService:
             logger.exception("지표 데이터 조회 실패")
             return None
 
-    # ===== 지표 관리 서비스 메서드 =====
-    
+    # ===== 지표 관리 =====
     def get_all_indicators(self) -> IndicatorListResponse:
-        """모든 활성 지표 조회"""
         try:
             indicators = self.report_repository.get_all_indicators()
             indicator_responses = []
-            
             for indicator in indicators:
                 indicator_responses.append(IndicatorResponse(
                     success=True,
@@ -446,7 +427,6 @@ class ReportService:
                     created_at=indicator.created_at,
                     updated_at=indicator.updated_at
                 ))
-            
             return IndicatorListResponse(
                 success=True,
                 message=f"{len(indicator_responses)}개의 지표를 조회했습니다.",
@@ -461,13 +441,11 @@ class ReportService:
                 indicators=[],
                 total_count=0
             )
-    
+
     def get_indicators_by_category(self, category: str) -> IndicatorListResponse:
-        """카테고리별 지표 조회"""
         try:
             indicators = self.report_repository.get_indicators_by_category(category)
             indicator_responses = []
-            
             for indicator in indicators:
                 indicator_responses.append(IndicatorResponse(
                     success=True,
@@ -483,7 +461,6 @@ class ReportService:
                     created_at=indicator.created_at,
                     updated_at=indicator.updated_at
                 ))
-            
             return IndicatorListResponse(
                 success=True,
                 message=f"{category} 카테고리의 {len(indicator_responses)}개 지표를 조회했습니다.",
@@ -498,11 +475,70 @@ class ReportService:
                 indicators=[],
                 total_count=0
             )
-    
+
+    def _extract_suggested_fields(self, content: str) -> List[Dict[str, Any]]:
+        """콘텐츠에서 입력 필드 제안 추출 (LLM 사용, JSON 파싱 내성)"""
+        try:
+            system = SystemMessage(content="""
+            ESG 보고서 작성에 필요한 입력 필드를 추출해주세요.
+            다음 형식으로 JSON 배열을 반환하세요:
+            [
+                {
+                    "field_name": "필드명",
+                    "field_type": "text|number|select|date",
+                    "description": "필드 설명",
+                    "required": true|false,
+                    "options": ["옵션1", "옵션2"] // select 타입인 경우만
+                }
+            ]
+            """)
+            user = HumanMessage(content=f"다음 콘텐츠에서 ESG 보고서 작성에 필요한 입력 필드를 추출해주세요:\n\n{content}")
+            response = self.llm.invoke([system, user])
+            try:
+                return json.loads(response.content)
+            except Exception:
+                return [{
+                    "field_name": "company_data",
+                    "field_type": "text",
+                    "description": "회사 관련 데이터",
+                    "required": True
+                }]
+        except Exception as e:
+            logger.exception("입력 필드 추출 실패")
+            return []
+
+    def _search_recommended_fields(self, title: str) -> List[Dict[str, Any]]:
+        """Qdrant에서 지표 제목과 매칭되는 정보를 검색하여 입력 필드 추천"""
+        try:
+            search_results = self.esg_manual_rag.search(
+                query=title,
+                limit=5,
+                score_threshold=0.7
+            )
+            recommended_fields = []
+            for result in search_results:
+                # ✅ payload 최상위 키 사용
+                r_title = result.get("title", "")
+                content = result.get("content", "")
+                rec = {
+                    "source": "exact_match" if r_title == title else "similar_match",
+                    "title": r_title,
+                    "content": content[:200] + "..." if len(content) > 200 else content,
+                    "score": result.get("score", 0),
+                    "suggested_fields": self._extract_suggested_fields(content)
+                }
+                if rec["source"] == "exact_match":
+                    recommended_fields.insert(0, rec)
+                else:
+                    recommended_fields.append(rec)
+            return recommended_fields
+        except Exception as e:
+            logger.exception(f"추천 필드 검색 실패: {title}")
+            return []
+
     def get_indicator_with_recommended_fields(self, indicator_id: str) -> IndicatorInputFieldResponse:
         """지표 정보와 Qdrant에서 추천된 입력 필드 조회"""
         try:
-            # 데이터베이스에서 지표 정보 조회
             indicator = self.report_repository.get_indicator_by_id(indicator_id)
             if not indicator:
                 return IndicatorInputFieldResponse(
@@ -513,10 +549,7 @@ class ReportService:
                     input_fields={},
                     recommended_fields=[]
                 )
-            
-            # Qdrant에서 지표 제목과 매칭되는 정보 검색
             recommended_fields = self._search_recommended_fields(indicator.title)
-            
             return IndicatorInputFieldResponse(
                 success=True,
                 message="지표 정보와 추천 필드를 성공적으로 조회했습니다.",
@@ -535,89 +568,10 @@ class ReportService:
                 input_fields={},
                 recommended_fields=[]
             )
-    
-    def _search_recommended_fields(self, title: str) -> List[Dict[str, Any]]:
-        """Qdrant에서 지표 제목과 매칭되는 정보를 검색하여 입력 필드 추천"""
-        try:
-            # Qdrant에서 제목과 유사한 문서 검색
-            search_results = self.esg_manual_rag.search(
-                query=title,
-                limit=5,
-                score_threshold=0.7
-            )
-            
-            recommended_fields = []
-            for result in search_results:
-                # 메타데이터에서 입력 필드 관련 정보 추출
-                metadata = result.get("metadata", {})
-                content = result.get("content", "")
-                
-                # 제목이 정확히 매칭되는 경우 우선 처리
-                if metadata.get("title") == title:
-                    recommended_fields.insert(0, {
-                        "source": "exact_match",
-                        "title": metadata.get("title", ""),
-                        "content": content[:200] + "..." if len(content) > 200 else content,
-                        "score": result.get("score", 0),
-                        "suggested_fields": self._extract_suggested_fields(content)
-                    })
-                else:
-                    recommended_fields.append({
-                        "source": "similar_match",
-                        "title": metadata.get("title", ""),
-                        "content": content[:200] + "..." if len(content) > 200 else content,
-                        "score": result.get("score", 0),
-                        "suggested_fields": self._extract_suggested_fields(content)
-                    })
-            
-            return recommended_fields
-        except Exception as e:
-            logger.exception(f"추천 필드 검색 실패: {title}")
-            return []
-    
-    def _extract_suggested_fields(self, content: str) -> List[Dict[str, Any]]:
-        """콘텐츠에서 입력 필드 제안 추출"""
-        try:
-            # LLM을 사용하여 콘텐츠에서 입력 필드 추출
-            system = SystemMessage(content="""
-            ESG 보고서 작성에 필요한 입력 필드를 추출해주세요.
-            다음 형식으로 JSON 배열을 반환하세요:
-            [
-                {
-                    "field_name": "필드명",
-                    "field_type": "text|number|select|date",
-                    "description": "필드 설명",
-                    "required": true|false,
-                    "options": ["옵션1", "옵션2"] // select 타입인 경우만
-                }
-            ]
-            """)
-            
-            user = HumanMessage(content=f"다음 콘텐츠에서 ESG 보고서 작성에 필요한 입력 필드를 추출해주세요:\n\n{content}")
-            response = self.llm.invoke([system, user])
-            
-            # JSON 파싱 시도
-            import json
-            try:
-                return json.loads(response.content)
-            except:
-                # JSON 파싱 실패 시 기본 필드 반환
-                return [
-                    {
-                        "field_name": "company_data",
-                        "field_type": "text",
-                        "description": "회사 관련 데이터",
-                        "required": True
-                    }
-                ]
-        except Exception as e:
-            logger.exception("입력 필드 추출 실패")
-            return []
-    
+
     def generate_enhanced_draft(self, indicator_id: str, company_name: str, inputs: Dict[str, Any]) -> IndicatorDraftResponse:
         """향상된 보고서 초안 생성 (추천 필드 포함)"""
         try:
-            # 지표 정보 조회
             indicator = self.report_repository.get_indicator_by_id(indicator_id)
             if not indicator:
                 return IndicatorDraftResponse(
@@ -628,10 +582,7 @@ class ReportService:
                     draft_content="",
                     generated_at=datetime.now()
                 )
-            
-            # 기존 초안 생성 로직 실행
             draft_content = self.generate_indicator_draft(indicator_id, company_name, inputs)
-            
             return IndicatorDraftResponse(
                 success=True,
                 message="보고서 초안이 성공적으로 생성되었습니다.",

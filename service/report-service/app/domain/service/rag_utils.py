@@ -35,7 +35,6 @@ def _get_embedder():
             return encode, dim, "minilm"
         except ImportError:
             logger.warning("sentence-transformers not installed, falling back to openai")
-            # fallback to openai
             from openai import OpenAI
             client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
             model = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-large")
@@ -66,7 +65,8 @@ def _get_llm():
 class RAGUtils:
     def __init__(self, collection_name: Optional[str] = None):
         qurl = os.getenv("QDRANT_URL", "https://qdrant-production-1efa.up.railway.app")
-        key = os.getenv("QDRANT__SERVICE__API_KEY")  # Railway 실제 변수명에 맞게 수정
+        # ✅ 키 이름 호환 (둘 중 있는 값 사용)
+        key = os.getenv("QDRANT_API_KEY") or os.getenv("QDRANT__SERVICE__API_KEY")
         p = urlparse(qurl)
         self.qdrant_client = QdrantClient(
             host=p.hostname, port=p.port or (443 if p.scheme == "https" else 80),
@@ -83,7 +83,7 @@ class RAGUtils:
         try:
             info = self.qdrant_client.get_collection(self.collection_name)
             try:
-                actual = info.config.params.vectors.size
+                actual = info.config.params.vectors.size  # 일부 버전에서만 노출됨
                 if actual and actual != self.dim:
                     raise ValueError(
                         f"[{self.collection_name}] vector size mismatch: {actual} != {self.dim} "
