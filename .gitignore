@@ -129,3 +129,4 @@ Thumbs.db
 .vscode/
 .idea/
 *.sublime-*
+service/normal-service/**/model/**/*.safetensors
