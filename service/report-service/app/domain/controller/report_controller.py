@@ -4,7 +4,7 @@ Report Controller - ESG 매뉴얼 기반 보고서 API 엔드포인트 처리
 from typing import Dict, Any, Optional
 from fastapi import HTTPException, Depends
 from sqlalchemy.orm import Session
-from eripotter_common.database import get_db
+from eripotter_common.database.session import get_db
 from ..service.report_service import ReportService
 from ..model.report_model import (
     ReportCreateRequest, ReportCreateResponse,

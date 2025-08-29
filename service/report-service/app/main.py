@@ -40,8 +40,13 @@ app.add_middleware(
 from .router.report_router import report_router
 
 # ---------- Database Initialization ----------
-from eripotter_common.database import engine, Base
-Base.metadata.create_all(bind=engine)
+try:
+    from eripotter_common.database.base import Base
+    from eripotter_common.database.base import engine
+    Base.metadata.create_all(bind=engine)
+    logger.info("✅ 데이터베이스 초기화 완료")
+except Exception as e:
+    logger.warning(f"⚠️ 데이터베이스 초기화 실패: {e}")
 
 # ---------- Include Routers ----------
 app.include_router(report_router)

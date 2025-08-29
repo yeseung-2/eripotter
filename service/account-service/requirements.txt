@@ -5,3 +5,4 @@ alembic==1.13.1
 pydantic[email]==2.5.0
 email-validator==2.1.0.post1
 python-jose[cryptography]==3.3.0
+PyJWT==2.8.0

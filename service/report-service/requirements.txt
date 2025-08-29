@@ -4,6 +4,7 @@ uvicorn[standard]==0.24.0
 psycopg2-binary==2.9.9
 alembic==1.13.1
 python-multipart==0.0.9
+python-dotenv==1.0.0
 
 # RAG 관련 패키지 (필수만 포함)
 qdrant-client==1.15.1

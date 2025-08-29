@@ -6,11 +6,14 @@
 """
 from typing import List, Dict, Any, Optional
 import os
+import logging
 from urllib.parse import urlparse
 from uuid import uuid5, NAMESPACE_URL
 
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue, PointIdsList
+
+logger = logging.getLogger(__name__)
 
 # ===== 임베더 선택 =====
 def _get_embedder():

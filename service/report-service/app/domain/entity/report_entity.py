@@ -3,7 +3,7 @@ Report Entity - 보고서 데이터베이스 모델
 """
 from sqlalchemy import Column, String, DateTime, Text, Integer, JSON, UniqueConstraint, Index
 from sqlalchemy.sql import func
-from eripotter_common.database import Base
+from eripotter_common.database.base import Base
 
 class Report(Base):
     __tablename__ = "report"
