@@ -16,7 +16,7 @@ logger = logging.getLogger("account_controller")
 
 class AccountController:
     def __init__(self):
-        self.router = APIRouter()
+        self.router = APIRouter(prefix="/accounts")
         self.service = AccountService()
         self.setup_routes()
 
@@ -58,7 +58,28 @@ class AccountController:
                     detail=str(e)
                 )
 
-        @self.router.put("/me/profile", response_model=AccountResponse)
+        @self.router.post("/profile", response_model=AccountResponse)
+        async def create_company_profile(
+            profile_data: CompanyProfile,
+            oauth_sub: str
+        ):
+            """기업 프로필 정보 생성/저장"""
+            try:
+                logger.info(f"📝 Creating profile for oauth_sub: {oauth_sub}")
+                logger.info(f"📨 Profile data: {json.dumps(profile_data.dict(), indent=2)}")
+                
+                result = self.service.create_company_profile(oauth_sub, profile_data)
+                logger.info("✅ Successfully created company profile")
+                return result
+                
+            except ValueError as e:
+                logger.error(f"❌ Error creating profile: {str(e)}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=str(e)
+                )
+
+        @self.router.put("/profile", response_model=AccountResponse)
         async def update_company_profile(
             profile_data: CompanyProfile,
             oauth_sub: str

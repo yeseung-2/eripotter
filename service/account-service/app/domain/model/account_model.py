@@ -29,10 +29,10 @@ class AccountCreate(BaseModel):
 
 class CompanyProfile(BaseModel):
     """기업 프로필 정보 입력/수정"""
-    company_name: str
-    company_type: CompanyType
-    industry: str
-    business_number: str
+    company_name: Optional[str] = None
+    company_type: Optional[CompanyType] = None
+    industry: Optional[str] = None
+    business_number: Optional[str] = None
     establishment_date: Optional[str] = None
     employee_count: Optional[int] = None
     annual_revenue: Optional[str] = None
@@ -40,8 +40,8 @@ class CompanyProfile(BaseModel):
     factory_count: Optional[int] = None
     factory_address: Optional[str] = None
     production_items: Optional[str] = None
-    department: str
-    phone_number: str
+    department: Optional[str] = None
+    phone_number: Optional[str] = None
 
 class AccountResponse(BaseModel):
     """계정 정보 응답"""

@@ -1,5 +1,5 @@
 """
-Report Service - MSA 프랙탈 구조
+Report Service main ㅡ MSA 프랙탈 구조
 """
 from dotenv import load_dotenv, find_dotenv
 from fastapi import FastAPI, Request, HTTPException
@@ -48,7 +48,15 @@ def root():
     return {
         "status": "ok", 
         "service": "report-service", 
-        "endpoints": ["/report", "/health", "/metrics"]
+        "endpoints": [
+            "/reports", 
+            "/reports/esg/generate",
+            "/reports/esg/section", 
+            "/reports/esg/search-manual",
+            "/reports/esg/templates",
+            "/reports/health", 
+            "/metrics"
+        ]
     }
 
 # ---------- Middleware ----------

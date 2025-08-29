@@ -1,102 +1,124 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
-from typing import List, Dict, Any, Optional
+"""
+Report Controller - ESG 매뉴얼 기반 보고서 API 엔드포인트 처리
+"""
+from typing import Dict, Any, Optional
+from fastapi import HTTPException, Depends
+from sqlalchemy.orm import Session
+from eripotter_common.database import get_db
 from ..service.report_service import ReportService
 from ..model.report_model import (
-    DocumentEmbedRequest, 
-    DocumentEmbedResponse,
-    ReportGenerateRequest,
-    ReportGenerateResponse,
-    DocumentSearchRequest,
-    DocumentSearchResponse
+    ReportCreateRequest, ReportCreateResponse,
+    ReportGetRequest, ReportGetResponse,
+    ReportUpdateRequest, ReportUpdateResponse,
+    ReportDeleteRequest, ReportDeleteResponse,
+    ReportListResponse, ReportCompleteRequest, ReportCompleteResponse
 )
-import uuid
+import logging
 
-router = APIRouter(prefix="/api/v1/reports", tags=["reports"])
-report_service = ReportService()
+logger = logging.getLogger(__name__)
 
-@router.post("/embed-document", response_model=DocumentEmbedResponse)
-async def embed_document(
-    document_id: str = Form(...),
-    content: str = Form(...),
-    metadata: Optional[str] = Form(None)
-):
-    """문서를 벡터화하여 저장"""
-    try:
-        # 메타데이터 파싱
-        parsed_metadata = None
-        if metadata:
-            import json
-            parsed_metadata = json.loads(metadata)
-        
-        result = report_service.embed_document(document_id, content, parsed_metadata)
-        
-        if result["status"] == "success":
-            return DocumentEmbedResponse(
-                success=True,
-                document_id=result["document_id"],
-                message="문서가 성공적으로 임베딩되었습니다."
-            )
-        else:
-            raise HTTPException(status_code=500, detail=result["message"])
-            
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+class ReportController:
+    """ESG 매뉴얼 기반 보고서 API 컨트롤러"""
 
-@router.post("/search-documents", response_model=DocumentSearchResponse)
-async def search_documents(request: DocumentSearchRequest):
-    """유사한 문서 검색"""
-    try:
-        documents = report_service.search_similar_documents(
-            request.query, 
-            request.limit
-        )
-        
-        return DocumentSearchResponse(
-            success=True,
-            documents=documents,
-            message=f"{len(documents)}개의 유사한 문서를 찾았습니다."
-        )
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    def __init__(self, db: Session):
+        self.db = db
+        self.report_service = ReportService(db)
 
-@router.post("/generate-draft", response_model=ReportGenerateResponse)
-async def generate_report_draft(request: ReportGenerateRequest):
-    """RAG를 사용하여 보고서 초안 생성"""
-    try:
-        result = report_service.generate_report_draft(
-            request.query,
-            request.context_documents
-        )
-        
-        if result["status"] == "success":
-            return ReportGenerateResponse(
-                success=True,
-                report_draft=result["report_draft"],
-                context_documents=result["context_documents"],
-                message="보고서 초안이 성공적으로 생성되었습니다."
-            )
-        else:
-            raise HTTPException(status_code=500, detail=result["message"])
-            
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    def create_report(self, request: ReportCreateRequest) -> ReportCreateResponse:
+        try:
+            return self.report_service.create_report(request)
+        except Exception as e:
+            logger.error(f"보고서 생성 API 오류: {e}")
+            raise HTTPException(status_code=500, detail=f"보고서 생성 중 오류가 발생했습니다: {str(e)}")
 
-@router.delete("/documents/{document_id}")
-async def delete_document(document_id: str):
-    """문서 삭제"""
-    try:
-        result = report_service.delete_document(document_id)
-        
-        if result["status"] == "success":
-            return {"success": True, "message": "문서가 삭제되었습니다."}
-        else:
-            raise HTTPException(status_code=500, detail=result["message"])
-            
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    def get_report(self, topic: str, company_name: str) -> ReportGetResponse:
+        try:
+            request = ReportGetRequest(topic=topic, company_name=company_name)
+            return self.report_service.get_report(request)
+        except Exception as e:
+            logger.error(f"보고서 조회 API 오류: {e}")
+            raise HTTPException(status_code=500, detail=f"보고서 조회 중 오류가 발생했습니다: {str(e)}")
 
-@router.get("/health")
-async def health_check():
-    """서비스 상태 확인"""
-    return {"status": "healthy", "service": "report-service"}
+    def update_report(self, request: ReportUpdateRequest) -> ReportUpdateResponse:
+        try:
+            return self.report_service.update_report(request)
+        except Exception as e:
+            logger.error(f"보고서 업데이트 API 오류: {e}")
+            raise HTTPException(status_code=500, detail=f"보고서 업데이트 중 오류가 발생했습니다: {str(e)}")
+
+    def delete_report(self, topic: str, company_name: str) -> ReportDeleteResponse:
+        try:
+            request = ReportDeleteRequest(topic=topic, company_name=company_name)
+            return self.report_service.delete_report(request)
+        except Exception as e:
+            logger.error(f"보고서 삭제 API 오류: {e}")
+            raise HTTPException(status_code=500, detail=f"보고서 삭제 중 오류가 발생했습니다: {str(e)}")
+
+    def get_reports_by_company(self, company_name: str) -> ReportListResponse:
+        try:
+            return self.report_service.get_reports_by_company(company_name)
+        except Exception as e:
+            logger.error(f"회사별 보고서 목록 조회 API 오류: {e}")
+            raise HTTPException(status_code=500, detail=f"보고서 목록 조회 중 오류가 발생했습니다: {str(e)}")
+
+    def get_reports_by_type(self, company_name: str, report_type: str) -> ReportListResponse:
+        try:
+            return self.report_service.get_reports_by_type(company_name, report_type)
+        except Exception as e:
+            logger.error(f"유형별 보고서 목록 조회 API 오류: {e}")
+            raise HTTPException(status_code=500, detail=f"보고서 목록 조회 중 오류가 발생했습니다: {str(e)}")
+
+    def complete_report(self, topic: str, company_name: str) -> ReportCompleteResponse:
+        try:
+            request = ReportCompleteRequest(topic=topic, company_name=company_name)
+            return self.report_service.complete_report(request)
+        except Exception as e:
+            logger.error(f"보고서 완료 처리 API 오류: {e}")
+            raise HTTPException(status_code=500, detail=f"보고서 완료 처리 중 오류가 발생했습니다: {str(e)}")
+
+    def get_report_status(self, company_name: str) -> Dict[str, str]:
+        try:
+            return self.report_service.get_report_status(company_name)
+        except Exception as e:
+            logger.error(f"보고서 상태 조회 API 오류: {e}")
+            raise HTTPException(status_code=500, detail=f"보고서 상태 조회 중 오류가 발생했습니다: {str(e)}")
+
+    # ESG 매뉴얼 기반 지표별 API
+    def get_indicator_summary(self, indicator_id: str) -> str:
+        try:
+            return self.report_service.get_indicator_summary(indicator_id)
+        except Exception as e:
+            logger.error(f"지표 요약 API 오류: {e}")
+            raise HTTPException(status_code=500, detail=f"지표 요약 생성 중 오류가 발생했습니다: {str(e)}")
+
+    def generate_input_fields(self, indicator_id: str) -> Dict[str, Any]:
+        try:
+            return self.report_service.generate_input_fields(indicator_id)
+        except Exception as e:
+            logger.error(f"입력 필드 생성 API 오류: {e}")
+            raise HTTPException(status_code=500, detail=f"입력 필드 생성 중 오류가 발생했습니다: {str(e)}")
+
+    def generate_indicator_draft(self, indicator_id: str, company_name: str, inputs: Dict[str, Any]) -> str:
+        try:
+            return self.report_service.generate_indicator_draft(indicator_id, company_name, inputs)
+        except Exception as e:
+            logger.error(f"지표 초안 생성 API 오류: {e}")
+            raise HTTPException(status_code=500, detail=f"지표 초안 생성 중 오류가 발생했습니다: {str(e)}")
+
+    def save_indicator_data(self, indicator_id: str, company_name: str, inputs: Dict[str, Any]) -> bool:
+        try:
+            return self.report_service.save_indicator_data(indicator_id, company_name, inputs)
+        except Exception as e:
+            logger.error(f"지표 데이터 저장 API 오류: {e}")
+            raise HTTPException(status_code=500, detail=f"지표 데이터 저장 중 오류가 발생했습니다: {str(e)}")
+
+    def get_indicator_data(self, indicator_id: str, company_name: str) -> Optional[Dict[str, Any]]:
+        try:
+            return self.report_service.get_indicator_data(indicator_id, company_name)
+        except Exception as e:
+            logger.error(f"지표 데이터 조회 API 오류: {e}")
+            raise HTTPException(status_code=500, detail=f"지표 데이터 조회 중 오류가 발생했습니다: {str(e)}")
+
+
+def get_report_controller(db: Session = Depends(get_db)) -> ReportController:
+    return ReportController(db)

@@ -17,7 +17,22 @@ class AccountRepository:
                     "email": account.email,
                     "name": account.name,
                     "profile_picture": account.profile_picture,
-                    "email_verified": account.email_verified
+                    "company_name": account.company_name,
+                    "company_type": account.company_type,
+                    "industry": account.industry,
+                    "business_number": account.business_number,
+                    "establishment_date": account.establishment_date,
+                    "employee_count": account.employee_count,
+                    "annual_revenue": account.annual_revenue,
+                    "business_area": account.business_area,
+                    "factory_count": account.factory_count,
+                    "factory_address": account.factory_address,
+                    "production_items": account.production_items,
+                    "department": account.department,
+                    "phone_number": account.phone_number,
+                    "email_verified": account.email_verified,
+                    "created_at": account.created_at,
+                    "updated_at": account.updated_at
                 }
             return None
 
@@ -55,9 +70,26 @@ class AccountRepository:
             if not account:
                 return None
             
-            # 모델의 모든 필드를 업데이트
+            # None이 아닌 필드만 업데이트
             for field, value in profile_data.dict().items():
-                setattr(account, field, value)
+                if value is not None:
+                    setattr(account, field, value)
+            
+            db.commit()
+            db.refresh(account)
+            return account
+
+    def create_company_profile(self, oauth_sub: str, profile_data: CompanyProfile) -> Optional[Account]:
+        """기업 프로필 정보 생성"""
+        with get_session() as db:
+            account = db.query(Account).filter(Account.oauth_sub == oauth_sub).first()
+            if not account:
+                return None
+            
+            # None이 아닌 필드만 설정
+            for field, value in profile_data.dict().items():
+                if value is not None:
+                    setattr(account, field, value)
             
             db.commit()
             db.refresh(account)

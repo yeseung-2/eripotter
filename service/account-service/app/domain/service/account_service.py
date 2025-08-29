@@ -103,10 +103,33 @@ class AccountService:
                 logger.error("❌ Account not found")
                 raise ValueError("Account not found")
             
-            updated_account = self.repository.update_company_profile(account.id, profile_data)
+            updated_account = self.repository.update_company_profile(oauth_sub, profile_data)
             logger.info("✅ Successfully updated company profile")
             return updated_account
             
         except Exception as e:
             logger.error(f"❌ Error updating company profile: {str(e)}")
+            raise
+
+    def create_company_profile(self, oauth_sub: str, profile_data: CompanyProfile):
+        try:
+            logger.info(f"📝 Creating company profile for oauth_sub: {oauth_sub}")
+            logger.info(f"📨 Profile data: {json.dumps(profile_data.dict(), indent=2)}")
+            
+            account = self.repository.get_by_oauth_sub(oauth_sub)
+            if not account:
+                logger.error("❌ Account not found")
+                raise ValueError("Account not found")
+            
+            # 프로필이 이미 존재하는지 확인
+            if account.get("company_name"):
+                logger.info("⚠️ Profile already exists, updating instead")
+                return self.update_company_profile(oauth_sub, profile_data)
+            
+            created_account = self.repository.create_company_profile(oauth_sub, profile_data)
+            logger.info("✅ Successfully created company profile")
+            return created_account
+            
+        except Exception as e:
+            logger.error(f"❌ Error creating company profile: {str(e)}")
             raise

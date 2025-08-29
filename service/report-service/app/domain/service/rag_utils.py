@@ -1,124 +1,158 @@
 """
-공통 RAG 유틸리티
-다른 서비스에서도 재사용 가능한 RAG 기능들
+공통 RAG 유틸리티 (서비스 내 재사용)
+- EMBEDDER, OPENAI_MODEL 등 환경변수로 동작 제어
+- Qdrant는 URL을 host/port로 파싱해 HTTPS + HTTP만(prefer_grpc=False)
+- 포인트 ID는 UUIDv5로 안정 생성
 """
 from typing import List, Dict, Any, Optional
 import os
-from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams, PointStruct
-from sentence_transformers import SentenceTransformer
-from langchain_openai import ChatOpenAI
-from langchain.schema import HumanMessage, SystemMessage
+from urllib.parse import urlparse
+from uuid import uuid5, NAMESPACE_URL
 
+from qdrant_client import QdrantClient
+from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue, PointIdsList
+
+# ===== 임베더 선택 =====
+def _get_embedder():
+    emb = os.getenv("EMBEDDER", "bge-m3").lower()  # "bge-m3" | "minilm" | "openai"
+    if emb == "bge-m3":
+        from sentence_transformers import SentenceTransformer
+        m = SentenceTransformer("BAAI/bge-m3")
+        dim = 1024
+        def encode(texts: List[str]) -> List[List[float]]:
+            return m.encode([f"query: {t}" for t in texts], normalize_embeddings=True).tolist()
+        return encode, dim, "bge-m3"
+    elif emb == "minilm":
+        from sentence_transformers import SentenceTransformer
+        m = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+        dim = 384
+        def encode(texts: List[str]) -> List[List[float]]:
+            return m.encode(texts, normalize_embeddings=True).tolist()
+        return encode, dim, "minilm"
+    elif emb == "openai":
+        from openai import OpenAI
+        client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+        model = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-large")  # 3072차원
+        dim = 3072
+        def encode(texts: List[str]) -> List[List[float]]:
+            out = client.embeddings.create(model=model, input=texts)
+            return [e.embedding for e in out.data]
+        return encode, dim, "openai"
+    else:
+        raise ValueError(f"Unknown EMBEDDER: {emb}")
+
+# ===== LLM (선택) =====
+def _get_llm():
+    from langchain_openai import ChatOpenAI
+    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    return ChatOpenAI(model=model, temperature=0.7, openai_api_key=os.getenv("OPENAI_API_KEY"))
+
+# ===== 유틸 본체 =====
 class RAGUtils:
-    """공통 RAG 유틸리티 클래스"""
-    
-    def __init__(self, collection_name: str = "documents"):
+    def __init__(self, collection_name: Optional[str] = None):
+        qurl = os.getenv("QDRANT_URL", "http://localhost:6333")
+        key = os.getenv("QDRANT_API_KEY")
+        p = urlparse(qurl)
         self.qdrant_client = QdrantClient(
-            url=os.getenv("QDRANT_URL", "http://localhost:6333"),
-            api_key=os.getenv("QDRANT_API_KEY")
+            host=p.hostname, port=p.port or (443 if p.scheme == "https" else 80),
+            https=(p.scheme == "https"),
+            api_key=key, prefer_grpc=False, timeout=60
         )
-        
-        self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
-        self.llm = ChatOpenAI(
-            model="gpt-3.5-turbo",
-            temperature=0.7,
-            openai_api_key=os.getenv("OPENAI_API_KEY")
-        )
-        
-        self.collection_name = collection_name
+
+        self.encode, self.dim, self.embedder_name = _get_embedder()
+        self.collection_name = collection_name or os.getenv("QDRANT_COLLECTION", "documents")
         self._ensure_collection_exists()
-    
+        self._llm = None
+
     def _ensure_collection_exists(self):
-        """컬렉션 존재 확인 및 생성"""
         try:
-            collections = self.qdrant_client.get_collections()
-            collection_names = [col.name for col in collections.collections]
-            
-            if self.collection_name not in collection_names:
-                self.qdrant_client.create_collection(
-                    collection_name=self.collection_name,
-                    vectors_config=VectorParams(
-                        size=384,
-                        distance=Distance.COSINE
+            info = self.qdrant_client.get_collection(self.collection_name)
+            try:
+                actual = info.config.params.vectors.size
+                if actual and actual != self.dim:
+                    raise ValueError(
+                        f"[{self.collection_name}] vector size mismatch: {actual} != {self.dim} "
+                        f"(embedder={self.embedder_name})"
                     )
-                )
-        except Exception as e:
-            print(f"컬렉션 생성 중 오류: {e}")
-    
-    def embed_text(self, text_id: str, text: str, metadata: Dict[str, Any] = None):
-        """텍스트 임베딩 및 저장"""
-        try:
-            embedding = self.embedding_model.encode(text)
-            
-            if metadata is None:
-                metadata = {}
-            metadata['text_id'] = text_id
-            metadata['content'] = text
-            
-            point = PointStruct(
-                id=text_id,
-                vector=embedding.tolist(),
-                payload=metadata
-            )
-            
-            self.qdrant_client.upsert(
+            except Exception:
+                pass
+        except Exception:
+            self.qdrant_client.create_collection(
                 collection_name=self.collection_name,
-                points=[point]
+                vectors_config=VectorParams(size=self.dim, distance=Distance.COSINE)
             )
-            
+
+    @staticmethod
+    def _uuid_from_text_id(text_id: str) -> str:
+        return str(uuid5(NAMESPACE_URL, str(text_id)))
+
+    def embed_text(self, text_id: str, text: str, metadata: Optional[Dict[str, Any]] = None):
+        try:
+            vec = self.encode([text])[0]
+            payload = dict(metadata or {})
+            payload["text_id"] = str(text_id)
+            payload["content"] = text
+
+            point = PointStruct(
+                id=self._uuid_from_text_id(text_id),
+                vector=vec,
+                payload=payload
+            )
+            self.qdrant_client.upsert(collection_name=self.collection_name, points=[point], wait=True)
             return {"status": "success", "text_id": text_id}
         except Exception as e:
             return {"status": "error", "message": str(e)}
-    
-    def search_similar(self, query: str, limit: int = 5):
-        """유사한 텍스트 검색"""
+
+    def search_similar(self, query: str, limit: int = 5, filters: Optional[Dict[str, Any]] = None):
         try:
-            query_embedding = self.embedding_model.encode(query)
-            
-            search_results = self.qdrant_client.search(
+            qvec = self.encode([query])[0]
+            qf = None
+            if filters:
+                qf = Filter(must=[FieldCondition(key=k, match=MatchValue(value=v)) for k, v in filters.items()])
+            res = self.qdrant_client.search(
                 collection_name=self.collection_name,
-                query_vector=query_embedding.tolist(),
-                limit=limit
+                query_vector=qvec,
+                limit=limit,
+                query_filter=qf,
+                with_payload=True,
+                with_vectors=False
             )
-            
-            return [result.payload for result in search_results]
+            return [{"score": r.score, **(r.payload or {})} for r in res]
         except Exception as e:
             return {"status": "error", "message": str(e)}
-    
-    def generate_with_context(self, query: str, context_documents: List[Dict], 
-                            system_prompt: str = "당신은 도움이 되는 AI 어시스턴트입니다."):
-        """컨텍스트를 사용한 텍스트 생성"""
+
+    def generate_with_context(self, query: str, context_documents: List[Dict[str, Any]],
+                              system_prompt: str = "당신은 도움이 되는 AI 어시스턴트입니다."):
         try:
-            context = "\n\n".join([doc.get('content', '') for doc in context_documents])
-            
-            system_message = SystemMessage(content=system_prompt)
-            human_message = HumanMessage(content=f"""
-쿼리: {query}
+            if self._llm is None:
+                self._llm = _get_llm()
 
-참고 문서:
-{context}
+            parts = []
+            for i, doc in enumerate(context_documents, 1):
+                title = doc.get("title", "")
+                content = doc.get("content", "")
+                pages = doc.get("pages", [])
+                part = f"[참고 문서 {i}]"
+                if title: part += f"\n제목: {title}"
+                if pages: part += f"\n페이지: {pages}"
+                part += f"\n내용:\n{content}\n"
+                parts.append(part)
+            context = "\n".join(parts)
 
-위 정보를 바탕으로 답변해주세요.
-""")
-            
-            response = self.llm.invoke([system_message, human_message])
-            
-            return {
-                "status": "success",
-                "response": response.content,
-                "context_documents": context_documents
-            }
+            from langchain.schema import HumanMessage, SystemMessage
+            msgs = [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=f"쿼리: {query}\n\n참고 문서:\n{context}\n\n위 정보를 바탕으로 답변해주세요.")
+            ]
+            resp = self._llm.invoke(msgs)
+            return {"status": "success", "response": resp.content, "context_documents": context_documents}
         except Exception as e:
             return {"status": "error", "message": str(e)}
-    
+
     def delete_text(self, text_id: str):
-        """텍스트 삭제"""
         try:
-            self.qdrant_client.delete(
-                collection_name=self.collection_name,
-                points_selector=[text_id]
-            )
+            pid = self._uuid_from_text_id(text_id)
+            self.qdrant_client.delete(collection_name=self.collection_name, points_selector=PointIdsList(points=[pid]), wait=True)
             return {"status": "success", "text_id": text_id}
         except Exception as e:
             return {"status": "error", "message": str(e)}

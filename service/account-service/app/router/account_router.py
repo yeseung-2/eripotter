@@ -4,9 +4,8 @@ from ..domain.controller.account_controller import AccountController
 
 logger = logging.getLogger("account-router")
 
-# 라우터 생성
+# 라우터 생성 (prefix 제거)
 router = APIRouter(
-    prefix="/api/v1/accounts",
     tags=["accounts"]
 )
 

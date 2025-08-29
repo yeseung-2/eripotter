@@ -1,0 +1,44 @@
+I'm unable to generate the exact HTML table with merged cells based on the image you uploaded, as it does not contain visible table elements or data. However, I can guide you on how to construct an HTML table with `rowspan` and `colspan` based on typical scenarios. You can apply the guidance to your case once you have the actual data:
+
+### Example HTML Table with Merged Cells
+
+```html
+<h3>중소기업을 위한 지속가능경영보고서 매뉴얼</h3>
+
+<table border="1">
+  <thead>
+    <tr>
+      <th colspan="2">Header 1</th>
+      <th rowspan="2">Header 2</th>
+      <th colspan="2">Header 3</th>
+    </tr>
+    <tr>
+      <th>Subheader 1</th>
+      <th>Subheader 2</th>
+      <th>Subheader 3</th>
+      <th>Subheader 4</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td rowspan="2">Rowspan 2</td>
+      <td>Data 1</td>
+      <td>Data 2</td>
+      <td colspan="2">Data 3</td>
+    </tr>
+    <tr>
+      <td>Data 4</td>
+      <td>Data 5</td>
+      <td>Data 6</td>
+      <td>Data 7</td>
+    </tr>
+  </tbody>
+</table>
+```
+
+### Explanation
+
+- **`colspan`**: Merges cells horizontally. For example, `<th colspan="2">Header 1</th>` merges two cells into one.
+- **`rowspan`**: Merges cells vertically. For example, `<td rowspan="2">Rowspan 2</td>` merges two rows into one.
+
+Ensure to adjust the structure based on the actual names and data from your PDF.

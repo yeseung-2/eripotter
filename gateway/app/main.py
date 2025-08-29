@@ -57,6 +57,7 @@ def cors_headers_for(request: Request):
 ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL", "http://account-service:8001")
 ASSESSMENT_SERVICE_URL = os.getenv("ASSESSMENT_SERVICE_URL", "http://localhost:8002")
 CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "http://localhost:8003")
+REPORT_SERVICE_URL = os.getenv("REPORT_SERVICE_URL", "http://localhost:8007")
 TIMEOUT = float(os.getenv("UPSTREAM_TIMEOUT", "20"))
 
 @app.get("/health")
@@ -132,6 +133,14 @@ async def chatbot_root(request: Request):
 @app.api_route("/api/chatbot/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def chatbot_any(path: str, request: Request):
     return await _proxy(request, CHATBOT_SERVICE_URL, path)
+
+@app.api_route("/api/report", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+async def report_root(request: Request):
+    return await _proxy(request, REPORT_SERVICE_URL, "/")
+
+@app.api_route("/api/report/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+async def report_any(path: str, request: Request):
+    return await _proxy(request, REPORT_SERVICE_URL, f"/{path}")
 
 # Auth 라우터를 두 경로에 마운트
 app.include_router(auth_router, prefix="/api/auth")  # 프론트엔드 API 요청용

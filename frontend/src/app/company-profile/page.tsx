@@ -89,7 +89,7 @@ export default function CompanyProfilePage() {
           return;
         }
 
-        const response = await axios.get(`/api/account/me?oauth_sub=${oauth_sub}`);
+        const response = await axios.get(`/api/account/accounts/me?oauth_sub=${oauth_sub}`);
         if (response.data) {
           const profile = response.data;
           console.log('로드된 프로필 데이터:', profile);
@@ -139,11 +139,23 @@ export default function CompanyProfilePage() {
       const profileData = {
         ...formData,
         employee_count: formData.employee_count ? parseInt(formData.employee_count) : null,
-        factory_count: formData.factory_count ? parseInt(formData.factory_count) : null
+        factory_count: formData.factory_count ? parseInt(formData.factory_count) : null,
+        // 빈 문자열을 null로 변환
+        company_name: formData.company_name || null,
+        company_type: formData.company_type || null,
+        industry: formData.industry || null,
+        business_number: formData.business_number || null,
+        establishment_date: formData.establishment_date || null,
+        annual_revenue: formData.annual_revenue || null,
+        business_area: formData.business_area || null,
+        factory_address: formData.factory_address || null,
+        production_items: formData.production_items || null,
+        department: formData.department || null,
+        phone_number: formData.phone_number || null
       };
 
       console.log('저장할 프로필 데이터:', profileData);
-      await axios.put(`/api/account/me/profile?oauth_sub=${oauth_sub}`, profileData);
+      await axios.post(`/api/account/accounts/profile?oauth_sub=${oauth_sub}`, profileData);
       
       setShowSuccessMessage(true);
       setIsEditing(false);
