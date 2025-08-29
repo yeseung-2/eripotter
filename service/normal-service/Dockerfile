@@ -22,6 +22,10 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # 애플리케이션 코드 복사
 COPY ./app ./app
 
+# BOMI AI 모델 및 데이터 복사
+COPY ../monitoring-train/model/ /app/model/
+COPY ../monitoring-train/data/reg_test1.xlsx /app/data/
+
 # 환경 변수 설정
 ENV PYTHONUNBUFFERED=1
 
