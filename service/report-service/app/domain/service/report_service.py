@@ -1,5 +1,5 @@
 """
-Report Service - ESG 매뉴얼 기반 보고서 비즈니스 로직 처리 (스키마/예외 정합성 개선)
+Report Service - ESG 매뉴얼 기반 보고서 비즈니스 로직 처리 (LLM lazy 생성, 프록시 최신화, 임베딩 의존성 배제)
 """
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
@@ -13,12 +13,16 @@ from ..model.report_model import (
     ReportListResponse, ReportCompleteRequest, ReportCompleteResponse,
     IndicatorResponse, IndicatorListResponse, IndicatorInputFieldResponse, IndicatorDraftResponse
 )
-from langchain_openai import ChatOpenAI
-from langchain.schema import SystemMessage, HumanMessage
+
 import logging
 import os
 import re
 import json
+
+# LLM 관련 (최신 langchain-openai)
+from langchain_openai import ChatOpenAI
+from langchain.schema import SystemMessage, HumanMessage
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -29,21 +33,39 @@ class ReportService:
     def __init__(self, db: Session):
         self.db = db
         self.report_repository = ReportRepository(db)
-        # RAGUtils는 필요할 때만 lazy import (sentence_transformers 방지)
+
+        # sentence_transformers 등 무거운 의존성은 RAG 사용 함수에서만 lazy import 하도록 설계
         self._esg_manual_rag = None
-        self.llm = ChatOpenAI(
+
+        # LLM을 전역에서 생성하지 않습니다. (지표 목록 등 LLM 불필요 API가 500을 내지 않게)
+        # self.llm = ChatOpenAI(...)  # ❌ 금지
+
+        self.doc_root = os.getenv("DOC_ROOT", ".")
+
+    # ──────────────────────────────────────────────────────────────────────────────
+    # 내부 유틸: LLM 빌더 (필요한 함수 안에서만 호출)
+    # ──────────────────────────────────────────────────────────────────────────────
+    def _build_llm(self) -> ChatOpenAI:
+        """
+        최신 방식: proxies 키워드 대신 httpx.Client(proxies=...) 주입.
+        OPENAI_API_KEY / OPENAI_MODEL 환경변수 사용.
+        """
+        proxy = os.getenv("HTTPS_PROXY") or os.getenv("HTTP_PROXY")
+        http_client = httpx.Client(proxies=proxy) if proxy else None
+
+        return ChatOpenAI(
             model=os.getenv("OPENAI_MODEL", "gpt-4o"),
             temperature=0.3,
             max_tokens=3000,
-            openai_api_key=os.getenv("OPENAI_API_KEY")
+            api_key=os.getenv("OPENAI_API_KEY"),
+            http_client=http_client,
         )
-        self.doc_root = os.getenv("DOC_ROOT", ".")
-    
+
     @property
     def esg_manual_rag(self):
-        """RAGUtils lazy loading"""
+        """RAGUtils lazy loading (임베딩 유틸은 실제 필요 시에만 import)"""
         if self._esg_manual_rag is None:
-            from .rag_utils import RAGUtils
+            from .rag_utils import RAGUtils  # <- lazy import
             self._esg_manual_rag = RAGUtils(collection_name="esg_manual")
         return self._esg_manual_rag
 
@@ -74,7 +96,6 @@ class ReportService:
             )
         except Exception as e:
             logger.exception("보고서 생성 실패")
-            # 실패 시에도 모델 스키마를 만족해야 하므로 기본값 제공
             return ReportCreateResponse(
                 success=False, message=f"보고서 생성 중 오류가 발생했습니다: {str(e)}",
                 report_id=0, topic=request.topic,
@@ -85,7 +106,6 @@ class ReportService:
         try:
             report = self.report_repository.get_report(request.topic, request.company_name)
             if not report:
-                # ❗ 모델 스키마(created_at: datetime)가 엄격하므로 실패는 예외로 넘긴다
                 raise ValueError("보고서를 찾을 수 없습니다.")
 
             return ReportGetResponse(
@@ -95,9 +115,8 @@ class ReportService:
                 metadata=getattr(report, "meta", None), status=report.status,
                 created_at=report.created_at, updated_at=report.updated_at
             )
-        except Exception as e:
+        except Exception:
             logger.exception("보고서 조회 실패")
-            # 여기서는 예외를 올려 Controller가 HTTPException으로 변환
             raise
 
     def update_report(self, request: ReportUpdateRequest) -> ReportUpdateResponse:
@@ -113,12 +132,16 @@ class ReportService:
             if not updated_report:
                 return ReportUpdateResponse(success=False, message="업데이트할 보고서를 찾을 수 없습니다.", report_id=0, updated_at=None)
 
-            return ReportUpdateResponse(success=True, message="보고서가 성공적으로 업데이트되었습니다.",
-                                        report_id=updated_report.id, updated_at=updated_report.updated_at)
+            return ReportUpdateResponse(
+                success=True, message="보고서가 성공적으로 업데이트되었습니다.",
+                report_id=updated_report.id, updated_at=updated_report.updated_at
+            )
         except Exception as e:
             logger.exception("보고서 업데이트 실패")
-            return ReportUpdateResponse(success=False, message=f"보고서 업데이트 중 오류가 발생했습니다: {str(e)}",
-                                        report_id=0, updated_at=None)
+            return ReportUpdateResponse(
+                success=False, message=f"보고서 업데이트 중 오류가 발생했습니다: {str(e)}",
+                report_id=0, updated_at=None
+            )
 
     def delete_report(self, request: ReportDeleteRequest) -> ReportDeleteResponse:
         try:
@@ -142,12 +165,16 @@ class ReportService:
                     created_at=r.created_at, updated_at=r.updated_at
                 ) for r in reports
             ]
-            return ReportListResponse(success=True, message=f"{len(reports)}개의 보고서를 조회했습니다.",
-                                      reports=report_responses, total_count=len(reports))
+            return ReportListResponse(
+                success=True, message=f"{len(reports)}개의 보고서를 조회했습니다.",
+                reports=report_responses, total_count=len(reports)
+            )
         except Exception as e:
             logger.exception("회사별 보고서 목록 조회 실패")
-            return ReportListResponse(success=False, message=f"보고서 목록 조회 중 오류가 발생했습니다: {str(e)}",
-                                      reports=[], total_count=0)
+            return ReportListResponse(
+                success=False, message=f"보고서 목록 조회 중 오류가 발생했습니다: {str(e)}",
+                reports=[], total_count=0
+            )
 
     def get_reports_by_type(self, company_name: str, report_type: str) -> ReportListResponse:
         try:
@@ -161,12 +188,16 @@ class ReportService:
                     created_at=r.created_at, updated_at=r.updated_at
                 ) for r in reports
             ]
-            return ReportListResponse(success=True, message=f"{len(reports)}개의 {report_type} 보고서를 조회했습니다.",
-                                      reports=report_responses, total_count=len(reports))
+            return ReportListResponse(
+                success=True, message=f"{len(reports)}개의 {report_type} 보고서를 조회했습니다.",
+                reports=report_responses, total_count=len(reports)
+            )
         except Exception as e:
             logger.exception("유형별 보고서 목록 조회 실패")
-            return ReportListResponse(success=False, message=f"보고서 목록 조회 중 오류가 발생했습니다: {str(e)}",
-                                      reports=[], total_count=0)
+            return ReportListResponse(
+                success=False, message=f"보고서 목록 조회 중 오류가 발생했습니다: {str(e)}",
+                reports=[], total_count=0
+            )
 
     def complete_report(self, request: ReportCompleteRequest) -> ReportCompleteResponse:
         try:
@@ -176,7 +207,10 @@ class ReportService:
             return ReportCompleteResponse(success=True, message="보고서가 성공적으로 완료 처리되었습니다.", completed=True)
         except Exception as e:
             logger.exception("보고서 완료 처리 실패")
-            return ReportCompleteResponse(success=False, message=f"보고서 완료 처리 중 오류가 발생했습니다: {str(e)}", completed=False)
+            return ReportCompleteResponse(
+                success=False, message=f"보고서 완료 처리 중 오류가 발생했습니다: {str(e)}",
+                completed=False
+            )
 
     def get_report_status(self, company_name: str) -> Dict[str, str]:
         try:
@@ -227,9 +261,11 @@ class ReportService:
             - 반드시 지표 설명 텍스트의 내용을 기반으로, 지어내지 말고 써줘
             """)
             user = HumanMessage(content=f"[지표 ID: {indicator_id}]\n\n{content}")
-            response = self.llm.invoke([system, user])
+
+            llm = self._build_llm()
+            response = llm.invoke([system, user])
             return response.content.strip()
-        except Exception as e:
+        except Exception:
             logger.exception("지표 요약 생성 실패")
             return "지표 요약 생성 중 오류가 발생했습니다."
 
@@ -299,7 +335,11 @@ class ReportService:
         try:
             documents = self.search_indicator(indicator_id, limit=5)
             if not documents:
-                return {"indicator_id": indicator_id, "required_data": "해당 지표에 대한 정보를 찾을 수 없습니다.", "required_fields": []}
+                return {
+                    "indicator_id": indicator_id,
+                    "required_data": "해당 지표에 대한 정보를 찾을 수 없습니다.",
+                    "required_fields": []
+                }
 
             chunks = [d.get("content", "") for d in documents]
 
@@ -322,11 +362,13 @@ class ReportService:
             """)
             작성_블록 = self.extract_작성내용(chunks)
             user = HumanMessage(content=f"[지표 ID: {indicator_id}]\n\n{chr(10).join(chunks)}\n\n[작성 내용]\n{작성_블록}")
-            resp = self.llm.invoke([system, user])
+
+            llm = self._build_llm()
+            resp = llm.invoke([system, user])
             parsed = self.parse_markdown_to_fields(resp.content)
 
             return {"indicator_id": indicator_id, "required_data": resp.content, "required_fields": parsed}
-        except Exception as e:
+        except Exception:
             logger.exception("입력 필드 생성 실패")
             return {"indicator_id": indicator_id, "required_data": "⚠️ LLM 호출 중 오류가 발생했습니다.", "required_fields": []}
 
@@ -359,7 +401,6 @@ class ReportService:
             ▶ 수치/표 규칙
             - 표의 수치를 본문에 반복해서 쓰지 말 것(표로만 제시).
             """)
-
             flat_inputs: List[str] = []
             for k, v in inputs.items():
                 if isinstance(v, dict):
@@ -382,9 +423,10 @@ class ReportService:
             {chr(10).join(flat_inputs)}
             """)
 
-            resp = self.llm.invoke([system, user])
+            llm = self._build_llm()
+            resp = llm.invoke([system, user])
             return resp.content.strip()
-        except Exception as e:
+        except Exception:
             logger.exception("초안 생성 실패")
             return "⚠️ 초안 생성 중 오류가 발생했습니다."
 
@@ -401,7 +443,7 @@ class ReportService:
                     title=f"{indicator_id} 보고서", content="", metadata={"inputs": inputs}
                 )
             return True
-        except Exception as e:
+        except Exception:
             logger.exception("지표 데이터 저장 실패")
             return False
 
@@ -411,7 +453,7 @@ class ReportService:
             if r and getattr(r, "meta", None):
                 return r.meta.get("inputs", {})
             return None
-        except Exception as e:
+        except Exception:
             logger.exception("지표 데이터 조회 실패")
             return None
 
@@ -501,7 +543,8 @@ class ReportService:
             ]
             """)
             user = HumanMessage(content=f"다음 콘텐츠에서 ESG 보고서 작성에 필요한 입력 필드를 추출해주세요:\n\n{content}")
-            response = self.llm.invoke([system, user])
+            llm = self._build_llm()
+            response = llm.invoke([system, user])
             try:
                 return json.loads(response.content)
             except Exception:
@@ -511,7 +554,7 @@ class ReportService:
                     "description": "회사 관련 데이터",
                     "required": True
                 }]
-        except Exception as e:
+        except Exception:
             logger.exception("입력 필드 추출 실패")
             return []
 
@@ -525,7 +568,6 @@ class ReportService:
             )
             recommended_fields = []
             for result in search_results:
-                # ✅ payload 최상위 키 사용
                 r_title = result.get("title", "")
                 content = result.get("content", "")
                 rec = {
@@ -540,7 +582,7 @@ class ReportService:
                 else:
                     recommended_fields.append(rec)
             return recommended_fields
-        except Exception as e:
+        except Exception:
             logger.exception(f"추천 필드 검색 실패: {title}")
             return []
 
