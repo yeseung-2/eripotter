@@ -136,6 +136,23 @@ class RAGUtils:
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
+    def search(self, query: str, limit: int = 5, score_threshold: float = 0.0):
+        """검색 메서드 (score_threshold 지원)"""
+        try:
+            qvec = self.encode([query])[0]
+            res = self.qdrant_client.search(
+                collection_name=self.collection_name,
+                query_vector=qvec,
+                limit=limit,
+                score_threshold=score_threshold,
+                with_payload=True,
+                with_vectors=False
+            )
+            return [{"score": r.score, **(r.payload or {})} for r in res]
+        except Exception as e:
+            logger.error(f"검색 실패: {e}")
+            return []
+
     def generate_with_context(self, query: str, context_documents: List[Dict[str, Any]],
                               system_prompt: str = "당신은 도움이 되는 AI 어시스턴트입니다."):
         try:

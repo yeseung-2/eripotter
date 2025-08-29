@@ -1,5 +1,5 @@
 """
-Report Entity - 보고서 데이터베이스 모델
+Report Entity - 보고서 및 지표 데이터베이스 모델
 """
 from sqlalchemy import Column, String, DateTime, Text, Integer, JSON, UniqueConstraint, Index
 from sqlalchemy.sql import func
@@ -26,6 +26,32 @@ class Report(Base):
         Index("ix_report_topic_company", "topic", "company_name"),
         Index("ix_report_type", "report_type"),
         Index("ix_report_status", "status"),
+    )
+
+    class Config:
+        from_attributes = True
+
+
+class Indicator(Base):
+    __tablename__ = "indicator"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    indicator_id = Column(String, nullable=False, unique=True)  # 지표 ID (예: KBZ-EN22)
+    title = Column(String, nullable=False)                      # 지표 제목
+    category = Column(String, nullable=False)                   # 카테고리 (Environmental, Social, Governance)
+    subcategory = Column(String, nullable=True)                 # 서브카테고리
+    description = Column(Text, nullable=True)                   # 지표 설명
+    input_fields = Column(JSON, nullable=True)                  # 입력 필드 정의
+    example_data = Column(JSON, nullable=True)                  # 예시 데이터
+    status = Column(String, default="active", nullable=False)   # active, inactive
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    __table_args__ = (
+        Index("ix_indicator_id", "indicator_id"),
+        Index("ix_indicator_category", "category"),
+        Index("ix_indicator_status", "status"),
     )
 
     class Config:

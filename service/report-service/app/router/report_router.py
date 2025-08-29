@@ -8,7 +8,8 @@ from ..domain.model.report_model import (
     ReportCreateRequest, ReportCreateResponse,
     ReportGetResponse, ReportUpdateRequest, ReportUpdateResponse,
     ReportDeleteResponse, ReportListResponse, ReportCompleteRequest, ReportCompleteResponse,
-    IndicatorDraftRequest, IndicatorSaveRequest
+    IndicatorDraftRequest, IndicatorSaveRequest,
+    IndicatorListResponse, IndicatorInputFieldResponse, IndicatorDraftResponse
 )
 
 router = APIRouter(tags=["reports"])
@@ -126,6 +127,40 @@ async def get_indicator_data(
     controller: ReportController = Depends(get_report_controller),
 ):
     return controller.get_indicator_data(indicator_id, company_name)
+
+# ===== 지표 관리 API =====
+
+@router.get("/indicators", response_model=IndicatorListResponse)
+async def get_all_indicators(
+    controller: ReportController = Depends(get_report_controller),
+):
+    """모든 활성 지표 조회"""
+    return controller.get_all_indicators()
+
+@router.get("/indicators/category/{category}", response_model=IndicatorListResponse)
+async def get_indicators_by_category(
+    category: str,
+    controller: ReportController = Depends(get_report_controller),
+):
+    """카테고리별 지표 조회"""
+    return controller.get_indicators_by_category(category)
+
+@router.get("/indicators/{indicator_id}/fields", response_model=IndicatorInputFieldResponse)
+async def get_indicator_with_recommended_fields(
+    indicator_id: str,
+    controller: ReportController = Depends(get_report_controller),
+):
+    """지표 정보와 추천 입력 필드 조회"""
+    return controller.get_indicator_with_recommended_fields(indicator_id)
+
+@router.post("/indicators/{indicator_id}/enhanced-draft", response_model=IndicatorDraftResponse)
+async def generate_enhanced_draft(
+    indicator_id: str,
+    body: IndicatorDraftRequest,
+    controller: ReportController = Depends(get_report_controller),
+):
+    """향상된 보고서 초안 생성 (추천 필드 포함)"""
+    return controller.generate_enhanced_draft(indicator_id, body.company_name, body.inputs)
 
 # 헬스체크
 @router.get("/reports/health")

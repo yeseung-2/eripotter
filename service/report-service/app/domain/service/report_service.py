@@ -3,13 +3,15 @@ Report Service - ESG 매뉴얼 기반 보고서 비즈니스 로직 처리
 """
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
+from datetime import datetime
 from ..repository.report_repository import ReportRepository
 from ..model.report_model import (
     ReportCreateRequest, ReportCreateResponse,
     ReportGetRequest, ReportGetResponse,
     ReportUpdateRequest, ReportUpdateResponse,
     ReportDeleteRequest, ReportDeleteResponse,
-    ReportListResponse, ReportCompleteRequest, ReportCompleteResponse
+    ReportListResponse, ReportCompleteRequest, ReportCompleteResponse,
+    IndicatorResponse, IndicatorListResponse, IndicatorInputFieldResponse, IndicatorDraftResponse
 )
 from .rag_utils import RAGUtils
 from langchain_openai import ChatOpenAI
@@ -420,6 +422,231 @@ class ReportService:
         except Exception as e:
             logger.exception("지표 데이터 조회 실패")
             return None
+
+    # ===== 지표 관리 서비스 메서드 =====
     
+    def get_all_indicators(self) -> IndicatorListResponse:
+        """모든 활성 지표 조회"""
+        try:
+            indicators = self.report_repository.get_all_indicators()
+            indicator_responses = []
+            
+            for indicator in indicators:
+                indicator_responses.append(IndicatorResponse(
+                    success=True,
+                    message="",
+                    indicator_id=indicator.indicator_id,
+                    title=indicator.title,
+                    category=indicator.category,
+                    subcategory=indicator.subcategory,
+                    description=indicator.description,
+                    input_fields=indicator.input_fields,
+                    example_data=indicator.example_data,
+                    status=indicator.status,
+                    created_at=indicator.created_at,
+                    updated_at=indicator.updated_at
+                ))
+            
+            return IndicatorListResponse(
+                success=True,
+                message=f"{len(indicator_responses)}개의 지표를 조회했습니다.",
+                indicators=indicator_responses,
+                total_count=len(indicator_responses)
+            )
+        except Exception as e:
+            logger.exception("지표 목록 조회 실패")
+            return IndicatorListResponse(
+                success=False,
+                message=f"지표 목록 조회 중 오류가 발생했습니다: {str(e)}",
+                indicators=[],
+                total_count=0
+            )
     
+    def get_indicators_by_category(self, category: str) -> IndicatorListResponse:
+        """카테고리별 지표 조회"""
+        try:
+            indicators = self.report_repository.get_indicators_by_category(category)
+            indicator_responses = []
+            
+            for indicator in indicators:
+                indicator_responses.append(IndicatorResponse(
+                    success=True,
+                    message="",
+                    indicator_id=indicator.indicator_id,
+                    title=indicator.title,
+                    category=indicator.category,
+                    subcategory=indicator.subcategory,
+                    description=indicator.description,
+                    input_fields=indicator.input_fields,
+                    example_data=indicator.example_data,
+                    status=indicator.status,
+                    created_at=indicator.created_at,
+                    updated_at=indicator.updated_at
+                ))
+            
+            return IndicatorListResponse(
+                success=True,
+                message=f"{category} 카테고리의 {len(indicator_responses)}개 지표를 조회했습니다.",
+                indicators=indicator_responses,
+                total_count=len(indicator_responses)
+            )
+        except Exception as e:
+            logger.exception(f"{category} 카테고리 지표 조회 실패")
+            return IndicatorListResponse(
+                success=False,
+                message=f"{category} 카테고리 지표 조회 중 오류가 발생했습니다: {str(e)}",
+                indicators=[],
+                total_count=0
+            )
     
+    def get_indicator_with_recommended_fields(self, indicator_id: str) -> IndicatorInputFieldResponse:
+        """지표 정보와 Qdrant에서 추천된 입력 필드 조회"""
+        try:
+            # 데이터베이스에서 지표 정보 조회
+            indicator = self.report_repository.get_indicator_by_id(indicator_id)
+            if not indicator:
+                return IndicatorInputFieldResponse(
+                    success=False,
+                    message=f"지표 {indicator_id}를 찾을 수 없습니다.",
+                    indicator_id=indicator_id,
+                    title="",
+                    input_fields={},
+                    recommended_fields=[]
+                )
+            
+            # Qdrant에서 지표 제목과 매칭되는 정보 검색
+            recommended_fields = self._search_recommended_fields(indicator.title)
+            
+            return IndicatorInputFieldResponse(
+                success=True,
+                message="지표 정보와 추천 필드를 성공적으로 조회했습니다.",
+                indicator_id=indicator.indicator_id,
+                title=indicator.title,
+                input_fields=indicator.input_fields or {},
+                recommended_fields=recommended_fields
+            )
+        except Exception as e:
+            logger.exception(f"지표 {indicator_id} 정보 조회 실패")
+            return IndicatorInputFieldResponse(
+                success=False,
+                message=f"지표 정보 조회 중 오류가 발생했습니다: {str(e)}",
+                indicator_id=indicator_id,
+                title="",
+                input_fields={},
+                recommended_fields=[]
+            )
+    
+    def _search_recommended_fields(self, title: str) -> List[Dict[str, Any]]:
+        """Qdrant에서 지표 제목과 매칭되는 정보를 검색하여 입력 필드 추천"""
+        try:
+            # Qdrant에서 제목과 유사한 문서 검색
+            search_results = self.esg_manual_rag.search(
+                query=title,
+                limit=5,
+                score_threshold=0.7
+            )
+            
+            recommended_fields = []
+            for result in search_results:
+                # 메타데이터에서 입력 필드 관련 정보 추출
+                metadata = result.get("metadata", {})
+                content = result.get("content", "")
+                
+                # 제목이 정확히 매칭되는 경우 우선 처리
+                if metadata.get("title") == title:
+                    recommended_fields.insert(0, {
+                        "source": "exact_match",
+                        "title": metadata.get("title", ""),
+                        "content": content[:200] + "..." if len(content) > 200 else content,
+                        "score": result.get("score", 0),
+                        "suggested_fields": self._extract_suggested_fields(content)
+                    })
+                else:
+                    recommended_fields.append({
+                        "source": "similar_match",
+                        "title": metadata.get("title", ""),
+                        "content": content[:200] + "..." if len(content) > 200 else content,
+                        "score": result.get("score", 0),
+                        "suggested_fields": self._extract_suggested_fields(content)
+                    })
+            
+            return recommended_fields
+        except Exception as e:
+            logger.exception(f"추천 필드 검색 실패: {title}")
+            return []
+    
+    def _extract_suggested_fields(self, content: str) -> List[Dict[str, Any]]:
+        """콘텐츠에서 입력 필드 제안 추출"""
+        try:
+            # LLM을 사용하여 콘텐츠에서 입력 필드 추출
+            system = SystemMessage(content="""
+            ESG 보고서 작성에 필요한 입력 필드를 추출해주세요.
+            다음 형식으로 JSON 배열을 반환하세요:
+            [
+                {
+                    "field_name": "필드명",
+                    "field_type": "text|number|select|date",
+                    "description": "필드 설명",
+                    "required": true|false,
+                    "options": ["옵션1", "옵션2"] // select 타입인 경우만
+                }
+            ]
+            """)
+            
+            user = HumanMessage(content=f"다음 콘텐츠에서 ESG 보고서 작성에 필요한 입력 필드를 추출해주세요:\n\n{content}")
+            response = self.llm.invoke([system, user])
+            
+            # JSON 파싱 시도
+            import json
+            try:
+                return json.loads(response.content)
+            except:
+                # JSON 파싱 실패 시 기본 필드 반환
+                return [
+                    {
+                        "field_name": "company_data",
+                        "field_type": "text",
+                        "description": "회사 관련 데이터",
+                        "required": True
+                    }
+                ]
+        except Exception as e:
+            logger.exception("입력 필드 추출 실패")
+            return []
+    
+    def generate_enhanced_draft(self, indicator_id: str, company_name: str, inputs: Dict[str, Any]) -> IndicatorDraftResponse:
+        """향상된 보고서 초안 생성 (추천 필드 포함)"""
+        try:
+            # 지표 정보 조회
+            indicator = self.report_repository.get_indicator_by_id(indicator_id)
+            if not indicator:
+                return IndicatorDraftResponse(
+                    success=False,
+                    message=f"지표 {indicator_id}를 찾을 수 없습니다.",
+                    indicator_id=indicator_id,
+                    company_name=company_name,
+                    draft_content="",
+                    generated_at=datetime.now()
+                )
+            
+            # 기존 초안 생성 로직 실행
+            draft_content = self.generate_indicator_draft(indicator_id, company_name, inputs)
+            
+            return IndicatorDraftResponse(
+                success=True,
+                message="보고서 초안이 성공적으로 생성되었습니다.",
+                indicator_id=indicator_id,
+                company_name=company_name,
+                draft_content=draft_content,
+                generated_at=datetime.now()
+            )
+        except Exception as e:
+            logger.exception(f"향상된 초안 생성 실패: {indicator_id}")
+            return IndicatorDraftResponse(
+                success=False,
+                message=f"초안 생성 중 오류가 발생했습니다: {str(e)}",
+                indicator_id=indicator_id,
+                company_name=company_name,
+                draft_content="",
+                generated_at=datetime.now()
+            )

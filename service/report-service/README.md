@@ -8,23 +8,115 @@ ESG 매뉴얼 기반 전문 보고서 생성 서비스
 
 ## 주요 기능
 
-### 1. ESG 보고서 생성
+### 1. 지표별 보고서 생성
+- **지표 목록 조회**: 데이터베이스에 저장된 ESG 지표 목록 제공
+- **지표별 입력 필드 추천**: Qdrant에서 지표 제목과 매칭되는 정보를 검색하여 입력 필드 추천
+- **보고서 초안 생성**: 입력된 데이터를 바탕으로 전문적인 보고서 초안 생성
+
+### 2. ESG 보고서 생성
 - **지속가능성 보고서**: 환경, 사회, 지배구조 관점의 종합 보고서
 - **ESG 통합 관리 보고서**: ESG 통합 관리 체계 및 성과 측정
 - **기후행동 보고서**: 기후변화 대응 및 탄소중립 전략
 
-### 2. 섹션별 내용 생성
+### 3. 섹션별 내용 생성
 - 각 보고서 섹션별 전문적인 내용 생성
 - 업계별 특화 가이드라인 적용
 - 구체적이고 측정 가능한 지표 포함
 
-### 3. ESG 매뉴얼 검색
+### 4. ESG 매뉴얼 검색
 - ESG 매뉴얼 컬렉션에서 관련 정보 검색
 - 시맨틱 검색을 통한 정확한 매칭
 - 문서 제목, 페이지, 테이블, 이미지 정보 포함
 - 구조화된 검색 결과 제공
 
 ## API 엔드포인트
+
+### 지표별 보고서 생성
+
+#### 지표 목록 조회
+```http
+GET /indicators
+```
+
+**응답 예시:**
+```json
+{
+  "success": true,
+  "message": "4개의 지표를 조회했습니다.",
+  "indicators": [
+    {
+      "indicator_id": "KBZ-EN22",
+      "title": "온실가스 배출량",
+      "category": "Environmental",
+      "subcategory": "Climate Change",
+      "description": "회사의 온실가스 배출량을 측정하고 보고하는 지표",
+      "input_fields": {
+        "scope1_emissions": {"type": "number", "description": "Scope 1 온실가스 배출량 (tCO2e)", "required": true},
+        "scope2_emissions": {"type": "number", "description": "Scope 2 온실가스 배출량 (tCO2e)", "required": true}
+      },
+      "status": "active"
+    }
+  ],
+  "total_count": 4
+}
+```
+
+#### 카테고리별 지표 조회
+```http
+GET /indicators/category/{category}
+```
+
+#### 지표별 입력 필드 추천
+```http
+GET /indicators/{indicator_id}/fields
+```
+
+**응답 예시:**
+```json
+{
+  "success": true,
+  "message": "지표 정보와 추천 필드를 성공적으로 조회했습니다.",
+  "indicator_id": "KBZ-EN22",
+  "title": "온실가스 배출량",
+  "input_fields": {
+    "scope1_emissions": {"type": "number", "description": "Scope 1 온실가스 배출량 (tCO2e)", "required": true}
+  },
+  "recommended_fields": [
+    {
+      "source": "exact_match",
+      "title": "온실가스 배출량",
+      "content": "탄소중립을 달성하기 위한 노력을 추진하고 있으며...",
+      "score": 0.95,
+      "suggested_fields": [
+        {
+          "field_name": "emission_reduction_target",
+          "field_type": "number",
+          "description": "온실가스 감축 목표 (%)",
+          "required": false
+        }
+      ]
+    }
+  ]
+}
+```
+
+#### 향상된 보고서 초안 생성
+```http
+POST /indicators/{indicator_id}/enhanced-draft
+```
+
+**요청 예시:**
+```json
+{
+  "company_name": "테크놀로지 주식회사",
+  "inputs": {
+    "scope1_emissions": 1500,
+    "scope2_emissions": 3000,
+    "emission_reduction_target": 30,
+    "reduction_measures": "재생에너지 도입, 에너지 효율 개선"
+  }
+}
+```
 
 ### ESG 보고서 생성
 ```http
@@ -132,7 +224,12 @@ export QDRANT_API_KEY=your_qdrant_api_key
 export OPENAI_API_KEY=your_openai_api_key
 ```
 
-3. 서비스 실행:
+3. 데이터베이스 초기화 및 지표 데이터 생성:
+```bash
+python seed_indicators.py
+```
+
+4. 서비스 실행:
 ```bash
 python -m app.main
 ```

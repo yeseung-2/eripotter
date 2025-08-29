@@ -111,6 +111,12 @@ def root():
             "POST /reports/indicator/{indicator_id}/save",
             "GET /reports/indicator/{indicator_id}/data",
             
+            # 지표 관리 API
+            "GET /indicators",
+            "GET /indicators/category/{category}",
+            "GET /indicators/{indicator_id}/fields",
+            "POST /indicators/{indicator_id}/enhanced-draft",
+            
             # 헬스체크
             "GET /reports/health"
         ]

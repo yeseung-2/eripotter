@@ -11,7 +11,8 @@ from ..model.report_model import (
     ReportGetRequest, ReportGetResponse,
     ReportUpdateRequest, ReportUpdateResponse,
     ReportDeleteRequest, ReportDeleteResponse,
-    ReportListResponse, ReportCompleteRequest, ReportCompleteResponse
+    ReportListResponse, ReportCompleteRequest, ReportCompleteResponse,
+    IndicatorListResponse, IndicatorInputFieldResponse, IndicatorDraftResponse
 )
 import logging
 
@@ -124,6 +125,48 @@ class ReportController:
         except Exception as e:
             logger.error(f"지표 데이터 조회 API 오류: {e}")
             raise HTTPException(status_code=500, detail=f"지표 데이터 조회 중 오류가 발생했습니다: {str(e)}")
+
+    # ===== 지표 관리 컨트롤러 메서드 =====
+    
+    def get_all_indicators(self) -> IndicatorListResponse:
+        try:
+            with get_session() as db:
+                from ..service.report_service import ReportService
+                service = ReportService(db)
+                return service.get_all_indicators()
+        except Exception as e:
+            logger.error(f"지표 목록 조회 API 오류: {e}")
+            raise HTTPException(status_code=500, detail=f"지표 목록 조회 중 오류가 발생했습니다: {str(e)}")
+    
+    def get_indicators_by_category(self, category: str) -> IndicatorListResponse:
+        try:
+            with get_session() as db:
+                from ..service.report_service import ReportService
+                service = ReportService(db)
+                return service.get_indicators_by_category(category)
+        except Exception as e:
+            logger.error(f"카테고리별 지표 조회 API 오류: {e}")
+            raise HTTPException(status_code=500, detail=f"카테고리별 지표 조회 중 오류가 발생했습니다: {str(e)}")
+    
+    def get_indicator_with_recommended_fields(self, indicator_id: str) -> IndicatorInputFieldResponse:
+        try:
+            with get_session() as db:
+                from ..service.report_service import ReportService
+                service = ReportService(db)
+                return service.get_indicator_with_recommended_fields(indicator_id)
+        except Exception as e:
+            logger.error(f"지표 정보 조회 API 오류: {e}")
+            raise HTTPException(status_code=500, detail=f"지표 정보 조회 중 오류가 발생했습니다: {str(e)}")
+    
+    def generate_enhanced_draft(self, indicator_id: str, company_name: str, inputs: Dict[str, Any]) -> IndicatorDraftResponse:
+        try:
+            with get_session() as db:
+                from ..service.report_service import ReportService
+                service = ReportService(db)
+                return service.generate_enhanced_draft(indicator_id, company_name, inputs)
+        except Exception as e:
+            logger.error(f"향상된 초안 생성 API 오류: {e}")
+            raise HTTPException(status_code=500, detail=f"향상된 초안 생성 중 오류가 발생했습니다: {str(e)}")
 
 
 def get_report_controller() -> ReportController:

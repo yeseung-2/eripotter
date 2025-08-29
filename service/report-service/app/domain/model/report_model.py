@@ -88,3 +88,34 @@ class IndicatorDraftRequest(BaseModel):
 class IndicatorSaveRequest(BaseModel):
     company_name: str
     inputs: Dict[str, Any] = Field(default_factory=dict)
+
+
+# ===== 지표 관리 모델 =====
+
+class IndicatorResponse(BaseResponse):
+    indicator_id: str
+    title: str
+    category: str
+    subcategory: Optional[str]
+    description: Optional[str]
+    input_fields: Optional[Dict[str, Any]]
+    example_data: Optional[Dict[str, Any]]
+    status: str
+    created_at: datetime
+    updated_at: Optional[datetime]
+
+class IndicatorListResponse(BaseResponse):
+    indicators: List[IndicatorResponse]
+    total_count: int
+
+class IndicatorInputFieldResponse(BaseResponse):
+    indicator_id: str
+    title: str
+    input_fields: Dict[str, Any]
+    recommended_fields: List[Dict[str, Any]]  # Qdrant에서 추천된 필드들
+
+class IndicatorDraftResponse(BaseResponse):
+    indicator_id: str
+    company_name: str
+    draft_content: str
+    generated_at: datetime

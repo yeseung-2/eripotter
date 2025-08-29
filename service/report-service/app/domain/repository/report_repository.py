@@ -11,7 +11,7 @@ from sqlalchemy import select, update, and_
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime
 
-from ..entity.report_entity import Report
+from ..entity.report_entity import Report, Indicator
 
 
 class ReportRepository:
@@ -153,3 +153,98 @@ class ReportRepository:
         stmt = select(Report.topic, Report.status).where(Report.company_name == company_name)
         rows = self.db.execute(stmt).all()
         return {topic: status for (topic, status) in rows}
+
+    # ===== Indicator Repository Methods =====
+    
+    def get_all_indicators(self) -> List[Indicator]:
+        """모든 활성 지표 조회"""
+        stmt = select(Indicator).where(Indicator.status == "active").order_by(Indicator.category, Indicator.indicator_id)
+        return list(self.db.scalars(stmt).all())
+    
+    def get_indicators_by_category(self, category: str) -> List[Indicator]:
+        """카테고리별 지표 조회"""
+        stmt = select(Indicator).where(
+            and_(Indicator.category == category, Indicator.status == "active")
+        ).order_by(Indicator.indicator_id)
+        return list(self.db.scalars(stmt).all())
+    
+    def get_indicator_by_id(self, indicator_id: str) -> Optional[Indicator]:
+        """지표 ID로 지표 조회"""
+        stmt = select(Indicator).where(Indicator.indicator_id == indicator_id)
+        return self.db.scalar(stmt)
+    
+    def create_indicator(
+        self,
+        *,
+        indicator_id: str,
+        title: str,
+        category: str,
+        subcategory: Optional[str] = None,
+        description: Optional[str] = None,
+        input_fields: Optional[Dict[str, Any]] = None,
+        example_data: Optional[Dict[str, Any]] = None,
+        status: str = "active",
+    ) -> Indicator:
+        """지표 생성"""
+        obj = Indicator(
+            indicator_id=indicator_id,
+            title=title,
+            category=category,
+            subcategory=subcategory,
+            description=description,
+            input_fields=input_fields,
+            example_data=example_data,
+            status=status,
+        )
+        self.db.add(obj)
+        try:
+            self.db.commit()
+        except IntegrityError:
+            self.db.rollback()
+            # 이미 존재하면 기존 객체 반환
+            existing = self.get_indicator_by_id(indicator_id)
+            if existing:
+                return existing
+            raise
+        self.db.refresh(obj)
+        return obj
+    
+    def update_indicator(
+        self,
+        *,
+        indicator_id: str,
+        title: Optional[str] = None,
+        category: Optional[str] = None,
+        subcategory: Optional[str] = None,
+        description: Optional[str] = None,
+        input_fields: Optional[Dict[str, Any]] = None,
+        example_data: Optional[Dict[str, Any]] = None,
+        status: Optional[str] = None,
+    ) -> Optional[Indicator]:
+        """지표 업데이트"""
+        obj = self.get_indicator_by_id(indicator_id)
+        if not obj:
+            return None
+            
+        if title is not None:
+            obj.title = title
+        if category is not None:
+            obj.category = category
+        if subcategory is not None:
+            obj.subcategory = subcategory
+        if description is not None:
+            obj.description = description
+        if input_fields is not None:
+            obj.input_fields = input_fields
+        if example_data is not None:
+            obj.example_data = example_data
+        if status is not None:
+            obj.status = status
+            
+        try:
+            self.db.commit()
+        except IntegrityError:
+            self.db.rollback()
+            raise
+        self.db.refresh(obj)
+        return obj
