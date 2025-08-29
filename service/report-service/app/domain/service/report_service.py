@@ -13,7 +13,6 @@ from ..model.report_model import (
     ReportListResponse, ReportCompleteRequest, ReportCompleteResponse,
     IndicatorResponse, IndicatorListResponse, IndicatorInputFieldResponse, IndicatorDraftResponse
 )
-from .rag_utils import RAGUtils
 from langchain_openai import ChatOpenAI
 from langchain.schema import SystemMessage, HumanMessage
 import logging
@@ -30,7 +29,8 @@ class ReportService:
     def __init__(self, db: Session):
         self.db = db
         self.report_repository = ReportRepository(db)
-        self.esg_manual_rag = RAGUtils(collection_name="esg_manual")
+        # RAGUtils는 필요할 때만 lazy import (sentence_transformers 방지)
+        self._esg_manual_rag = None
         self.llm = ChatOpenAI(
             model=os.getenv("OPENAI_MODEL", "gpt-4o"),
             temperature=0.3,
@@ -38,6 +38,14 @@ class ReportService:
             openai_api_key=os.getenv("OPENAI_API_KEY")
         )
         self.doc_root = os.getenv("DOC_ROOT", ".")
+    
+    @property
+    def esg_manual_rag(self):
+        """RAGUtils lazy loading"""
+        if self._esg_manual_rag is None:
+            from .rag_utils import RAGUtils
+            self._esg_manual_rag = RAGUtils(collection_name="esg_manual")
+        return self._esg_manual_rag
 
     # ===== CRUD =====
     def create_report(self, request: ReportCreateRequest) -> ReportCreateResponse:

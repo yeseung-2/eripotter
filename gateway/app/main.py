@@ -145,7 +145,7 @@ async def report_any(path: str, request: Request):
         return await _proxy(request, REPORT_SERVICE_URL, "/indicators")
     return await _proxy(request, REPORT_SERVICE_URL, f"/{path}")
 
-# /report/indicators 직접 라우팅 (프론트엔드에서 사용하는 경로)
+# /report/indicators 직접 라우팅
 @app.api_route("/report/indicators", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def report_indicators_direct(request: Request):
     return await _proxy(request, REPORT_SERVICE_URL, "/indicators")

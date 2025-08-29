@@ -17,14 +17,18 @@ logger = logging.getLogger(__name__)
 
 # ===== 임베더 선택 =====
 def _get_embedder():
-    emb = os.getenv("EMBEDDER", "bge-m3").lower()  # "bge-m3" | "minilm" | "openai"
+    emb = os.getenv("EMBEDDER", "openai").lower()  # 기본값을 openai로 변경 (sentence_transformers 방지)
     if emb == "bge-m3":
-        from sentence_transformers import SentenceTransformer
-        m = SentenceTransformer("BAAI/bge-m3")
-        dim = 1024
-        def encode(texts: List[str]) -> List[List[float]]:
-            return m.encode([f"query: {t}" for t in texts], normalize_embeddings=True).tolist()
-        return encode, dim, "bge-m3"
+        try:
+            from sentence_transformers import SentenceTransformer
+            m = SentenceTransformer("BAAI/bge-m3")
+            dim = 1024
+            def encode(texts: List[str]) -> List[List[float]]:
+                return m.encode([f"query: {t}" for t in texts], normalize_embeddings=True).tolist()
+            return encode, dim, "bge-m3"
+        except ImportError:
+            logger.warning("sentence-transformers not installed, falling back to openai")
+            return _get_openai_embedder()
     elif emb == "minilm":
         try:
             from sentence_transformers import SentenceTransformer
@@ -35,25 +39,23 @@ def _get_embedder():
             return encode, dim, "minilm"
         except ImportError:
             logger.warning("sentence-transformers not installed, falling back to openai")
-            from openai import OpenAI
-            client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-            model = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-large")
-            dim = 3072
-            def encode(texts: List[str]) -> List[List[float]]:
-                out = client.embeddings.create(model=model, input=texts)
-                return [e.embedding for e in out.data]
-            return encode, dim, "openai"
+            return _get_openai_embedder()
     elif emb == "openai":
-        from openai import OpenAI
-        client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-        model = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-large")  # 3072차원
-        dim = 3072
-        def encode(texts: List[str]) -> List[List[float]]:
-            out = client.embeddings.create(model=model, input=texts)
-            return [e.embedding for e in out.data]
-        return encode, dim, "openai"
+        return _get_openai_embedder()
     else:
-        raise ValueError(f"Unknown EMBEDDER: {emb}")
+        logger.warning(f"Unknown EMBEDDER: {emb}, falling back to openai")
+        return _get_openai_embedder()
+
+def _get_openai_embedder():
+    """OpenAI 임베더 설정"""
+    from openai import OpenAI
+    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    model = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-large")  # 3072차원
+    dim = 3072
+    def encode(texts: List[str]) -> List[List[float]]:
+        out = client.embeddings.create(model=model, input=texts)
+        return [e.embedding for e in out.data]
+    return encode, dim, "openai"
 
 # ===== LLM (선택) =====
 def _get_llm():
@@ -65,8 +67,8 @@ def _get_llm():
 class RAGUtils:
     def __init__(self, collection_name: Optional[str] = None):
         qurl = os.getenv("QDRANT_URL", "https://qdrant-production-1efa.up.railway.app")
-        # ✅ 키 이름 호환 (둘 중 있는 값 사용)
-        key = os.getenv("QDRANT_API_KEY") or os.getenv("QDRANT__SERVICE__API_KEY")
+        # ✅ 키 이름 호환 (Railway 환경변수와 매칭)
+        key = os.getenv("QDRANT_API_KEY") or os.getenv("QDRANT_SERVICE__API_KEY")
         p = urlparse(qurl)
         self.qdrant_client = QdrantClient(
             host=p.hostname, port=p.port or (443 if p.scheme == "https" else 80),
@@ -74,10 +76,34 @@ class RAGUtils:
             api_key=key, prefer_grpc=False, timeout=60
         )
 
-        self.encode, self.dim, self.embedder_name = _get_embedder()
+        # 임베더는 필요할 때만 초기화 (sentence_transformers 방지)
+        self._encode = None
+        self._dim = None
+        self._embedder_name = None
         self.collection_name = collection_name or os.getenv("QDRANT_COLLECTION", "documents")
         self._ensure_collection_exists()
         self._llm = None
+    
+    @property
+    def encode(self):
+        """임베더 lazy loading"""
+        if self._encode is None:
+            self._encode, self._dim, self._embedder_name = _get_embedder()
+        return self._encode
+    
+    @property
+    def dim(self):
+        """임베더 차원 lazy loading"""
+        if self._dim is None:
+            self._encode, self._dim, self._embedder_name = _get_embedder()
+        return self._dim
+    
+    @property
+    def embedder_name(self):
+        """임베더 이름 lazy loading"""
+        if self._embedder_name is None:
+            self._encode, self._dim, self._embedder_name = _get_embedder()
+        return self._embedder_name
 
     def _ensure_collection_exists(self):
         try:
@@ -92,9 +118,11 @@ class RAGUtils:
             except Exception:
                 pass
         except Exception:
+            # 컬렉션 생성 시에만 임베더 초기화
+            dim = self.dim
             self.qdrant_client.create_collection(
                 collection_name=self.collection_name,
-                vectors_config=VectorParams(size=self.dim, distance=Distance.COSINE)
+                vectors_config=VectorParams(size=dim, distance=Distance.COSINE)
             )
 
     @staticmethod
