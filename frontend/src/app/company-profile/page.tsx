@@ -231,7 +231,7 @@ export default function CompanyProfilePage() {
           </Link>
 
           {/* 보고서 작성 */}
-          <Link href="/report/create" className="group">
+          <Link href="/report/write" className="group">
             <Card className="hover:shadow-md transition-all cursor-pointer h-full">
               <CardContent className="p-6 flex flex-col items-center text-center">
                 <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mb-4 group-hover:bg-orange-200 transition-colors">

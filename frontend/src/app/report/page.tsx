@@ -76,7 +76,7 @@ export default function ReportListPage() {
   };
 
   const handleCreateReport = () => {
-    router.push('/report/create');
+    router.push('/report/write');
   };
 
   const handleViewReport = (reportId: string) => {
