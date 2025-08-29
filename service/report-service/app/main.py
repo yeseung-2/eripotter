@@ -135,8 +135,15 @@ if __name__ == "__main__":
     logger.info("🚀 직접 실행 모드 시작...")
     try:
         import uvicorn
+        
+        # 포트 정보 상세 로깅
+        raw_port = os.getenv("PORT")
+        logger.info(f"🔍 환경변수 PORT: {raw_port}")
+        
         port = int(os.getenv("PORT", "8007"))
         logger.info(f"💻 서비스 시작 - 포트: {port}")
+        logger.info(f"🌐 서비스 URL: http://0.0.0.0:{port}")
+        
         uvicorn.run("app.main:app", host="0.0.0.0", port=port, log_level="info", access_log=True)
     except Exception as e:
         logger.error(f"❌ 서비스 시작 실패: {e}")

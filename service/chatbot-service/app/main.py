@@ -52,7 +52,7 @@ app.add_middleware(
 )
 
 # LangChain 모델 초기화
-from eripotter_common.env import OPENAI_API_KEY
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 try:
     if not OPENAI_API_KEY:
