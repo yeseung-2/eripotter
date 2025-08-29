@@ -23,9 +23,13 @@ class SubstanceMappingService:
     def _load_model_and_data(self):
         """모델과 규정 데이터를 로드합니다."""
         try:
-            # BOMI AI 모델 로드 (볼륨 마운트 경로 사용)
+            # 환경변수에서 경로 가져오기
+            MODEL_DIR = os.getenv("MODEL_DIR", "/app/model/bomi-ai")
+            DATA_DIR = os.getenv("DATA_DIR", "/app/data")
+            
+            # BOMI AI 모델 로드
             model_paths = [
-                Path("/app/model/bomi-ai"),  # BOMI AI 모델 경로
+                Path(MODEL_DIR),  # 환경변수 사용
                 Path("/app/llm_bge-m3")
             ]
             
@@ -42,9 +46,9 @@ class SubstanceMappingService:
                 self.model = SentenceTransformer("BAAI/bge-m3")
                 logger.warning("BOMI AI 모델을 찾을 수 없어 베이스 모델을 사용합니다.")
             
-            # 규정 데이터 로드 (볼륨 마운트 경로 사용)
+            # 규정 데이터 로드
             reg_paths = [
-                Path("/app/data/reg_test1.xlsx"),
+                Path(f"{DATA_DIR}/reg_test1.xlsx"),  # 환경변수 사용
             ]
             
             reg_loaded = False

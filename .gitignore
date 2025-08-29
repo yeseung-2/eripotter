@@ -86,14 +86,18 @@ run_railway_sql.py
 *.bak
 *.backup
 
-# Model files (large files) - Note: BOMI AI model is managed by Git LFS
-# *.bin
-# *.pt
-# *.pth
-# *.onnx
-# *.faiss
-# *.pkl
-# *.safetensors
+# Model files (large files) - Note: BOMI AI model will be downloaded from Hugging Face
+*.bin
+*.pt
+*.pth
+*.onnx
+*.faiss
+*.pkl
+*.safetensors
+
+# BOMI AI model directory (will be downloaded from Hugging Face)
+service/normal-service/app/domain/model/bomi-ai/
+service/monitoring-train/model/bomi-ai/
 
 # Training data files
 service/monitoring-train/data/*.csv
@@ -104,7 +108,7 @@ service/monitoring-train/checkpoints/
 # Allow reg_test1.xlsx for production use
 !service/monitoring-train/data/reg_test1.xlsx
 
-# Note: BOMI AI model is excluded (too large for GitHub)
+# Note: BOMI AI model will be downloaded from Hugging Face
 service/normal-service/app/domain/model/bomi-ai/
 
 # Base model (BGE-M3)
