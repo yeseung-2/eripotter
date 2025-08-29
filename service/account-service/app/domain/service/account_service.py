@@ -1,4 +1,4 @@
-from ..repository.account_repository import AccountRepository
+from ..repository.account_repository import AccountRepository 
 from ..model.account_model import (
     AccountCreate,
     CompanyProfile,
@@ -8,43 +8,35 @@ from ..model.account_model import (
 import jwt
 import os
 import logging
-import json
 from datetime import datetime, timedelta
 
-# 로깅 설정
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("account_service")
 
 class AccountService:
     def __init__(self):
         self.repository = AccountRepository()
         self.secret_key = os.getenv("JWT_SECRET_KEY", "your-secret-key-here")
+        self.jwt_issuer = os.getenv("JWT_ISSUER", "account-service")
+        self.jwt_expires_minutes = int(os.getenv("JWT_EXPIRES_MINUTES", "120"))
 
-    def create_access_token(self, data: dict) -> str:
-        try:
-            logger.info("🔑 Creating access token")
-            logger.info(f"📨 Token data: {json.dumps(data, indent=2)}")
-            
-            to_encode = data.copy()
-            expire = datetime.utcnow() + timedelta(minutes=30)
-            to_encode.update({"exp": expire})
-            
-            encoded_jwt = jwt.encode(to_encode, self.secret_key, algorithm="HS256")
-            logger.info("✅ Successfully created access token")
-            return encoded_jwt
-            
-        except Exception as e:
-            logger.error(f"❌ Error creating access token: {str(e)}")
-            raise
+    def _create_access_token(self, data: dict) -> str:
+        now = datetime.utcnow()
+        to_encode = {
+            **data,
+            "iat": now,
+            "nbf": now,
+            "exp": now + timedelta(minutes=self.jwt_expires_minutes),
+            "iss": self.jwt_issuer,
+        }
+        return jwt.encode(to_encode, self.secret_key, algorithm="HS256")
 
     def process_google_auth(self, auth_data: GoogleAuthData) -> TokenResponse:
         try:
-            logger.info("🔵 Processing Google auth")
-            logger.info(f"📨 Auth data: {json.dumps(auth_data.dict(), indent=2)}")
-            
-            # 1. 기존 계정 확인 또는 새 계정 생성
+            # 민감정보 최소 로깅
+            logger.info(f"🔵 Google auth start: sub={auth_data.sub}, email_verified={auth_data.email_verified}")
+
+            # 1) 계정 조회/생성
             account = self.repository.get_by_oauth_sub(auth_data.sub)
-            
             if not account:
                 logger.info("📝 Creating new account")
                 account_data = AccountCreate(
@@ -55,87 +47,75 @@ class AccountService:
                     email_verified=auth_data.email_verified
                 )
                 account = self.repository.create_account(account_data)
-                logger.info("✅ New account created")
+                logger.info(f"✅ New account created (id={account['id']})")
             else:
-                logger.info("✅ Found existing account")
-            
-            # 2. JWT 토큰 생성
+                logger.info(f"✅ Found existing account (id={account['id']})")
+
+            # 2) JWT 토큰 생성(프론트 미사용이어도 스펙 유지)
             token_data = {
                 "sub": str(account["id"]),
                 "email": account["email"],
                 "oauth_sub": auth_data.sub
             }
-            access_token = self.create_access_token(token_data)
-            
-            # 3. 마지막 로그인 시간 업데이트는 일단 건너뛰기 (세션 문제 해결 후 추가)
-            logger.info("⏭️ Skipping last login update for now")
-            
+            access_token = self._create_access_token(token_data)
+
+            # 3) 마지막 로그인 시간 업데이트
+            try:
+                self.repository.update_last_login(account["id"])
+            except Exception as e:
+                logger.warning(f"⚠️ last_login update failed: {e}")
+
+            logger.info("✅ Google auth done")
             return TokenResponse(access_token=access_token)
-            
+
         except Exception as e:
-            logger.error(f"❌ Error in process_google_auth: {str(e)}")
-            logger.error(f"❌ Error type: {type(e)}")
+            logger.error(f"❌ process_google_auth error: {e}")
             raise
 
     def get_account_by_oauth_sub(self, oauth_sub: str):
         try:
-            logger.info(f"🔍 Getting account by oauth_sub: {oauth_sub}")
+            logger.info(f"🔍 get_account_by_oauth_sub: sub={oauth_sub}")
             account = self.repository.get_by_oauth_sub(oauth_sub)
-            
             if not account:
-                logger.error("❌ Account not found")
                 raise ValueError("Account not found")
-                
-            logger.info("✅ Successfully retrieved account")
             return account
-            
         except Exception as e:
-            logger.error(f"❌ Error getting account: {str(e)}")
+            logger.error(f"❌ get_account_by_oauth_sub error: {e}")
             raise
 
     def update_company_profile(self, oauth_sub: str, profile_data: CompanyProfile):
         try:
-            logger.info(f"📝 Updating company profile for oauth_sub: {oauth_sub}")
-            logger.info(f"📨 Profile data: {json.dumps(profile_data.dict(), indent=2)}")
-            
+            logger.info(f"📝 update_company_profile: sub={oauth_sub}")
             account = self.repository.get_by_oauth_sub(oauth_sub)
             if not account:
-                logger.error("❌ Account not found")
                 raise ValueError("Account not found")
-            
+
             updated_account = self.repository.update_company_profile(oauth_sub, profile_data)
-            if updated_account:
-                logger.info("✅ Successfully updated company profile")
-                return updated_account  # 이미 딕셔너리로 반환됨
-            else:
+            if not updated_account:
                 raise ValueError("Failed to update company profile")
-            
+            logger.info("✅ company profile updated")
+            return updated_account
         except Exception as e:
-            logger.error(f"❌ Error updating company profile: {str(e)}")
+            logger.error(f"❌ update_company_profile error: {e}")
             raise
 
     def create_company_profile(self, oauth_sub: str, profile_data: CompanyProfile):
         try:
-            logger.info(f"📝 Creating company profile for oauth_sub: {oauth_sub}")
-            logger.info(f"📨 Profile data: {json.dumps(profile_data.dict(), indent=2)}")
-            
+            logger.info(f"📝 create_company_profile: sub={oauth_sub}")
             account = self.repository.get_by_oauth_sub(oauth_sub)
             if not account:
-                logger.error("❌ Account not found")
                 raise ValueError("Account not found")
-            
-            # 프로필이 이미 존재하는지 확인 (company_name이 null이 아닌 경우)
-            if account.get("company_name") and account.get("company_name") != "":
-                logger.info("⚠️ Profile already exists, updating instead")
+
+            # 이미 존재하면 업데이트로 전환
+            if account.get("company_name"):
+                logger.info("⚠️ Profile exists, updating instead")
                 return self.update_company_profile(oauth_sub, profile_data)
-            
+
             created_account = self.repository.create_company_profile(oauth_sub, profile_data)
-            if created_account:
-                logger.info("✅ Successfully created company profile")
-                return created_account  # 이미 딕셔너리로 반환됨
-            else:
+            if not created_account:
                 raise ValueError("Failed to create company profile")
-            
+            logger.info("✅ company profile created")
+            return created_account
         except Exception as e:
-            logger.error(f"❌ Error creating company profile: {str(e)}")
+            logger.error(f"❌ create_company_profile error: {e}")
             raise
