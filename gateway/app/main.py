@@ -140,6 +140,9 @@ async def report_root(request: Request):
 
 @app.api_route("/api/report/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def report_any(path: str, request: Request):
+    # /api/report/indicators -> /indicators로 매핑
+    if path == "indicators":
+        return await _proxy(request, REPORT_SERVICE_URL, "/indicators")
     return await _proxy(request, REPORT_SERVICE_URL, f"/{path}")
 
 # Auth 라우터를 두 경로에 마운트

@@ -19,7 +19,6 @@ nosetests.xml
 coverage.xml
 *.cover
 *.log
-.git
 .mypy_cache
 .pytest_cache
 .hypothesis
@@ -48,14 +47,20 @@ tests/
 test_*
 *_test.py
 
-# 불필요한 디렉토리
+# 불필요한 디렉토리 (빌드 시간 단축을 위해 제외)
 tables_gpt/
 *.log
 logs/
 temp/
 tmp/
+seed_indicators.py
 
 # 환경 변수
 .env
 .env.local
 .env.*.local
+
+# Docker 관련
+Dockerfile*
+docker-compose*
+.dockerignore

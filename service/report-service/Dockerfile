@@ -20,8 +20,13 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY app/ ./app/
 COPY __init__.py .
 
+# 환경 변수 설정 (빌드 최적화)
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PIP_NO_CACHE_DIR=1
+
 # 포트 노출
-EXPOSE 8000
+EXPOSE 8007
 
 # 애플리케이션 실행
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8007"]

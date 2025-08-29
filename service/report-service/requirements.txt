@@ -1,4 +1,4 @@
-# 기본 의존성
+# 기본 의존성 (최소 필수 패키지만)
 eripotter-common==0.1.4
 uvicorn[standard]==0.24.0
 psycopg2-binary==2.9.9
@@ -6,12 +6,17 @@ alembic==1.13.1
 python-multipart==0.0.9
 python-dotenv==1.0.0
 
-# RAG 관련 패키지 (필수만 포함)
+# RAG 관련 패키지 (필수만 포함, 버전 고정으로 빌드 시간 단축)
 qdrant-client==1.15.1
-openai>=1.0.0
-langchain>=0.1.20,<0.2
-langchain-community>=0.0.33,<0.1
-langchain-openai>=0.0.8,<0.1
+openai==1.12.0
+langchain==0.1.20
+langchain-community==0.0.33
+langchain-openai==0.0.8
+
+# 빌드 시간 단축을 위해 불필요한 패키지 제거
+# - sentence-transformers: 매우 큰 패키지로 빌드 시간 증가
+# - 사용 시나리오: EMBEDDER=minilm 환경변수 설정 시에만 필요
+# - 기본값은 EMBEDDER=bge-m3 또는 EMBEDDER=openai 사용
 
 # sentence-transformers는 필요시에만 설치 (매우 큰 패키지)
 # 사용 시나리오:
