@@ -69,9 +69,19 @@ ENV/
 
 # Project specific
 /llm/
+/llm_bge-m3/
 /vectordb/
 /document/
 /data/
+
+# AI Models (Hugging Face downloads)
+**/*.bin
+**/*.safetensors
+**/*.pt
+**/*.onnx
+**/*.onnx_data
+**/pytorch_model.bin
+**/model.safetensors
 
 # Alembic
 alembic/*.ini
