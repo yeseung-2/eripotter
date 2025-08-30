@@ -152,6 +152,7 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - DATABASE_URL=${DATABASE_URL}
+      - EMBEDDER=bge-m3
     networks:
       - msa_network
 

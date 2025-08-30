@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # ===== 임베더 선택 =====
 def _get_embedder():
-    emb = os.getenv("EMBEDDER", "openai").lower()  # 기본값을 openai로 변경 (sentence_transformers 방지)
+    emb = os.getenv("EMBEDDER", "bge-m3").lower()  # 기본값을 bge-m3로 변경 (Qdrant 데이터와 일치)
     if emb == "bge-m3":
         try:
             from sentence_transformers import SentenceTransformer
@@ -49,19 +49,11 @@ def _get_embedder():
 def _get_openai_embedder():
     """OpenAI 임베더 설정"""
     from openai import OpenAI
-    import httpx
     
     try:
-        # proxies 없이 직접 연결하는 http_client 생성
-        http_client = httpx.Client(
-            proxies=None,  # proxies 명시적으로 비활성화
-            timeout=60.0
-        )
-        
-        # OpenAI 클라이언트 초기화 시 http_client 명시적 설정
+        # 기본 설정으로 OpenAI 클라이언트 초기화 (http_client 제거)
         client = OpenAI(
-            api_key=os.environ["OPENAI_API_KEY"],
-            http_client=http_client
+            api_key=os.environ["OPENAI_API_KEY"]
         )
         model = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-large")  # 3072차원
         dim = 3072
@@ -76,22 +68,14 @@ def _get_openai_embedder():
 # ===== LLM (선택) =====
 def _get_llm():
     from langchain_openai import ChatOpenAI
-    import httpx
     model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
     
     try:
-        # proxies 없이 직접 연결하는 http_client 생성
-        http_client = httpx.Client(
-            proxies=None,  # proxies 명시적으로 비활성화
-            timeout=60.0
-        )
-        
-        # ChatOpenAI 초기화 시 http_client 명시적 설정
+        # 기본 설정으로 ChatOpenAI 초기화 (http_client 제거)
         return ChatOpenAI(
             model=model, 
             temperature=0.7, 
-            openai_api_key=os.getenv("OPENAI_API_KEY"),
-            http_client=http_client
+            openai_api_key=os.getenv("OPENAI_API_KEY")
         )
     except Exception as e:
         logger.error(f"ChatOpenAI 초기화 실패: {e}")

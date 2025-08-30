@@ -22,7 +22,7 @@ import json
 # LLM 관련 (최신 langchain-openai)
 from langchain_openai import ChatOpenAI
 from langchain.schema import SystemMessage, HumanMessage
-import httpx
+# import httpx  # 제거됨 - 프록시 오류 방지
 
 logger = logging.getLogger(__name__)
 
@@ -47,19 +47,20 @@ class ReportService:
     # ──────────────────────────────────────────────────────────────────────────────
     def _build_llm(self) -> ChatOpenAI:
         """
-        최신 방식: proxies 키워드 대신 httpx.Client(proxies=...) 주입.
+        기본 설정으로 ChatOpenAI 초기화.
         OPENAI_API_KEY / OPENAI_MODEL 환경변수 사용.
         """
-        proxy = os.getenv("HTTPS_PROXY") or os.getenv("HTTP_PROXY")
-        http_client = httpx.Client(proxies=proxy) if proxy else None
-
-        return ChatOpenAI(
-            model=os.getenv("OPENAI_MODEL", "gpt-4o"),
-            temperature=0.3,
-            max_tokens=3000,
-            api_key=os.getenv("OPENAI_API_KEY"),
-            http_client=http_client,
-        )
+        try:
+            # 기본 설정으로 ChatOpenAI 초기화 (http_client 제거)
+            return ChatOpenAI(
+                model=os.getenv("OPENAI_MODEL", "gpt-4o"),
+                temperature=0.3,
+                max_tokens=3000,
+                api_key=os.getenv("OPENAI_API_KEY")
+            )
+        except Exception as e:
+            logger.error(f"ChatOpenAI 초기화 실패: {e}")
+            raise
 
     @property
     def esg_manual_rag(self):
@@ -676,10 +677,11 @@ class ReportService:
         try:
             indicator = self.report_repository.get_indicator_by_id(indicator_id)
             if not indicator:
+                logger.warning(f"⚠️ 지표를 찾을 수 없음: {indicator_id}")
                 return {}
 
             # search_indicator 메서드를 사용하여 KBZ 테이블의 title로 정확한 검색
-            search_results = self.search_indicator(indicator_id, limit=None)
+            search_results = self.search_indicator(indicator_id, limit=10)  # 더 많은 결과 검색
             logger.info(f"📄 검색된 문서 수: {len(search_results)}")
 
             if not search_results:
@@ -691,48 +693,90 @@ class ReportService:
             작성_블록 = self.extract_작성내용(chunks)
             
             system = SystemMessage(content="""
-            너는 ESG 보고서 작성 지원 도우미야.
-            사용자가 제공한 지표 설명(청크), 작성 가이드를 바탕으로,
-            **이 지표를 작성하기 위해 추가로 입력받아야 할 데이터를** JSON 형태로 정리해줘.
+너는 ESG 보고서 작성 지원 도우미야.
+사용자가 제공한 지표 설명과 작성 가이드를 바탕으로,
+이 지표를 작성하기 위해 추가로 입력받아야 할 데이터를 JSON 형태로 정리해줘.
 
-            📌 특히 주의할 점:
-            - 반드시 **'작성 내용' 항목**을 우선적으로 분석해서, 해당 내용을 보고하기 위해 필요한 입력 항목을 빠짐없이 추출해줘.
-            - 작성 내용에 있는 항목은 표에 없어도 반드시 포함해.
-            - **표는 참고 자료일 뿐이야. 작성 내용이 중요해.**
-            - "건수" 위주의 중복 항목은 제외.
+📌 분석 기준:
+1. **작성 내용**을 우선적으로 분석해서 필요한 입력 항목을 추출
+2. 작성 내용에 있는 항목은 표에 없어도 반드시 포함
+3. "건수" 위주의 중복 항목은 제외
+4. 실제로 수집 가능한 데이터인지 확인
 
-            📋 출력 형식 (JSON)
-            {
-                "field_name": {
-                    "type": "number|text|select",
-                    "label": "한글 라벨",
-                    "description": "설명",
-                    "required": true|false,
-                    "unit": "단위 (선택사항)",
-                    "options": ["옵션1", "옵션2"] (select 타입인 경우)
-                }
-            }
-            """)
+📋 출력 형식 (엄수):
+{
+    "field_name": {
+        "type": "number|text|select|textarea",
+        "label": "한글 라벨",
+        "description": "상세 설명",
+        "required": true|false,
+        "unit": "단위 (선택사항)",
+        "options": ["옵션1", "옵션2"] (select 타입인 경우),
+        "placeholder": "입력 예시 (선택사항)"
+    }
+}
+
+⚠️ 중요: 반드시 유효한 JSON 형식으로만 응답해줘. 다른 텍스트는 포함하지 마.
+""")
             
-            user = HumanMessage(content=f"[지표 ID: {indicator_id}]\n\n{chr(10).join(chunks)}\n\n[작성 내용]\n{작성_블록}")
+            user = HumanMessage(content=f"""
+[지표 ID: {indicator_id}]
+
+지표 설명:
+{chr(10).join(chunks)}
+
+작성 내용:
+{작성_블록}
+
+위 정보를 바탕으로 이 지표 작성에 필요한 입력필드를 JSON 형태로 생성해줘.
+""")
 
             logger.info(f"🤖 AI 입력필드 생성 시작...")
             llm = self._build_llm()
             resp = llm.invoke([system, user])
             logger.info(f"🤖 AI 입력필드 생성 완료: {len(resp.content)} 문자")
             
-            # JSON 파싱
+            # JSON 파싱 (더 안전한 방식)
             try:
                 import json
-                input_fields = json.loads(resp.content.strip())
+                import re
+                
+                # JSON 부분만 추출
+                content = resp.content.strip()
+                json_match = re.search(r'\{.*\}', content, re.DOTALL)
+                if json_match:
+                    json_str = json_match.group()
+                    input_fields = json.loads(json_str)
+                else:
+                    # 전체 내용을 JSON으로 파싱 시도
+                    input_fields = json.loads(content)
+                
                 logger.info(f"📊 생성된 입력필드 수: {len(input_fields)}")
                 for field_name, field_config in input_fields.items():
                     logger.info(f"  - {field_name}: {field_config.get('label', 'N/A')}")
+                
                 return input_fields
+                
             except json.JSONDecodeError as e:
                 logger.error(f"❌ JSON 파싱 실패: {e}")
                 logger.error(f"응답 내용: {resp.content}")
-                return {}
+                
+                # 파싱 실패 시 기본 필드 반환
+                return {
+                    "company_name": {
+                        "type": "text",
+                        "label": "회사명",
+                        "description": "보고서 작성 대상 회사명",
+                        "required": True
+                    },
+                    "report_year": {
+                        "type": "text",
+                        "label": "보고 연도",
+                        "description": "보고서 작성 연도",
+                        "required": True,
+                        "placeholder": "예: 2023"
+                    }
+                }
 
         except Exception as e:
             logger.exception(f"입력필드 생성 실패: {indicator_id}")
