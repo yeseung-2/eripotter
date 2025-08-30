@@ -68,7 +68,7 @@ class RAGUtils:
     def __init__(self, collection_name: Optional[str] = None):
         qurl = os.getenv("QDRANT_URL", "https://qdrant-production-1efa.up.railway.app")
         # ✅ 키 이름 호환 (Railway 환경변수와 매칭)
-        key = os.getenv("QDRANT_API_KEY") or os.getenv("QDRANT_SERVICE__API_KEY")
+        key = os.getenv("QDRANT_API_KEY") or os.getenv("QDRANT_SERVICE_API_KEY") or os.getenv("QDRANT__SERVICE__API_KEY")
         p = urlparse(qurl)
         self.qdrant_client = QdrantClient(
             host=p.hostname, port=p.port or (443 if p.scheme == "https" else 80),
