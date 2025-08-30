@@ -49,76 +49,119 @@ def _get_embedder():
 def _get_openai_embedder():
     """OpenAI 임베더 설정"""
     from openai import OpenAI
-    # 환경변수에서 proxies 관련 설정 임시 제거
-    original_proxies = os.environ.pop("HTTPS_PROXY", None)
-    original_http_proxy = os.environ.pop("HTTP_PROXY", None)
     
     try:
-        client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+        # OpenAI 클라이언트 초기화 시 proxies 관련 설정 제거
+        client = OpenAI(
+            api_key=os.environ["OPENAI_API_KEY"],
+            # proxies 관련 설정은 제거하여 에러 방지
+        )
         model = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-large")  # 3072차원
         dim = 3072
         def encode(texts: List[str]) -> List[List[float]]:
             out = client.embeddings.create(model=model, input=texts)
             return [e.embedding for e in out.data]
         return encode, dim, "openai"
-    finally:
-        # 환경변수 복원
-        if original_proxies:
-            os.environ["HTTPS_PROXY"] = original_proxies
-        if original_http_proxy:
-            os.environ["HTTP_PROXY"] = original_http_proxy
+    except Exception as e:
+        logger.error(f"OpenAI 임베더 초기화 실패: {e}")
+        raise
 
 # ===== LLM (선택) =====
 def _get_llm():
     from langchain_openai import ChatOpenAI
     model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-    # proxies 설정이 전달되지 않도록 명시적으로 필요한 인자만 전달
-    return ChatOpenAI(
-        model=model, 
-        temperature=0.7, 
-        openai_api_key=os.getenv("OPENAI_API_KEY")
-    )
+    try:
+        # ChatOpenAI 초기화 시 proxies 관련 설정 제거
+        return ChatOpenAI(
+            model=model, 
+            temperature=0.7, 
+            openai_api_key=os.getenv("OPENAI_API_KEY")
+        )
+    except Exception as e:
+        logger.error(f"ChatOpenAI 초기화 실패: {e}")
+        raise
 
 # ===== 유틸 본체 =====
 class RAGUtils:
     def __init__(self, collection_name: Optional[str] = None):
-        qurl = os.getenv("QDRANT_URL", "https://qdrant-production-1efa.up.railway.app")
-        # ✅ 키 이름 호환 (Railway 환경변수와 매칭)
-        key = os.getenv("QDRANT_API_KEY") or os.getenv("QDRANT_SERVICE_API_KEY") or os.getenv("QDRANT__SERVICE__API_KEY")
-        p = urlparse(qurl)
-        self.qdrant_client = QdrantClient(
-            host=p.hostname, port=p.port or (443 if p.scheme == "https" else 80),
-            https=(p.scheme == "https"),
-            api_key=key, prefer_grpc=False, timeout=60
-        )
+        # proxies 관련 환경변수 임시 제거 (OpenAI 클라이언트 에러 방지)
+        original_https_proxy = os.environ.pop("HTTPS_PROXY", None)
+        original_http_proxy = os.environ.pop("HTTP_PROXY", None)
+        
+        try:
+            qurl = os.getenv("QDRANT_URL", "https://qdrant-production-1efa.up.railway.app")
+            # ✅ 키 이름 호환 (Railway 환경변수와 매칭)
+            key = os.getenv("QDRANT_API_KEY") or os.getenv("QDRANT_SERVICE_API_KEY") or os.getenv("QDRANT__SERVICE__API_KEY")
+            p = urlparse(qurl)
+            self.qdrant_client = QdrantClient(
+                host=p.hostname, port=p.port or (443 if p.scheme == "https" else 80),
+                https=(p.scheme == "https"),
+                api_key=key, prefer_grpc=False, timeout=60
+            )
 
-        # 임베더는 필요할 때만 초기화 (sentence_transformers 방지)
-        self._encode = None
-        self._dim = None
-        self._embedder_name = None
-        self.collection_name = collection_name or os.getenv("QDRANT_COLLECTION", "documents")
-        self._ensure_collection_exists()
-        self._llm = None
+            # 임베더는 필요할 때만 초기화 (sentence_transformers 방지)
+            self._encode = None
+            self._dim = None
+            self._embedder_name = None
+            self.collection_name = collection_name or os.getenv("QDRANT_COLLECTION", "documents")
+            self._ensure_collection_exists()
+            self._llm = None
+        finally:
+            # 환경변수 복원
+            if original_https_proxy:
+                os.environ["HTTPS_PROXY"] = original_https_proxy
+            if original_http_proxy:
+                os.environ["HTTP_PROXY"] = original_http_proxy
     
     @property
     def encode(self):
         """임베더 lazy loading"""
         if self._encode is None:
-            self._encode, self._dim, self._embedder_name = _get_embedder()
+            # proxies 관련 환경변수 임시 제거 (OpenAI 클라이언트 에러 방지)
+            original_https_proxy = os.environ.pop("HTTPS_PROXY", None)
+            original_http_proxy = os.environ.pop("HTTP_PROXY", None)
+            try:
+                self._encode, self._dim, self._embedder_name = _get_embedder()
+            finally:
+                # 환경변수 복원
+                if original_https_proxy:
+                    os.environ["HTTPS_PROXY"] = original_https_proxy
+                if original_http_proxy:
+                    os.environ["HTTP_PROXY"] = original_http_proxy
         return self._encode
     
     @property
     def dim(self):
         """임베더 차원 lazy loading"""
         if self._dim is None:
-            self._encode, self._dim, self._embedder_name = _get_embedder()
+            # proxies 관련 환경변수 임시 제거 (OpenAI 클라이언트 에러 방지)
+            original_https_proxy = os.environ.pop("HTTPS_PROXY", None)
+            original_http_proxy = os.environ.pop("HTTP_PROXY", None)
+            try:
+                self._encode, self._dim, self._embedder_name = _get_embedder()
+            finally:
+                # 환경변수 복원
+                if original_https_proxy:
+                    os.environ["HTTPS_PROXY"] = original_https_proxy
+                if original_http_proxy:
+                    os.environ["HTTP_PROXY"] = original_http_proxy
         return self._dim
     
     @property
     def embedder_name(self):
         """임베더 이름 lazy loading"""
         if self._embedder_name is None:
-            self._encode, self._dim, self._embedder_name = _get_embedder()
+            # proxies 관련 환경변수 임시 제거 (OpenAI 클라이언트 에러 방지)
+            original_https_proxy = os.environ.pop("HTTPS_PROXY", None)
+            original_http_proxy = os.environ.pop("HTTP_PROXY", None)
+            try:
+                self._encode, self._dim, self._embedder_name = _get_embedder()
+            finally:
+                # 환경변수 복원
+                if original_https_proxy:
+                    os.environ["HTTPS_PROXY"] = original_https_proxy
+                if original_http_proxy:
+                    os.environ["HTTP_PROXY"] = original_http_proxy
         return self._embedder_name
 
     def _ensure_collection_exists(self):
