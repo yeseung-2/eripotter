@@ -176,7 +176,9 @@ class ReportRepository:
                 description=f"지표: {kbz.title}",
                 input_fields={},
                 example_data={},
-                status="active"
+                status="active",
+                created_at=datetime.now(),
+                updated_at=datetime.now()
             )
             indicators.append(indicator)
         
@@ -201,7 +203,9 @@ class ReportRepository:
                 description=f"지표: {kbz.title}",
                 input_fields={},
                 example_data={},
-                status="active"
+                status="active",
+                created_at=datetime.now(),
+                updated_at=datetime.now()
             )
             indicators.append(indicator)
         
@@ -225,7 +229,9 @@ class ReportRepository:
             description=f"지표: {kbz_indicator.title}",
             input_fields={},
             example_data={},
-            status="active"
+            status="active",
+            created_at=datetime.now(),
+            updated_at=datetime.now()
         )
     
     def create_indicator(
