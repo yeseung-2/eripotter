@@ -225,7 +225,43 @@ class ReportService:
         try:
             logger.info(f"🔍 RAG 검색 시작: 지표 ID = {indicator_id}")
             
-            raw = self.esg_manual_rag.search_similar(indicator_id, limit=limit)
+            # 여러 검색 방법을 시도하여 더 정확한 결과를 얻기
+            search_queries = [
+                f"{indicator_id}.",  # "KBZ-EN22."
+                indicator_id,        # "KBZ-EN22"
+                f"{indicator_id} 온실가스",  # "KBZ-EN22 온실가스"
+                f"{indicator_id} 에너지"    # "KBZ-EN22 에너지"
+            ]
+            
+            all_results = []
+            for query in search_queries:
+                logger.info(f"🔍 검색 쿼리 시도: {query}")
+                try:
+                    results = self.esg_manual_rag.search_similar(query, limit=limit)
+                    if isinstance(results, list) and results:
+                        all_results.extend(results)
+                        logger.info(f"✅ 쿼리 '{query}'에서 {len(results)}개 결과 발견")
+                        break  # 첫 번째 성공한 쿼리에서 결과를 찾으면 중단
+                except Exception as e:
+                    logger.warning(f"⚠️ 쿼리 '{query}' 검색 실패: {e}")
+                    continue
+            
+            raw = all_results
+            
+            # 중복 제거 (chunk_id 기준) 및 점수 순 정렬
+            if isinstance(raw, list) and raw:
+                seen_chunks = set()
+                unique_results = []
+                for result in raw:
+                    chunk_id = result.get("chunk_id", "")
+                    if chunk_id and chunk_id not in seen_chunks:
+                        seen_chunks.add(chunk_id)
+                        unique_results.append(result)
+                
+                # 점수 순으로 정렬 (높은 점수 우선)
+                unique_results.sort(key=lambda x: x.get("score", 0.0), reverse=True)
+                raw = unique_results[:limit]  # limit 개수만큼만 반환
+            
             logger.info(f"📊 RAG 검색 결과: {len(raw) if isinstance(raw, list) else 'error'} 개")
             
             if isinstance(raw, dict) and raw.get("status") == "error":
