@@ -93,11 +93,12 @@ async def process_single_indicator(
     controller: ReportController = Depends(get_report_controller)
 ):
     """
-    개별 지표 처리: 입력필드 생성 → 초안 생성 (한 번에 처리)
+    개별 지표 처리: 입력필드 생성 → 초안생성 (한 번에 처리)
     """
     return controller.process_single_indicator(indicator_id, body.company_name, body.inputs)
 
 @router.get("/indicators/{indicator_id}/input-fields-only")
+@router.post("/indicators/{indicator_id}/input-fields-only")
 async def get_indicator_input_fields_only(
     indicator_id: str, 
     controller: ReportController = Depends(get_report_controller)
