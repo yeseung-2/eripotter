@@ -4,22 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-
-// === ADD: API base util ===
-const BASE = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "";
-const join = (p: string) => (BASE ? `${BASE}${p}` : p);
-// ==========================
-
-interface ReportItem {
-  id: string;
-  company_name: string;
-  report_type: string;
-  topic: string;
-  description: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-}
+import { getReports, type ReportItem } from "@/lib/reportApi";
 
 export default function ReportListPage() {
   const router = useRouter();
@@ -32,44 +17,12 @@ export default function ReportListPage() {
 
   const fetchReports = async () => {
     try {
-      // 실제 API 호출 대신 임시 데이터 사용
-      const mockReports: ReportItem[] = [
-        {
-          id: '1',
-          company_name: '삼성전자',
-          report_type: 'esg',
-          topic: '2024년 ESG 성과 보고서',
-          description: '환경, 사회, 지배구조 측면에서의 성과를 종합적으로 분석한 보고서입니다.',
-          status: 'draft',
-          created_at: '2024-01-15T10:30:00Z',
-          updated_at: '2024-01-20T14:45:00Z'
-        },
-        {
-          id: '2',
-          company_name: 'LG화학',
-          report_type: 'sustainability',
-          topic: '2024년 지속가능성 보고서',
-          description: '지속가능한 발전을 위한 노력과 성과를 담은 보고서입니다.',
-          status: 'completed',
-          created_at: '2024-01-10T09:15:00Z',
-          updated_at: '2024-01-18T16:20:00Z'
-        },
-        {
-          id: '3',
-          company_name: 'SK하이닉스',
-          report_type: 'csr',
-          topic: '2024년 CSR 활동 보고서',
-          description: '기업의 사회적 책임 활동과 성과를 정리한 보고서입니다.',
-          status: 'draft',
-          created_at: '2024-01-12T11:00:00Z',
-          updated_at: '2024-01-19T13:30:00Z'
-        }
-      ];
-      
-      setReports(mockReports);
+      const reports = await getReports();
+      setReports(reports);
     } catch (error) {
       console.error('보고서 목록 로드 실패:', error);
-      alert('보고서 목록을 불러오는데 실패했습니다.');
+      // API 호출 실패 시 빈 배열로 설정
+      setReports([]);
     } finally {
       setIsLoading(false);
     }

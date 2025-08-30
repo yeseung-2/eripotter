@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { getAllIndicators } from "@/lib/api";
 import { 
-  getAllIndicators, 
-  getIndicatorInputFieldsOnly, 
-  generateIndicatorDraftOnly,
-  processSingleIndicator 
-} from "@/lib/api";
-import type { Indicator, IndicatorDraftRequest } from "@/types/report";
+  getInputFields, 
+  generateDraft 
+} from "@/lib/reportApi";
+import type { Indicator } from "@/types/report";
 import { normalizeFields, type FormField } from "@/lib/form";
 import Stepper from "@/components/ui/Stepper";
 import IndicatorPicker from "@/components/ui/IndicatorPicker";
@@ -89,11 +88,11 @@ export default function ReportWritePage() {
   // 입력필드 생성
   const generateInputFieldsForIndicator = async (indicatorId: string) => {
     try {
-      const response = await getIndicatorInputFieldsOnly(indicatorId);
+      const response = await getInputFields(indicatorId);
       setProcessedIndicators(prev => 
         prev.map(p => 
           p.indicator.indicator_id === indicatorId 
-            ? { ...p, inputFields: response, status: 'input-fields' }
+            ? { ...p, inputFields: response.required_fields || {}, status: 'input-fields' }
             : p
         )
       );
@@ -132,25 +131,16 @@ export default function ReportWritePage() {
 
     setLoading(true);
     try {
-      const body: IndicatorDraftRequest = { 
-        company_name: companyName, 
-        inputs: indicator.inputs 
-      };
+      const response = await generateDraft(indicatorId, companyName, indicator.inputs);
       
-      const response = await generateIndicatorDraftOnly(indicatorId, body);
-      
-      if (response.success) {
-        setProcessedIndicators(prev => 
-          prev.map(p => 
-            p.indicator.indicator_id === indicatorId 
-              ? { ...p, draft: response.draft_content, status: 'draft-generated' }
-              : p
-          )
-        );
-        setStep(3);
-      } else {
-        alert("초안 생성에 실패했습니다: " + response.message);
-      }
+      setProcessedIndicators(prev => 
+        prev.map(p => 
+          p.indicator.indicator_id === indicatorId 
+            ? { ...p, draft: response, status: 'draft-generated' }
+            : p
+        )
+      );
+      setStep(3);
     } catch (error) {
       console.error("초안 생성 실패:", error);
       alert("초안 생성 중 오류가 발생했습니다.");
@@ -276,7 +266,7 @@ export default function ReportWritePage() {
                 <h3 className="text-md font-medium">데이터 입력</h3>
                 <InputFieldsForm 
                   fields={Object.entries(currentIndicator.inputFields).map(([key, field]: [string, any]) => ({
-                    name: key,
+                    key: key,
                     label: field.label || key,
                     type: field.type || 'text',
                     required: field.required || false,
