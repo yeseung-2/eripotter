@@ -145,7 +145,7 @@ export default function AssessmentPage() {
   };
 
   // 폼 제출 처리
-  const handleSubmit = (e: any) => {
+  const handleSubmit = async (e: any) => {
     e.preventDefault();
 
     const formattedResponses: AssessmentSubmissionRequest[] = kesgItems.map((item) => {
@@ -172,6 +172,33 @@ export default function AssessmentPage() {
     });
 
     console.log('제출된 응답:', formattedResponses);
+    
+    try {
+      // API 호출하여 실제로 데이터 저장
+      const response = await fetch('http://localhost:8002/assessment/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          company_name: '테스트회사',
+          responses: formattedResponses
+        }),
+      });
+
+      if (response.ok) {
+        console.log('자가진단 응답이 성공적으로 저장되었습니다.');
+        // 응답 데이터를 localStorage에 저장하고 결과 페이지로 이동
+        localStorage.setItem('assessmentResponses', JSON.stringify(formattedResponses));
+        window.location.href = '/assessment/result';
+      } else {
+        console.error('자가진단 응답 저장에 실패했습니다.');
+        alert('자가진단 응답 저장에 실패했습니다. 다시 시도해주세요.');
+      }
+    } catch (error) {
+      console.error('API 호출 오류:', error);
+      alert('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
+    }
   };
 
   if (loading) {
@@ -269,8 +296,23 @@ export default function AssessmentPage() {
                   fontSize: '20px',
                   fontWeight: '600',
                   color: '#2c3e50',
-                  marginBottom: '12px'
+                  marginBottom: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px'
                 }}>
+                  <span style={{
+                    backgroundColor: '#007bff',
+                    color: 'white',
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    minWidth: '24px',
+                    textAlign: 'center'
+                  }}>
+                    {item.id}
+                  </span>
                   {item.item_name}
                 </h3>
               </div>

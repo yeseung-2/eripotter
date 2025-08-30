@@ -78,20 +78,38 @@ async def submit_assessment(
         logger.error(f"❌ 자가진단 응답 제출 API 오류: {e}")
         raise HTTPException(status_code=500, detail=f"자가진단 응답 제출 중 오류가 발생했습니다: {str(e)}")
 
-@assessment_router.get("/results/{company_name}", summary="특정 회사의 자가진단 결과 조회")
-async def get_company_results(
+@assessment_router.get("/assessment-results/{company_name}", summary="특정 회사의 자가진단 결과 조회 (상세)")
+async def get_assessment_results(
     company_name: str,
     controller: AssessmentController = Depends(get_assessment_controller)
 ):
-    """특정 회사의 자가진단 결과 조회"""
+    """특정 회사의 자가진단 결과 조회 (상세 정보 포함)"""
     try:
-        results = controller.get_company_results(company_name)
+        results = controller.get_assessment_results(company_name)
         return {
             "status": "success",
             "company_name": company_name,
-            "results": results,
+            "assessment_results": results,
             "total_count": len(results)
         }
     except Exception as e:
-        logger.error(f"❌ 회사별 결과 조회 API 오류: {e}")
-        raise HTTPException(status_code=500, detail=f"회사별 결과 조회 중 오류가 발생했습니다: {str(e)}")
+        logger.error(f"❌ 자가진단 결과 조회 API 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"자가진단 결과 조회 중 오류가 발생했습니다: {str(e)}")
+
+@assessment_router.get("/vulnerable-sections/{company_name}", summary="특정 회사의 취약 부문 조회")
+async def get_vulnerable_sections(
+    company_name: str,
+    controller: AssessmentController = Depends(get_assessment_controller)
+):
+    """특정 회사의 취약 부문 조회 (score가 0인 문항)"""
+    try:
+        vulnerable_sections = controller.get_vulnerable_sections(company_name)
+        return {
+            "status": "success",
+            "company_name": company_name,
+            "vulnerable_sections": vulnerable_sections,
+            "total_count": len(vulnerable_sections)
+        }
+    except Exception as e:
+        logger.error(f"❌ 취약 부문 조회 API 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"취약 부문 조회 중 오류가 발생했습니다: {str(e)}")

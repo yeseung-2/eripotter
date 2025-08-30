@@ -278,3 +278,86 @@ class AssessmentService:
         except Exception as e:
             logger.error(f"❌ 회사별 결과 조회 중 예상치 못한 오류: {e}")
             return []
+    
+    def get_assessment_results(self, company_name: str) -> List[Dict[str, Union[str, int, List[int], None]]]:
+        """특정 회사의 자가진단 결과 조회 (상세 정보 포함)"""
+        try:
+            logger.info(f"📝 자가진단 결과 조회 요청: company_name={company_name}")
+            
+            # 기본 결과 조회
+            results = self.repository.get_company_results(company_name)
+            
+            # kesg 데이터와 조인하여 상세 정보 추가
+            detailed_results = []
+            for result in results:
+                question_id = result['question_id']
+                kesg_data = self.repository.get_kesg_item_by_id(question_id)
+                
+                if kesg_data:
+                    detailed_result = {
+                        **result,
+                        'item_name': kesg_data.get('item_name'),
+                        'item_desc': kesg_data.get('item_desc'),
+                        'classification': kesg_data.get('classification'),
+                        'domain': kesg_data.get('domain')
+                    }
+                else:
+                    detailed_result = {
+                        **result,
+                        'item_name': f'문항 {question_id}',
+                        'item_desc': '설명 없음',
+                        'classification': 'N/A',
+                        'domain': 'N/A'
+                    }
+                
+                detailed_results.append(detailed_result)
+            
+            logger.info(f"✅ 자가진단 결과 조회 성공: {len(detailed_results)}개 결과")
+            return detailed_results
+            
+        except Exception as e:
+            logger.error(f"❌ 자가진단 결과 조회 중 예상치 못한 오류: {e}")
+            return []
+    
+    def get_vulnerable_sections(self, company_name: str) -> List[Dict[str, Union[str, int, List[int], None]]]:
+        """특정 회사의 취약 부문 조회 (score가 0인 문항)"""
+        try:
+            logger.info(f"📝 취약 부문 조회 요청: company_name={company_name}")
+            
+            # 기본 결과 조회
+            results = self.repository.get_company_results(company_name)
+            
+            # score가 0인 문항만 필터링
+            vulnerable_results = [result for result in results if result.get('score', 0) == 0]
+            
+            # kesg 데이터와 조인하여 상세 정보 추가
+            detailed_vulnerable_sections = []
+            for result in vulnerable_results:
+                question_id = result['question_id']
+                kesg_data = self.repository.get_kesg_item_by_id(question_id)
+                
+                if kesg_data:
+                    detailed_section = {
+                        **result,
+                        'item_name': kesg_data.get('item_name'),
+                        'item_desc': kesg_data.get('item_desc'),
+                        'classification': kesg_data.get('classification'),
+                        'domain': kesg_data.get('domain')
+                    }
+                else:
+                    detailed_section = {
+                        **result,
+                        'item_name': f'문항 {question_id}',
+                        'item_desc': '설명 없음',
+                        'classification': 'N/A',
+                        'domain': 'N/A'
+                    }
+                
+                detailed_vulnerable_sections.append(detailed_section)
+            
+            logger.info(f"✅ 취약 부문 조회 성공: {len(detailed_vulnerable_sections)}개 취약 부문")
+            return detailed_vulnerable_sections
+            
+        except Exception as e:
+            logger.error(f"❌ 취약 부문 조회 중 예상치 못한 오류: {e}")
+            return []
