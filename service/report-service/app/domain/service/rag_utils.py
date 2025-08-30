@@ -49,19 +49,35 @@ def _get_embedder():
 def _get_openai_embedder():
     """OpenAI 임베더 설정"""
     from openai import OpenAI
-    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-    model = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-large")  # 3072차원
-    dim = 3072
-    def encode(texts: List[str]) -> List[List[float]]:
-        out = client.embeddings.create(model=model, input=texts)
-        return [e.embedding for e in out.data]
-    return encode, dim, "openai"
+    # 환경변수에서 proxies 관련 설정 임시 제거
+    original_proxies = os.environ.pop("HTTPS_PROXY", None)
+    original_http_proxy = os.environ.pop("HTTP_PROXY", None)
+    
+    try:
+        client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+        model = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-large")  # 3072차원
+        dim = 3072
+        def encode(texts: List[str]) -> List[List[float]]:
+            out = client.embeddings.create(model=model, input=texts)
+            return [e.embedding for e in out.data]
+        return encode, dim, "openai"
+    finally:
+        # 환경변수 복원
+        if original_proxies:
+            os.environ["HTTPS_PROXY"] = original_proxies
+        if original_http_proxy:
+            os.environ["HTTP_PROXY"] = original_http_proxy
 
 # ===== LLM (선택) =====
 def _get_llm():
     from langchain_openai import ChatOpenAI
     model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-    return ChatOpenAI(model=model, temperature=0.7, openai_api_key=os.getenv("OPENAI_API_KEY"))
+    # proxies 설정이 전달되지 않도록 명시적으로 필요한 인자만 전달
+    return ChatOpenAI(
+        model=model, 
+        temperature=0.7, 
+        openai_api_key=os.getenv("OPENAI_API_KEY")
+    )
 
 # ===== 유틸 본체 =====
 class RAGUtils:
@@ -107,7 +123,9 @@ class RAGUtils:
 
     def _ensure_collection_exists(self):
         try:
+            logger.info(f"🔍 Qdrant 컬렉션 확인: '{self.collection_name}'")
             info = self.qdrant_client.get_collection(self.collection_name)
+            logger.info(f"✅ 컬렉션 존재 확인: '{self.collection_name}'")
             try:
                 actual = info.config.params.vectors.size  # 일부 버전에서만 노출됨
                 if actual and actual != self.dim:
@@ -117,13 +135,21 @@ class RAGUtils:
                     )
             except Exception:
                 pass
-        except Exception:
+        except Exception as e:
+            logger.warning(f"⚠️ 컬렉션 확인 실패: {e}")
             # 컬렉션 생성 시에만 임베더 초기화
-            dim = self.dim
-            self.qdrant_client.create_collection(
-                collection_name=self.collection_name,
-                vectors_config=VectorParams(size=dim, distance=Distance.COSINE)
-            )
+            try:
+                dim = self.dim
+                logger.info(f"🔨 컬렉션 생성 시작: '{self.collection_name}', 차원={dim}")
+                self.qdrant_client.create_collection(
+                    collection_name=self.collection_name,
+                    vectors_config=VectorParams(size=dim, distance=Distance.COSINE)
+                )
+                logger.info(f"✅ 컬렉션 생성 완료: '{self.collection_name}'")
+            except Exception as create_error:
+                logger.error(f"❌ 컬렉션 생성 실패: {create_error}")
+                # Qdrant 연결 실패 시에도 서비스가 계속 작동하도록 함
+                pass
 
     @staticmethod
     def _uuid_from_text_id(text_id: str) -> str:
@@ -148,10 +174,16 @@ class RAGUtils:
 
     def search_similar(self, query: str, limit: int = 5, filters: Optional[Dict[str, Any]] = None):
         try:
+            logger.info(f"🔍 Qdrant 검색 시작: 쿼리='{query}', 컬렉션='{self.collection_name}', limit={limit}")
+            
             qvec = self.encode([query])[0]
+            logger.info(f"📊 임베딩 완료: 벡터 차원 = {len(qvec)}")
+            
             qf = None
             if filters:
                 qf = Filter(must=[FieldCondition(key=k, match=MatchValue(value=v)) for k, v in filters.items()])
+                logger.info(f"🔧 필터 적용: {filters}")
+            
             res = self.qdrant_client.search(
                 collection_name=self.collection_name,
                 query_vector=qvec,
@@ -160,8 +192,14 @@ class RAGUtils:
                 with_payload=True,
                 with_vectors=False
             )
+            
+            logger.info(f"✅ Qdrant 검색 완료: {len(res)} 개 결과")
+            for i, r in enumerate(res):
+                logger.info(f"  {i+1}. Score: {r.score:.3f}, Payload keys: {list(r.payload.keys()) if r.payload else []}")
+            
             return [{"score": r.score, **(r.payload or {})} for r in res]
         except Exception as e:
+            logger.error(f"❌ Qdrant 검색 실패: {e}")
             return {"status": "error", "message": str(e)}
 
     def search(self, query: str, limit: int = 5, score_threshold: float = 0.0):

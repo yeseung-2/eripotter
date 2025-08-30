@@ -223,10 +223,22 @@ class ReportService:
     def search_indicator(self, indicator_id: str, limit: int = 5) -> List[Dict[str, Any]]:
         """지표별 ESG 매뉴얼 검색 (payload 표준화)"""
         try:
+            logger.info(f"🔍 RAG 검색 시작: 지표 ID = {indicator_id}")
+            
             raw = self.esg_manual_rag.search_similar(indicator_id, limit=limit)
+            logger.info(f"📊 RAG 검색 결과: {len(raw) if isinstance(raw, list) else 'error'} 개")
+            
             if isinstance(raw, dict) and raw.get("status") == "error":
-                logger.error(f"RAG search error: {raw.get('message')}")
+                logger.error(f"❌ RAG search error: {raw.get('message')}")
                 return []
+
+            if isinstance(raw, list):
+                logger.info(f"📋 검색된 청크들:")
+                for i, r in enumerate(raw):
+                    logger.info(f"  {i+1}. Score: {r.get('score', 0.0):.3f}")
+                    logger.info(f"     Title: {r.get('title', 'N/A')}")
+                    logger.info(f"     Content: {r.get('content', 'N/A')[:100]}...")
+                    logger.info(f"     Metadata: {r.get('metadata', {})}")
 
             processed = []
             for r in raw:
@@ -241,9 +253,12 @@ class ReportService:
                     "order": r.get("order", 0),
                     "score": r.get("score", 0.0),
                 })
+            
+            logger.info(f"✅ 처리된 결과: {len(processed)} 개")
             return processed
         except Exception as e:
-            logger.exception("지표 검색 실패")
+            logger.warning(f"❌ RAG 검색 실패 (지표: {indicator_id}): {e}")
+            # RAG 실패 시에도 기본 응답 반환
             return []
 
     def get_indicator_summary(self, indicator_id: str) -> str:
@@ -333,8 +348,13 @@ class ReportService:
 
     def generate_input_fields(self, indicator_id: str) -> Dict[str, Any]:
         try:
+            logger.info(f"🎯 입력 필드 생성 시작: 지표 ID = {indicator_id}")
+            
             documents = self.search_indicator(indicator_id, limit=5)
+            logger.info(f"📄 검색된 문서 수: {len(documents)}")
+            
             if not documents:
+                logger.warning(f"⚠️ 문서를 찾을 수 없음: {indicator_id}")
                 return {
                     "indicator_id": indicator_id,
                     "required_data": "해당 지표에 대한 정보를 찾을 수 없습니다.",
@@ -342,6 +362,8 @@ class ReportService:
                 }
 
             chunks = [d.get("content", "") for d in documents]
+            logger.info(f"📝 추출된 청크 수: {len(chunks)}")
+            logger.info(f"📄 첫 번째 청크 내용: {chunks[0][:200] if chunks else 'N/A'}...")
 
             system = SystemMessage(content="""
             너는 ESG 보고서 작성 지원 도우미야.
@@ -361,16 +383,29 @@ class ReportService:
             4. 설명
             """)
             작성_블록 = self.extract_작성내용(chunks)
+            logger.info(f"📋 추출된 작성 내용: {작성_블록[:200] if 작성_블록 else 'N/A'}...")
+            
             user = HumanMessage(content=f"[지표 ID: {indicator_id}]\n\n{chr(10).join(chunks)}\n\n[작성 내용]\n{작성_블록}")
 
+            logger.info(f"🤖 LLM 호출 시작...")
             llm = self._build_llm()
             resp = llm.invoke([system, user])
+            logger.info(f"🤖 LLM 응답 완료: {len(resp.content)} 문자")
+            
             parsed = self.parse_markdown_to_fields(resp.content)
+            logger.info(f"📊 파싱된 필드 수: {len(parsed)}")
+            for i, field in enumerate(parsed):
+                logger.info(f"  {i+1}. {field.get('항목', 'N/A')}")
 
             return {"indicator_id": indicator_id, "required_data": resp.content, "required_fields": parsed}
-        except Exception:
-            logger.exception("입력 필드 생성 실패")
-            return {"indicator_id": indicator_id, "required_data": "⚠️ LLM 호출 중 오류가 발생했습니다.", "required_fields": []}
+        except Exception as e:
+            logger.warning(f"❌ 입력 필드 생성 실패 (지표: {indicator_id}): {e}")
+            # RAG/LLM 실패 시에도 기본 응답 반환
+            return {
+                "indicator_id": indicator_id, 
+                "required_data": "해당 지표에 대한 정보를 찾을 수 없습니다.", 
+                "required_fields": []
+            }
 
     def generate_indicator_draft(self, indicator_id: str, company_name: str, inputs: Dict[str, Any]) -> str:
         try:
