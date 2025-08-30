@@ -47,7 +47,7 @@ def _get_embedder():
         return _get_openai_embedder()
 
 def _get_openai_embedder():
-    """OpenAI 임베더 설정"""
+    """OpenAI 임베더 설정 (bge-m3 fallback용)"""
     from openai import OpenAI
     
     try:
@@ -55,12 +55,15 @@ def _get_openai_embedder():
         client = OpenAI(
             api_key=os.environ["OPENAI_API_KEY"]
         )
-        model = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-large")  # 3072차원
-        dim = 3072
+        
+        # bge-m3 fallback 시에는 1024 차원 유지 (Qdrant 데이터와 일치)
+        model = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-small")  # 1536차원으로 변경
+        dim = 1536  # bge-m3(1024)와 가장 가까운 차원
+        
         def encode(texts: List[str]) -> List[List[float]]:
             out = client.embeddings.create(model=model, input=texts)
             return [e.embedding for e in out.data]
-        return encode, dim, "openai"
+        return encode, dim, "openai-fallback"
     except Exception as e:
         logger.error(f"OpenAI 임베더 초기화 실패: {e}")
         raise
@@ -128,15 +131,32 @@ class RAGUtils:
             logger.info(f"🔍 Qdrant 컬렉션 확인: '{self.collection_name}'")
             info = self.qdrant_client.get_collection(self.collection_name)
             logger.info(f"✅ 컬렉션 존재 확인: '{self.collection_name}'")
+            
+            # 차원 검증 강화
             try:
-                actual = info.config.params.vectors.size  # 일부 버전에서만 노출됨
-                if actual and actual != self.dim:
-                    raise ValueError(
-                        f"[{self.collection_name}] vector size mismatch: {actual} != {self.dim} "
-                        f"(embedder={self.embedder_name})"
-                    )
-            except Exception:
-                pass
+                actual = info.config.params.vectors.size
+                expected = self.dim
+                embedder = self.embedder_name
+                
+                logger.info(f"📊 벡터 차원 검증: 실제={actual}, 예상={expected}, 임베더={embedder}")
+                
+                if actual and actual != expected:
+                    error_msg = f"[{self.collection_name}] 벡터 차원 불일치: 실제={actual} != 예상={expected} (임베더={embedder})"
+                    logger.error(f"❌ {error_msg}")
+                    
+                    # 차원 불일치 시 상세 정보 제공
+                    if embedder == "openai-fallback":
+                        logger.error("💡 해결 방법: EMBEDDER=bge-m3 환경변수 설정 또는 sentence-transformers 설치")
+                    elif embedder == "bge-m3":
+                        logger.error("💡 해결 방법: Qdrant 컬렉션 재생성 또는 다른 임베더 사용")
+                    
+                    raise ValueError(error_msg)
+                    
+            except AttributeError:
+                logger.warning("⚠️ 벡터 차원 정보를 가져올 수 없음 (Qdrant 버전 호환성)")
+            except Exception as e:
+                logger.warning(f"⚠️ 차원 검증 중 오류: {e}")
+                
         except Exception as e:
             logger.warning(f"⚠️ 컬렉션 확인 실패: {e}")
             # 컬렉션 생성 시에만 임베더 초기화

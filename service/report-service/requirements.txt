@@ -12,9 +12,8 @@ openai==1.12.0
 langchain==0.1.20
 langchain-community>=0.0.38,<0.1
 langchain-openai==0.0.8
+sentence-transformers==2.2.2
 
-# 빌드 시간 단축을 위해 불필요한 패키지 제거
-# - sentence-transformers: 매우 큰 패키지 (약 500MB+)로 빌드 시간 증가
-# - 기본값: EMBEDDER=openai 사용 (sentence_transformers 불필요)
-# - 필요시: EMBEDDER=bge-m3 또는 EMBEDDER=minilm 환경변수 설정 시 자동 fallback
-# - 설치: pip install sentence-transformers==5.1.0
+# bge-m3 임베더 사용을 위해 sentence-transformers 추가
+# - Qdrant 컬렉션과 차원 일치 (1024차원)
+# - fallback 시에도 정확한 차원 유지
