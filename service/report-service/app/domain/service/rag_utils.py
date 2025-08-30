@@ -50,6 +50,10 @@ def _get_openai_embedder():
     """OpenAI 임베더 설정"""
     from openai import OpenAI
     
+    # proxies 관련 환경변수 임시 제거 (OpenAI 클라이언트 에러 방지)
+    original_https_proxy = os.environ.pop("HTTPS_PROXY", None)
+    original_http_proxy = os.environ.pop("HTTP_PROXY", None)
+    
     try:
         # OpenAI 클라이언트 초기화 시 proxies 관련 설정 제거
         client = OpenAI(
@@ -65,11 +69,22 @@ def _get_openai_embedder():
     except Exception as e:
         logger.error(f"OpenAI 임베더 초기화 실패: {e}")
         raise
+    finally:
+        # 환경변수 복원
+        if original_https_proxy:
+            os.environ["HTTPS_PROXY"] = original_https_proxy
+        if original_http_proxy:
+            os.environ["HTTP_PROXY"] = original_http_proxy
 
 # ===== LLM (선택) =====
 def _get_llm():
     from langchain_openai import ChatOpenAI
     model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    
+    # proxies 관련 환경변수 임시 제거 (OpenAI 클라이언트 에러 방지)
+    original_https_proxy = os.environ.pop("HTTPS_PROXY", None)
+    original_http_proxy = os.environ.pop("HTTP_PROXY", None)
+    
     try:
         # ChatOpenAI 초기화 시 proxies 관련 설정 제거
         return ChatOpenAI(
@@ -80,6 +95,12 @@ def _get_llm():
     except Exception as e:
         logger.error(f"ChatOpenAI 초기화 실패: {e}")
         raise
+    finally:
+        # 환경변수 복원
+        if original_https_proxy:
+            os.environ["HTTPS_PROXY"] = original_https_proxy
+        if original_http_proxy:
+            os.environ["HTTP_PROXY"] = original_http_proxy
 
 # ===== 유틸 본체 =====
 class RAGUtils:
