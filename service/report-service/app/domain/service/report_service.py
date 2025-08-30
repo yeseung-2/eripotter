@@ -220,47 +220,45 @@ class ReportService:
             return {}
 
     # ===== RAG / Indicator =====
-    def search_indicator(self, indicator_id: str, limit: int = 5) -> List[Dict[str, Any]]:
-        """지표별 ESG 매뉴얼 검색 (payload 표준화)"""
+    def search_indicator(self, indicator_id: str, limit: int = None) -> List[Dict[str, Any]]:
+        """지표별 ESG 매뉴얼 검색 (KBZ 테이블의 title과 Qdrant 메타데이터 매칭)"""
         try:
             logger.info(f"🔍 RAG 검색 시작: 지표 ID = {indicator_id}")
             
-            # 여러 검색 방법을 시도하여 더 정확한 결과를 얻기
-            search_queries = [
-                f"{indicator_id}.",  # "KBZ-EN22."
-                indicator_id,        # "KBZ-EN22"
-                f"{indicator_id} 온실가스",  # "KBZ-EN22 온실가스"
-                f"{indicator_id} 에너지"    # "KBZ-EN22 에너지"
-            ]
+            # 1. KBZ 테이블에서 해당 지표의 실제 title 가져오기
+            kbz_indicator = self.report_repository.get_indicator_by_id(indicator_id)
+            if not kbz_indicator:
+                logger.warning(f"⚠️ KBZ 테이블에서 지표를 찾을 수 없음: {indicator_id}")
+                return []
             
-            all_results = []
-            for query in search_queries:
-                logger.info(f"🔍 검색 쿼리 시도: {query}")
-                try:
-                    results = self.esg_manual_rag.search_similar(query, limit=limit)
-                    if isinstance(results, list) and results:
-                        all_results.extend(results)
-                        logger.info(f"✅ 쿼리 '{query}'에서 {len(results)}개 결과 발견")
-                        break  # 첫 번째 성공한 쿼리에서 결과를 찾으면 중단
-                except Exception as e:
-                    logger.warning(f"⚠️ 쿼리 '{query}' 검색 실패: {e}")
-                    continue
+            # 2. KBZ 테이블의 title을 검색 쿼리로 사용
+            search_title = kbz_indicator.title
+            logger.info(f"🔍 KBZ 테이블 title로 검색: {search_title}")
             
-            raw = all_results
-            
-            # 중복 제거 (chunk_id 기준) 및 점수 순 정렬
-            if isinstance(raw, list) and raw:
-                seen_chunks = set()
-                unique_results = []
-                for result in raw:
-                    chunk_id = result.get("chunk_id", "")
-                    if chunk_id and chunk_id not in seen_chunks:
-                        seen_chunks.add(chunk_id)
-                        unique_results.append(result)
-                
-                # 점수 순으로 정렬 (높은 점수 우선)
-                unique_results.sort(key=lambda x: x.get("score", 0.0), reverse=True)
-                raw = unique_results[:limit]  # limit 개수만큼만 반환
+            # 3. Qdrant에서 title이 정확히 일치하는 문서 검색 (limit 없이)
+            try:
+                results = self.esg_manual_rag.search_similar(search_title, limit=limit or 100)
+                if isinstance(results, list) and results:
+                    logger.info(f"✅ Qdrant에서 {len(results)}개 결과 발견")
+                    
+                    # 중복 제거 (chunk_id 기준) 및 점수 순 정렬
+                    seen_chunks = set()
+                    unique_results = []
+                    for result in results:
+                        chunk_id = result.get("chunk_id", "")
+                        if chunk_id and chunk_id not in seen_chunks:
+                            seen_chunks.add(chunk_id)
+                            unique_results.append(result)
+                    
+                    # 점수 순으로 정렬 (높은 점수 우선)
+                    unique_results.sort(key=lambda x: x.get("score", 0.0), reverse=True)
+                    raw = unique_results
+                else:
+                    logger.warning(f"⚠️ Qdrant에서 결과를 찾을 수 없음: {search_title}")
+                    raw = []
+            except Exception as e:
+                logger.error(f"❌ Qdrant 검색 실패: {e}")
+                raw = []
             
             logger.info(f"📊 RAG 검색 결과: {len(raw) if isinstance(raw, list) else 'error'} 개")
             
@@ -301,7 +299,7 @@ class ReportService:
         try:
             documents = self.search_indicator(indicator_id, limit=3)
             if not documents:
-                return "해당 지표에 대한 정보를 찾을 수 없습니다."
+                return "해당 지표에 대한 정보를 찾을 수 없습니다. RAG 검색 결과가 없습니다."
 
             content = "\n".join([doc.get("content", "") for doc in documents])
             system = SystemMessage(content="""
@@ -393,7 +391,7 @@ class ReportService:
                 logger.warning(f"⚠️ 문서를 찾을 수 없음: {indicator_id}")
                 return {
                     "indicator_id": indicator_id,
-                    "required_data": "해당 지표에 대한 정보를 찾을 수 없습니다.",
+                    "required_data": "",
                     "required_fields": []
                 }
 
@@ -439,7 +437,7 @@ class ReportService:
             # RAG/LLM 실패 시에도 기본 응답 반환
             return {
                 "indicator_id": indicator_id, 
-                "required_data": "해당 지표에 대한 정보를 찾을 수 없습니다.", 
+                "required_data": "", 
                 "required_fields": []
             }
 
@@ -447,7 +445,7 @@ class ReportService:
         try:
             docs = self.search_indicator(indicator_id, limit=5)
             if not docs:
-                return "해당 지표에 대한 정보를 찾을 수 없습니다."
+                return "해당 지표에 대한 정보를 찾을 수 없습니다. RAG 검색 결과가 없습니다."
 
             chunks = [d.get("content", "") for d in docs]
             table_paths: List[str] = []
@@ -643,49 +641,72 @@ class ReportService:
 
     def generate_input_fields_only(self, indicator_id: str) -> Dict[str, Any]:
         """
-        개별 지표의 입력필드만 생성 (RAG 기반)
+        개별 지표의 입력필드만 생성 (RAG 기반 AI 생성)
         """
         try:
             indicator = self.report_repository.get_indicator_by_id(indicator_id)
             if not indicator:
                 return {}
 
-            # RAG 검색으로 관련 정보 찾기
-            search_results = self.esg_manual_rag.search(
-                query=indicator.title,
-                limit=3,
-                score_threshold=0.7
-            )
+            # search_indicator 메서드를 사용하여 KBZ 테이블의 title로 정확한 검색
+            search_results = self.search_indicator(indicator_id, limit=None)
+            logger.info(f"📄 검색된 문서 수: {len(search_results)}")
 
-            # 입력필드 추출
-            input_fields = {}
-            for result in search_results:
-                content = result.get("content", "")
-                fields = self._extract_input_fields_from_content(content)
-                input_fields.update(fields)
+            if not search_results:
+                logger.warning(f"⚠️ 문서를 찾을 수 없음: {indicator_id}")
+                return {}
 
-            # 기본 필드 추가 (없는 경우)
-            if not input_fields:
-                input_fields = {
-                    "company_data": {
-                        "type": "text",
-                        "label": "회사 데이터",
-                        "description": "해당 지표에 대한 회사 데이터를 입력하세요",
-                        "required": True
-                    }
-                }
+            # RAG 검색 결과를 기반으로 AI가 입력필드 생성
+            chunks = [result.get("content", "") for result in search_results]
+            작성_블록 = self.extract_작성내용(chunks)
+            
+            system = SystemMessage(content="""
+            너는 ESG 보고서 작성 지원 도우미야.
+            사용자가 제공한 지표 설명(청크), 작성 가이드를 바탕으로,
+            **이 지표를 작성하기 위해 추가로 입력받아야 할 데이터를** JSON 형태로 정리해줘.
 
-            return input_fields
-        except Exception as e:
-            logger.exception(f"입력필드 생성 실패: {indicator_id}")
-            return {
-                "company_data": {
-                    "type": "text",
-                    "label": "회사 데이터",
-                    "description": "해당 지표에 대한 회사 데이터를 입력하세요",
-                    "required": True
+            📌 특히 주의할 점:
+            - 반드시 **'작성 내용' 항목**을 우선적으로 분석해서, 해당 내용을 보고하기 위해 필요한 입력 항목을 빠짐없이 추출해줘.
+            - 작성 내용에 있는 항목은 표에 없어도 반드시 포함해.
+            - **표는 참고 자료일 뿐이야. 작성 내용이 중요해.**
+            - "건수" 위주의 중복 항목은 제외.
+
+            📋 출력 형식 (JSON)
+            {
+                "field_name": {
+                    "type": "number|text|select",
+                    "label": "한글 라벨",
+                    "description": "설명",
+                    "required": true|false,
+                    "unit": "단위 (선택사항)",
+                    "options": ["옵션1", "옵션2"] (select 타입인 경우)
                 }
             }
+            """)
+            
+            user = HumanMessage(content=f"[지표 ID: {indicator_id}]\n\n{chr(10).join(chunks)}\n\n[작성 내용]\n{작성_블록}")
+
+            logger.info(f"🤖 AI 입력필드 생성 시작...")
+            llm = self._build_llm()
+            resp = llm.invoke([system, user])
+            logger.info(f"🤖 AI 입력필드 생성 완료: {len(resp.content)} 문자")
+            
+            # JSON 파싱
+            try:
+                import json
+                input_fields = json.loads(resp.content.strip())
+                logger.info(f"📊 생성된 입력필드 수: {len(input_fields)}")
+                for field_name, field_config in input_fields.items():
+                    logger.info(f"  - {field_name}: {field_config.get('label', 'N/A')}")
+                return input_fields
+            except json.JSONDecodeError as e:
+                logger.error(f"❌ JSON 파싱 실패: {e}")
+                logger.error(f"응답 내용: {resp.content}")
+                return {}
+
+        except Exception as e:
+            logger.exception(f"입력필드 생성 실패: {indicator_id}")
+            return {}
 
     def generate_indicator_draft_only(self, indicator_id: str, company_name: str, inputs: Dict[str, Any]) -> IndicatorDraftResponse:
         """
@@ -725,61 +746,4 @@ class ReportService:
                 generated_at=datetime.now()
             )
 
-    def _extract_input_fields_from_content(self, content: str) -> Dict[str, Any]:
-        """콘텐츠에서 입력 필드 추출"""
-        try:
-            # 간단한 키워드 기반 필드 추출
-            fields = {}
-            
-            # 일반적인 ESG 관련 필드들
-            if "온실가스" in content or "탄소" in content:
-                fields["greenhouse_gas_emissions"] = {
-                    "type": "number",
-                    "label": "온실가스 배출량",
-                    "description": "연간 온실가스 배출량 (톤 CO2eq)",
-                    "required": True
-                }
-            
-            if "에너지" in content:
-                fields["energy_consumption"] = {
-                    "type": "number",
-                    "label": "에너지 소비량",
-                    "description": "연간 에너지 소비량 (MWh)",
-                    "required": True
-                }
-            
-            if "폐기물" in content:
-                fields["waste_generation"] = {
-                    "type": "number",
-                    "label": "폐기물 발생량",
-                    "description": "연간 폐기물 발생량 (톤)",
-                    "required": True
-                }
-            
-            if "직원" in content or "근로자" in content:
-                fields["employee_count"] = {
-                    "type": "number",
-                    "label": "직원 수",
-                    "description": "전체 직원 수",
-                    "required": True
-                }
-            
-            # 기본 필드 추가
-            if not fields:
-                fields["company_data"] = {
-                    "type": "text",
-                    "label": "회사 데이터",
-                    "description": "해당 지표에 대한 회사 데이터를 입력하세요",
-                    "required": True
-                }
-            
-            return fields
-        except Exception:
-            return {
-                "company_data": {
-                    "type": "text",
-                    "label": "회사 데이터",
-                    "description": "해당 지표에 대한 회사 데이터를 입력하세요",
-                    "required": True
-                }
-            }
+
