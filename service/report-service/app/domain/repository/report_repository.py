@@ -157,21 +157,76 @@ class ReportRepository:
     # ===== Indicator Repository Methods =====
     
     def get_all_indicators(self) -> List[Indicator]:
-        """모든 활성 지표 조회"""
-        stmt = select(Indicator).where(Indicator.status == "active").order_by(Indicator.category, Indicator.indicator_id)
-        return list(self.db.scalars(stmt).all())
+        """모든 활성 지표 조회 (KBZ 테이블에서 조회)"""
+        from ..entity.report_entity import KBZIndicator
+        stmt = select(KBZIndicator).order_by(KBZIndicator.category, KBZIndicator.title)
+        kbz_indicators = list(self.db.scalars(stmt).all())
+        
+        # KBZ 데이터를 Indicator 형식으로 변환
+        indicators = []
+        for kbz in kbz_indicators:
+            # title에서 지표 ID 추출 (예: "KBZ-EN22. 온실가스 및 에너지" -> "KBZ-EN22")
+            indicator_id = kbz.title.split('.')[0] if '.' in kbz.title else kbz.title
+            
+            indicator = Indicator(
+                indicator_id=indicator_id,
+                title=kbz.sub_title or kbz.title,  # sub_title이 있으면 사용, 없으면 title 사용
+                category=kbz.category,
+                subcategory=kbz.sub_title,
+                description=f"지표: {kbz.title}",
+                input_fields={},
+                example_data={},
+                status="active"
+            )
+            indicators.append(indicator)
+        
+        return indicators
     
     def get_indicators_by_category(self, category: str) -> List[Indicator]:
-        """카테고리별 지표 조회"""
-        stmt = select(Indicator).where(
-            and_(Indicator.category == category, Indicator.status == "active")
-        ).order_by(Indicator.indicator_id)
-        return list(self.db.scalars(stmt).all())
+        """카테고리별 지표 조회 (KBZ 테이블에서 조회)"""
+        from ..entity.report_entity import KBZIndicator
+        stmt = select(KBZIndicator).where(KBZIndicator.category == category).order_by(KBZIndicator.title)
+        kbz_indicators = list(self.db.scalars(stmt).all())
+        
+        # KBZ 데이터를 Indicator 형식으로 변환
+        indicators = []
+        for kbz in kbz_indicators:
+            indicator_id = kbz.title.split('.')[0] if '.' in kbz.title else kbz.title
+            
+            indicator = Indicator(
+                indicator_id=indicator_id,
+                title=kbz.sub_title or kbz.title,
+                category=kbz.category,
+                subcategory=kbz.sub_title,
+                description=f"지표: {kbz.title}",
+                input_fields={},
+                example_data={},
+                status="active"
+            )
+            indicators.append(indicator)
+        
+        return indicators
     
     def get_indicator_by_id(self, indicator_id: str) -> Optional[Indicator]:
-        """지표 ID로 지표 조회"""
-        stmt = select(Indicator).where(Indicator.indicator_id == indicator_id)
-        return self.db.scalar(stmt)
+        """지표 ID로 지표 조회 (KBZ 테이블에서 조회)"""
+        from ..entity.report_entity import KBZIndicator
+        # KBZ 테이블에서 title에 지표 ID가 포함된 레코드 찾기
+        stmt = select(KBZIndicator).where(KBZIndicator.title.like(f"{indicator_id}%"))
+        kbz_indicator = self.db.scalar(stmt)
+        
+        if not kbz_indicator:
+            return None
+            
+        return Indicator(
+            indicator_id=indicator_id,
+            title=kbz_indicator.sub_title or kbz_indicator.title,
+            category=kbz_indicator.category,
+            subcategory=kbz_indicator.sub_title,
+            description=f"지표: {kbz_indicator.title}",
+            input_fields={},
+            example_data={},
+            status="active"
+        )
     
     def create_indicator(
         self,

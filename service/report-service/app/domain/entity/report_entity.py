@@ -56,3 +56,16 @@ class Indicator(Base):
 
     class Config:
         from_attributes = True
+
+
+class KBZIndicator(Base):
+    """KBZ 테이블의 지표 데이터 (실제 데이터베이스 구조에 맞춤)"""
+    __tablename__ = "kbz"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    category = Column(String, nullable=False)                   # 카테고리 (환경, 사회, 지배구조)
+    title = Column(String, nullable=False)                      # 지표 제목 (예: KBZ-EN22. 온실가스 및 에너지)
+    sub_title = Column(String, nullable=True)                   # 서브 제목 (예: 온실가스 및 에너지)
+
+    class Config:
+        from_attributes = True
