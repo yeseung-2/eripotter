@@ -55,26 +55,8 @@ app.add_middleware(
 )
 
 # ---------- Database Connection Test ----------
-from .common.db import get_db_engine
-from sqlalchemy import text
-
-# 서비스 시작 시 데이터베이스 연결 테스트
-try:
-    engine = get_db_engine()
-    with engine.connect() as conn:
-        conn.execute(text("SELECT 1"))
-    logger.info("✅ 데이터베이스 연결 성공")
-except Exception as e:
-    if "DATABASE_URL is not set" in str(e):
-        logger.warning("⚠️ DATABASE_URL이 설정되지 않았습니다. 로컬 개발 환경에서는 .env 파일을 확인하세요.")
-        logger.warning("⚠️ 도커 환경에서는 DATABASE_URL 환경 변수를 설정하세요.")
-    else:
-        log_error_with_context(
-            error=e,
-            context="데이터베이스 연결 테스트",
-            service="account-service",
-            operation="startup_db_test"
-        )
+# 데이터베이스 연결은 나중에 구현 예정
+logger.info("✅ Account Service 시작됨")
 
 # ---------- Import Routers ----------
 from .router.account_router import account_router
