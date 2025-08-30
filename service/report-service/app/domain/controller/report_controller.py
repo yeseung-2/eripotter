@@ -190,6 +190,43 @@ class ReportController:
             logger.error(f"향상된 초안 생성 API 오류: {e}")
             raise HTTPException(status_code=500, detail=f"향상된 초안 생성 중 오류가 발생했습니다: {str(e)}")
 
+    # ===== 개별 지표 처리 메서드 (새로 추가) =====
+    def process_single_indicator(self, indicator_id: str, company_name: str, inputs: Dict[str, Any]) -> IndicatorDraftResponse:
+        """
+        개별 지표 처리: 입력필드 생성 → 초안 생성 (한 번에 처리)
+        """
+        try:
+            with get_session() as db:
+                service = ReportService(db)
+                return service.process_single_indicator(indicator_id, company_name, inputs)
+        except Exception as e:
+            logger.error(f"개별 지표 처리 API 오류: {e}")
+            raise HTTPException(status_code=500, detail=f"개별 지표 처리 중 오류가 발생했습니다: {str(e)}")
+
+    def generate_input_fields_only(self, indicator_id: str) -> Dict[str, Any]:
+        """
+        개별 지표의 입력필드만 생성 (RAG 기반)
+        """
+        try:
+            with get_session() as db:
+                service = ReportService(db)
+                return service.generate_input_fields_only(indicator_id)
+        except Exception as e:
+            logger.error(f"입력필드 생성 API 오류: {e}")
+            raise HTTPException(status_code=500, detail=f"입력필드 생성 중 오류가 발생했습니다: {str(e)}")
+
+    def generate_indicator_draft_only(self, indicator_id: str, company_name: str, inputs: Dict[str, Any]) -> IndicatorDraftResponse:
+        """
+        개별 지표의 초안만 생성 (입력된 데이터 기반)
+        """
+        try:
+            with get_session() as db:
+                service = ReportService(db)
+                return service.generate_indicator_draft_only(indicator_id, company_name, inputs)
+        except Exception as e:
+            logger.error(f"지표 초안 생성 API 오류: {e}")
+            raise HTTPException(status_code=500, detail=f"지표 초안 생성 중 오류가 발생했습니다: {str(e)}")
+
 
 def get_report_controller() -> ReportController:
     return ReportController()

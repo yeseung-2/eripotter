@@ -85,6 +85,39 @@ async def get_indicator_with_recommended_fields(indicator_id: str, controller: R
 async def generate_enhanced_draft(indicator_id: str, body: IndicatorDraftRequest, controller: ReportController = Depends(get_report_controller)):
     return controller.generate_enhanced_draft(indicator_id, body.company_name, body.inputs)
 
+# ===== 개별 지표 처리 API (새로 추가) =====
+@router.post("/indicators/{indicator_id}/process", response_model=IndicatorDraftResponse)
+async def process_single_indicator(
+    indicator_id: str, 
+    body: IndicatorDraftRequest, 
+    controller: ReportController = Depends(get_report_controller)
+):
+    """
+    개별 지표 처리: 입력필드 생성 → 초안 생성 (한 번에 처리)
+    """
+    return controller.process_single_indicator(indicator_id, body.company_name, body.inputs)
+
+@router.get("/indicators/{indicator_id}/input-fields-only")
+async def get_indicator_input_fields_only(
+    indicator_id: str, 
+    controller: ReportController = Depends(get_report_controller)
+):
+    """
+    개별 지표의 입력필드만 생성 (RAG 기반)
+    """
+    return controller.generate_input_fields_only(indicator_id)
+
+@router.post("/indicators/{indicator_id}/draft-only", response_model=IndicatorDraftResponse)
+async def generate_indicator_draft_only(
+    indicator_id: str, 
+    body: IndicatorDraftRequest, 
+    controller: ReportController = Depends(get_report_controller)
+):
+    """
+    개별 지표의 초안만 생성 (입력된 데이터 기반)
+    """
+    return controller.generate_indicator_draft_only(indicator_id, body.company_name, body.inputs)
+
 # 헬스체크
 @router.get("/reports/health")
 async def health_check():

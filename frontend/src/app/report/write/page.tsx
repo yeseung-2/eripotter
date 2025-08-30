@@ -1,78 +1,169 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { generateDraft, saveIndicator, getIndicatorWithFields, generateInputFields } from "@/lib/api";
-import type { Indicator, IndicatorInputFieldResponse, IndicatorDraftRequest } from "@/types/report";
+import { 
+  getAllIndicators, 
+  getIndicatorInputFieldsOnly, 
+  generateIndicatorDraftOnly,
+  processSingleIndicator 
+} from "@/lib/api";
+import type { Indicator, IndicatorDraftRequest } from "@/types/report";
 import { normalizeFields, type FormField } from "@/lib/form";
 import Stepper from "@/components/ui/Stepper";
 import IndicatorPicker from "@/components/ui/IndicatorPicker";
-import RecommendedFields from "@/components/ui/RecommendedFields";
 import InputFieldsForm from "@/components/ui/InputFieldsForm";
 import DraftViewer from "@/components/ui/DraftViewer";
 
+interface ProcessedIndicator {
+  indicator: Indicator;
+  inputFields: any;
+  inputs: Record<string, any>;
+  draft: string;
+  status: 'pending' | 'input-fields' | 'data-input' | 'draft-generated' | 'completed';
+}
 
 export default function ReportWritePage() {
   const [step, setStep] = useState(1);
   const [companyName, setCompanyName] = useState("");
-  const [picked, setPicked] = useState<Indicator | null>(null);
-  const [fieldsInfo, setFieldsInfo] = useState<IndicatorInputFieldResponse | null>(null);
-  const [ragRequired, setRagRequired] = useState<any[]>([]);
-  const [fields, setFields] = useState<FormField[]>([]);
-  const [inputs, setInputs] = useState<Record<string, any>>({});
-  const [draft, setDraft] = useState("");
+  const [indicators, setIndicators] = useState<Indicator[]>([]);
+  const [processedIndicators, setProcessedIndicators] = useState<ProcessedIndicator[]>([]);
+  const [currentIndicatorId, setCurrentIndicatorId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState(false);
 
+  // 지표 목록 로드
   useEffect(() => {
     (async () => {
-      if (!picked) return;
       setLoading(true);
       try {
-        const info = await getIndicatorWithFields(picked.indicator_id);
-        setFieldsInfo(info);
-        const rag = await generateInputFields(picked.indicator_id);
-        setRagRequired(rag.required_fields || []);
-        const normalized = normalizeFields(info, rag.required_fields);
-        setFields(normalized);
-        setStep(2);
+        const response = await getAllIndicators();
+        if (response.success) {
+          setIndicators(response.indicators);
+        } else {
+          setApiError(true);
+        }
+      } catch (error) {
+        console.error("지표 목록 로드 실패:", error);
+        setApiError(true);
       } finally {
         setLoading(false);
       }
     })();
-  }, [picked]);
+  }, []);
 
-  const disabledGen = useMemo(() => !picked || !companyName || loading, [picked, companyName, loading]);
-
-  const onGenerate = async () => {
-    if (!picked) return;
+  // 지표 선택 시 처리
+  const handleIndicatorSelect = async (indicator: Indicator) => {
     setLoading(true);
     try {
-      const body: IndicatorDraftRequest = { company_name: companyName, inputs };
-      const html = await generateDraft(picked.indicator_id, body);
-      setDraft(html);
-      setStep(3);
+      // 이미 처리된 지표인지 확인
+      const existing = processedIndicators.find(p => p.indicator.indicator_id === indicator.indicator_id);
+      if (existing) {
+        setCurrentIndicatorId(indicator.indicator_id);
+        setStep(2);
+        return;
+      }
+
+      // 새로운 지표 처리 시작
+      const newProcessedIndicator: ProcessedIndicator = {
+        indicator,
+        inputFields: {},
+        inputs: {},
+        draft: "",
+        status: 'pending'
+      };
+
+      setProcessedIndicators(prev => [...prev, newProcessedIndicator]);
+      setCurrentIndicatorId(indicator.indicator_id);
+      setStep(2);
+
+      // 입력필드 생성
+      await generateInputFieldsForIndicator(indicator.indicator_id);
+    } catch (error) {
+      console.error("지표 선택 처리 실패:", error);
+      alert("지표 처리 중 오류가 발생했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 입력필드 생성
+  const generateInputFieldsForIndicator = async (indicatorId: string) => {
+    try {
+      const response = await getIndicatorInputFieldsOnly(indicatorId);
+      setProcessedIndicators(prev => 
+        prev.map(p => 
+          p.indicator.indicator_id === indicatorId 
+            ? { ...p, inputFields: response, status: 'input-fields' }
+            : p
+        )
+      );
+    } catch (error) {
+      console.error("입력필드 생성 실패:", error);
+      // 기본 입력필드 설정
+      setProcessedIndicators(prev => 
+        prev.map(p => 
+          p.indicator.indicator_id === indicatorId 
+            ? { 
+                ...p, 
+                inputFields: { company_data: { type: "text", label: "회사 데이터", required: true } },
+                status: 'input-fields' 
+              }
+            : p
+        )
+      );
+    }
+  };
+
+  // 데이터 입력 처리
+  const handleInputChange = (indicatorId: string, inputs: Record<string, any>) => {
+    setProcessedIndicators(prev => 
+      prev.map(p => 
+        p.indicator.indicator_id === indicatorId 
+          ? { ...p, inputs, status: 'data-input' }
+          : p
+      )
+    );
+  };
+
+  // 초안 생성
+  const generateDraftForIndicator = async (indicatorId: string) => {
+    const indicator = processedIndicators.find(p => p.indicator.indicator_id === indicatorId);
+    if (!indicator || !companyName) return;
+
+    setLoading(true);
+    try {
+      const body: IndicatorDraftRequest = { 
+        company_name: companyName, 
+        inputs: indicator.inputs 
+      };
+      
+      const response = await generateIndicatorDraftOnly(indicatorId, body);
+      
+      if (response.success) {
+        setProcessedIndicators(prev => 
+          prev.map(p => 
+            p.indicator.indicator_id === indicatorId 
+              ? { ...p, draft: response.draft_content, status: 'draft-generated' }
+              : p
+          )
+        );
+        setStep(3);
+      } else {
+        alert("초안 생성에 실패했습니다: " + response.message);
+      }
     } catch (error) {
       console.error("초안 생성 실패:", error);
-      alert("초안 생성에 실패했습니다. API 서버가 실행 중인지 확인해주세요.");
+      alert("초안 생성 중 오류가 발생했습니다.");
     } finally {
       setLoading(false);
     }
   };
 
-  const onSave = async () => {
-    if (!picked) return;
-    setLoading(true);
-    try {
-      const ok = await saveIndicator(picked.indicator_id, { company_name: companyName, inputs });
-      alert(ok ? "임시저장 완료!" : "임시저장 실패");
-      if (ok) setStep(4);
-    } catch (error) {
-      console.error("임시저장 실패:", error);
-      alert("임시저장에 실패했습니다. API 서버가 실행 중인지 확인해주세요.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // 현재 처리 중인 지표
+  const currentIndicator = processedIndicators.find(p => p.indicator.indicator_id === currentIndicatorId);
+
+  // 완료된 지표 수
+  const completedCount = processedIndicators.filter(p => p.status === 'draft-generated').length;
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
@@ -95,9 +186,22 @@ export default function ReportWritePage() {
       )}
       
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">보고서 작성</h1>
+        <h1 className="text-2xl font-bold">보고서 작성 (개별 지표 처리)</h1>
         <Stepper step={step} />
       </div>
+
+      {/* 진행 상황 표시 */}
+      {processedIndicators.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h3 className="text-sm font-medium text-blue-800 mb-2">처리 진행 상황</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+            <div>총 지표: {indicators.length}개</div>
+            <div>처리 중: {processedIndicators.length}개</div>
+            <div>완료: {completedCount}개</div>
+            <div>남은 지표: {indicators.length - completedCount}개</div>
+          </div>
+        </div>
+      )}
 
       {/* 1. 지표 선택 */}
       <section className="space-y-3">
@@ -109,60 +213,139 @@ export default function ReportWritePage() {
           onChange={(e) => setCompanyName(e.target.value)}
         />
         <div className="mt-4">
-          <h2 className="text-lg font-semibold mb-2">지표 선택</h2>
-          <IndicatorPicker onPick={setPicked} onError={setApiError} />
+          <h2 className="text-lg font-semibold mb-2">지표 선택 (개별 처리)</h2>
+          {loading ? (
+            <div className="p-4">지표 목록 로딩중…</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {indicators.map((indicator) => {
+                const processed = processedIndicators.find(p => p.indicator.indicator_id === indicator.indicator_id);
+                const isCurrent = currentIndicatorId === indicator.indicator_id;
+                
+                return (
+                  <div 
+                    key={indicator.indicator_id}
+                    className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                      isCurrent 
+                        ? 'border-blue-500 bg-blue-50' 
+                        : processed 
+                          ? 'border-green-300 bg-green-50' 
+                          : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => handleIndicatorSelect(indicator)}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-sm font-medium text-gray-900">{indicator.indicator_id}</span>
+                      {processed && (
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          processed.status === 'draft-generated' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {processed.status === 'draft-generated' ? '완료' : '진행중'}
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-sm font-medium mb-1">{indicator.title}</h3>
+                    <p className="text-xs text-gray-500">{indicator.category}</p>
+                    {processed && (
+                      <div className="mt-2 text-xs text-gray-600">
+                        <div>입력필드: {Object.keys(processed.inputFields).length}개</div>
+                        {processed.draft && <div>초안: 생성됨</div>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 
-      {/* 2. 입력 필드 */}
-      {picked && (
-        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-3">
-            <h2 className="text-lg font-semibold">데이터 입력</h2>
-            {loading ? (
-              <div className="p-4">필드 로딩중…</div>
-            ) : (
-              <InputFieldsForm fields={fields} value={inputs} onChange={setInputs} />
+      {/* 2. 현재 지표 처리 */}
+      {currentIndicator && (
+        <section className="space-y-4">
+          <div className="border-t pt-6">
+            <h2 className="text-lg font-semibold mb-4">
+              현재 처리 중: {currentIndicator.indicator.indicator_id} - {currentIndicator.indicator.title}
+            </h2>
+            
+            {/* 입력 필드 */}
+            {currentIndicator.status === 'input-fields' && (
+              <div className="space-y-4">
+                <h3 className="text-md font-medium">데이터 입력</h3>
+                <InputFieldsForm 
+                  fields={Object.entries(currentIndicator.inputFields).map(([key, field]: [string, any]) => ({
+                    name: key,
+                    label: field.label || key,
+                    type: field.type || 'text',
+                    required: field.required || false,
+                    description: field.description || ''
+                  }))}
+                  value={currentIndicator.inputs}
+                  onChange={(inputs) => handleInputChange(currentIndicator.indicator.indicator_id, inputs)}
+                />
+                <button
+                  onClick={() => generateDraftForIndicator(currentIndicator.indicator.indicator_id)}
+                  disabled={!companyName || loading}
+                  className={`px-4 py-2 rounded text-white ${
+                    !companyName || loading 
+                      ? "bg-slate-300" 
+                      : "bg-blue-600 hover:bg-blue-700"
+                  }`}
+                >
+                  {loading ? "초안 생성 중..." : "초안 생성"}
+                </button>
+              </div>
             )}
-          </div>
-          <div className="lg:col-span-1 space-y-3">
-            <h3 className="text-sm font-semibold text-slate-700">추천 입력 항목 (RAG)</h3>
-            <RecommendedFields data={fieldsInfo} />
-            {!!ragRequired?.length && (
-              <div className="text-xs text-slate-600 border rounded p-3 bg-white">
-                <div className="font-semibold mb-1">LLM 필요항목(해석):</div>
-                <ul className="list-disc pl-5 space-y-1">
-                  {ragRequired.map((r, i) => (
-                    <li key={i}>{r["항목"] || JSON.stringify(r)}</li>
-                  ))}
-                </ul>
+
+            {/* 초안 표시 */}
+            {currentIndicator.status === 'draft-generated' && currentIndicator.draft && (
+              <div className="space-y-4">
+                <h3 className="text-md font-medium">생성된 초안</h3>
+                <DraftViewer html={currentIndicator.draft} />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setStep(1)}
+                    className="px-4 py-2 rounded border border-gray-300 bg-white hover:bg-gray-50"
+                  >
+                    다음 지표 선택
+                  </button>
+                  <button
+                    onClick={() => setStep(4)}
+                    className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
+                  >
+                    모든 지표 완료
+                  </button>
+                </div>
               </div>
             )}
           </div>
         </section>
       )}
 
-      {/* 3. 생성 & 초안 */}
-      {picked && (
-        <section className="space-y-3">
-          <div className="flex gap-2">
-            <button
-              onClick={onGenerate}
-              disabled={disabledGen}
-              className={`px-4 py-2 rounded text-white ${disabledGen ? "bg-slate-300" : "bg-blue-600 hover:bg-blue-700"}`}
-            >
-              초안 생성
-            </button>
-            <button
-              onClick={onSave}
-              disabled={!draft || loading}
-              className={`px-4 py-2 rounded border ${!draft || loading ? "bg-white text-slate-300 border-slate-200" : "bg-white text-slate-700 hover:bg-slate-50 border-slate-300"}`}
-            >
-              임시저장
-            </button>
+      {/* 3. 완료된 지표 목록 */}
+      {completedCount > 0 && (
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold">완료된 지표 목록</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {processedIndicators
+              .filter(p => p.status === 'draft-generated')
+              .map((processed) => (
+                <div key={processed.indicator.indicator_id} className="border border-green-200 rounded-lg p-4 bg-green-50">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-sm font-medium">{processed.indicator.indicator_id}</span>
+                    <span className="text-xs px-2 py-1 rounded bg-green-100 text-green-800">완료</span>
+                  </div>
+                  <h3 className="text-sm font-medium mb-1">{processed.indicator.title}</h3>
+                  <p className="text-xs text-gray-500">{processed.indicator.category}</p>
+                  <div className="mt-2 text-xs text-gray-600">
+                    <div>입력 데이터: {Object.keys(processed.inputs).length}개</div>
+                    <div>초안 길이: {processed.draft.length}자</div>
+                  </div>
+                </div>
+              ))}
           </div>
-
-          <DraftViewer html={draft} />
         </section>
       )}
     </div>

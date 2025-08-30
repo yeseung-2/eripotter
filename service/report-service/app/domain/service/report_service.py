@@ -526,101 +526,100 @@ class ReportService:
                 total_count=0
             )
 
-    def _extract_suggested_fields(self, content: str) -> List[Dict[str, Any]]:
-        """콘텐츠에서 입력 필드 제안 추출 (LLM 사용, JSON 파싱 내성)"""
+    # ===== 개별 지표 처리 메서드 (새로 추가) =====
+    def process_single_indicator(self, indicator_id: str, company_name: str, inputs: Dict[str, Any]) -> IndicatorDraftResponse:
+        """
+        개별 지표 처리: 입력필드 생성 → 초안 생성 (한 번에 처리)
+        """
         try:
-            system = SystemMessage(content="""
-            ESG 보고서 작성에 필요한 입력 필드를 추출해주세요.
-            다음 형식으로 JSON 배열을 반환하세요:
-            [
-                {
-                    "field_name": "필드명",
-                    "field_type": "text|number|select|date",
-                    "description": "필드 설명",
-                    "required": true|false,
-                    "options": ["옵션1", "옵션2"] // select 타입인 경우만
-                }
-            ]
-            """)
-            user = HumanMessage(content=f"다음 콘텐츠에서 ESG 보고서 작성에 필요한 입력 필드를 추출해주세요:\n\n{content}")
-            llm = self._build_llm()
-            response = llm.invoke([system, user])
-            try:
-                return json.loads(response.content)
-            except Exception:
-                return [{
-                    "field_name": "company_data",
-                    "field_type": "text",
-                    "description": "회사 관련 데이터",
-                    "required": True
-                }]
-        except Exception:
-            logger.exception("입력 필드 추출 실패")
-            return []
-
-    def _search_recommended_fields(self, title: str) -> List[Dict[str, Any]]:
-        """Qdrant에서 지표 제목과 매칭되는 정보를 검색하여 입력 필드 추천"""
-        try:
-            search_results = self.esg_manual_rag.search(
-                query=title,
-                limit=5,
-                score_threshold=0.7
-            )
-            recommended_fields = []
-            for result in search_results:
-                r_title = result.get("title", "")
-                content = result.get("content", "")
-                rec = {
-                    "source": "exact_match" if r_title == title else "similar_match",
-                    "title": r_title,
-                    "content": content[:200] + "..." if len(content) > 200 else content,
-                    "score": result.get("score", 0),
-                    "suggested_fields": self._extract_suggested_fields(content)
-                }
-                if rec["source"] == "exact_match":
-                    recommended_fields.insert(0, rec)
-                else:
-                    recommended_fields.append(rec)
-            return recommended_fields
-        except Exception:
-            logger.exception(f"추천 필드 검색 실패: {title}")
-            return []
-
-    def get_indicator_with_recommended_fields(self, indicator_id: str) -> IndicatorInputFieldResponse:
-        """지표 정보와 Qdrant에서 추천된 입력 필드 조회"""
-        try:
+            # 1. 지표 정보 조회
             indicator = self.report_repository.get_indicator_by_id(indicator_id)
             if not indicator:
-                return IndicatorInputFieldResponse(
+                return IndicatorDraftResponse(
                     success=False,
                     message=f"지표 {indicator_id}를 찾을 수 없습니다.",
                     indicator_id=indicator_id,
-                    title="",
-                    input_fields={},
-                    recommended_fields=[]
+                    company_name=company_name,
+                    draft_content="",
+                    generated_at=datetime.now()
                 )
-            recommended_fields = self._search_recommended_fields(indicator.title)
-            return IndicatorInputFieldResponse(
+
+            # 2. RAG 기반 입력필드 생성 (필요시)
+            if not inputs:
+                inputs = self.generate_input_fields_only(indicator_id)
+
+            # 3. 초안 생성
+            draft_content = self.generate_indicator_draft(indicator_id, company_name, inputs)
+
+            return IndicatorDraftResponse(
                 success=True,
-                message="지표 정보와 추천 필드를 성공적으로 조회했습니다.",
-                indicator_id=indicator.indicator_id,
-                title=indicator.title,
-                input_fields=indicator.input_fields or {},
-                recommended_fields=recommended_fields
+                message="개별 지표 처리가 성공적으로 완료되었습니다.",
+                indicator_id=indicator_id,
+                company_name=company_name,
+                draft_content=draft_content,
+                generated_at=datetime.now()
             )
         except Exception as e:
-            logger.exception(f"지표 {indicator_id} 정보 조회 실패")
-            return IndicatorInputFieldResponse(
+            logger.exception(f"개별 지표 처리 실패: {indicator_id}")
+            return IndicatorDraftResponse(
                 success=False,
-                message=f"지표 정보 조회 중 오류가 발생했습니다: {str(e)}",
+                message=f"개별 지표 처리 중 오류가 발생했습니다: {str(e)}",
                 indicator_id=indicator_id,
-                title="",
-                input_fields={},
-                recommended_fields=[]
+                company_name=company_name,
+                draft_content="",
+                generated_at=datetime.now()
             )
 
-    def generate_enhanced_draft(self, indicator_id: str, company_name: str, inputs: Dict[str, Any]) -> IndicatorDraftResponse:
-        """향상된 보고서 초안 생성 (추천 필드 포함)"""
+    def generate_input_fields_only(self, indicator_id: str) -> Dict[str, Any]:
+        """
+        개별 지표의 입력필드만 생성 (RAG 기반)
+        """
+        try:
+            indicator = self.report_repository.get_indicator_by_id(indicator_id)
+            if not indicator:
+                return {}
+
+            # RAG 검색으로 관련 정보 찾기
+            search_results = self.esg_manual_rag.search(
+                query=indicator.title,
+                limit=3,
+                score_threshold=0.7
+            )
+
+            # 입력필드 추출
+            input_fields = {}
+            for result in search_results:
+                content = result.get("content", "")
+                fields = self._extract_input_fields_from_content(content)
+                input_fields.update(fields)
+
+            # 기본 필드 추가 (없는 경우)
+            if not input_fields:
+                input_fields = {
+                    "company_data": {
+                        "type": "text",
+                        "label": "회사 데이터",
+                        "description": "해당 지표에 대한 회사 데이터를 입력하세요",
+                        "required": True
+                    }
+                }
+
+            return input_fields
+        except Exception as e:
+            logger.exception(f"입력필드 생성 실패: {indicator_id}")
+            return {
+                "company_data": {
+                    "type": "text",
+                    "label": "회사 데이터",
+                    "description": "해당 지표에 대한 회사 데이터를 입력하세요",
+                    "required": True
+                }
+            }
+
+    def generate_indicator_draft_only(self, indicator_id: str, company_name: str, inputs: Dict[str, Any]) -> IndicatorDraftResponse:
+        """
+        개별 지표의 초안만 생성 (입력된 데이터 기반)
+        """
         try:
             indicator = self.report_repository.get_indicator_by_id(indicator_id)
             if not indicator:
@@ -632,22 +631,84 @@ class ReportService:
                     draft_content="",
                     generated_at=datetime.now()
                 )
+
+            # 초안 생성
             draft_content = self.generate_indicator_draft(indicator_id, company_name, inputs)
+
             return IndicatorDraftResponse(
                 success=True,
-                message="보고서 초안이 성공적으로 생성되었습니다.",
+                message="지표 초안이 성공적으로 생성되었습니다.",
                 indicator_id=indicator_id,
                 company_name=company_name,
                 draft_content=draft_content,
                 generated_at=datetime.now()
             )
         except Exception as e:
-            logger.exception(f"향상된 초안 생성 실패: {indicator_id}")
+            logger.exception(f"지표 초안 생성 실패: {indicator_id}")
             return IndicatorDraftResponse(
                 success=False,
-                message=f"초안 생성 중 오류가 발생했습니다: {str(e)}",
+                message=f"지표 초안 생성 중 오류가 발생했습니다: {str(e)}",
                 indicator_id=indicator_id,
                 company_name=company_name,
                 draft_content="",
                 generated_at=datetime.now()
             )
+
+    def _extract_input_fields_from_content(self, content: str) -> Dict[str, Any]:
+        """콘텐츠에서 입력 필드 추출"""
+        try:
+            # 간단한 키워드 기반 필드 추출
+            fields = {}
+            
+            # 일반적인 ESG 관련 필드들
+            if "온실가스" in content or "탄소" in content:
+                fields["greenhouse_gas_emissions"] = {
+                    "type": "number",
+                    "label": "온실가스 배출량",
+                    "description": "연간 온실가스 배출량 (톤 CO2eq)",
+                    "required": True
+                }
+            
+            if "에너지" in content:
+                fields["energy_consumption"] = {
+                    "type": "number",
+                    "label": "에너지 소비량",
+                    "description": "연간 에너지 소비량 (MWh)",
+                    "required": True
+                }
+            
+            if "폐기물" in content:
+                fields["waste_generation"] = {
+                    "type": "number",
+                    "label": "폐기물 발생량",
+                    "description": "연간 폐기물 발생량 (톤)",
+                    "required": True
+                }
+            
+            if "직원" in content or "근로자" in content:
+                fields["employee_count"] = {
+                    "type": "number",
+                    "label": "직원 수",
+                    "description": "전체 직원 수",
+                    "required": True
+                }
+            
+            # 기본 필드 추가
+            if not fields:
+                fields["company_data"] = {
+                    "type": "text",
+                    "label": "회사 데이터",
+                    "description": "해당 지표에 대한 회사 데이터를 입력하세요",
+                    "required": True
+                }
+            
+            return fields
+        except Exception:
+            return {
+                "company_data": {
+                    "type": "text",
+                    "label": "회사 데이터",
+                    "description": "해당 지표에 대한 회사 데이터를 입력하세요",
+                    "required": True
+                }
+            }

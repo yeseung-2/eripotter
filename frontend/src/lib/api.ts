@@ -65,3 +65,19 @@ export const saveIndicator = (id: string, body: IndicatorSaveRequest): Promise<b
     method: "POST",
     body: JSON.stringify(body),
   });
+
+// ===== 개별 지표 처리 API 함수들 (새로 추가) =====
+export const processSingleIndicator = (id: string, body: IndicatorDraftRequest): Promise<any> =>
+  api(`/report/indicators/${id}/process`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+
+export const getIndicatorInputFieldsOnly = (id: string): Promise<any> =>
+  api(`/report/indicators/${id}/input-fields-only`);
+
+export const generateIndicatorDraftOnly = (id: string, body: IndicatorDraftRequest): Promise<any> =>
+  api(`/report/indicators/${id}/draft-only`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
