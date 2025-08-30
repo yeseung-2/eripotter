@@ -18,26 +18,47 @@ logger = logging.getLogger(__name__)
 # ===== 임베더 선택 =====
 def _get_embedder():
     emb = os.getenv("EMBEDDER", "bge-m3").lower()  # 기본값을 bge-m3로 변경 (Qdrant 데이터와 일치)
+    
+    # sentence-transformers 설치 여부 먼저 확인
+    try:
+        import sentence_transformers
+        logger.info(f"✅ sentence-transformers 설치됨: {sentence_transformers.__version__}")
+        sentence_transformers_available = True
+    except ImportError:
+        logger.warning("❌ sentence-transformers 설치되지 않음")
+        sentence_transformers_available = False
+    
     if emb == "bge-m3":
-        try:
-            from sentence_transformers import SentenceTransformer
-            m = SentenceTransformer("BAAI/bge-m3")
-            dim = 1024
-            def encode(texts: List[str]) -> List[List[float]]:
-                return m.encode([f"query: {t}" for t in texts], normalize_embeddings=True).tolist()
-            return encode, dim, "bge-m3"
-        except ImportError:
+        if sentence_transformers_available:
+            try:
+                from sentence_transformers import SentenceTransformer
+                logger.info("🔧 bge-m3 임베더 초기화 중...")
+                m = SentenceTransformer("BAAI/bge-m3")
+                dim = 1024
+                def encode(texts: List[str]) -> List[List[float]]:
+                    return m.encode([f"query: {t}" for t in texts], normalize_embeddings=True).tolist()
+                logger.info("✅ bge-m3 임베더 초기화 완료")
+                return encode, dim, "bge-m3"
+            except Exception as e:
+                logger.error(f"❌ bge-m3 임베더 초기화 실패: {e}")
+                logger.warning("🔄 OpenAI로 fallback")
+                return _get_openai_embedder()
+        else:
             logger.warning("sentence-transformers not installed, falling back to openai")
             return _get_openai_embedder()
     elif emb == "minilm":
-        try:
-            from sentence_transformers import SentenceTransformer
-            m = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-            dim = 384
-            def encode(texts: List[str]) -> List[List[float]]:
-                return m.encode(texts, normalize_embeddings=True).tolist()
-            return encode, dim, "minilm"
-        except ImportError:
+        if sentence_transformers_available:
+            try:
+                from sentence_transformers import SentenceTransformer
+                m = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+                dim = 384
+                def encode(texts: List[str]) -> List[List[float]]:
+                    return m.encode(texts, normalize_embeddings=True).tolist()
+                return encode, dim, "minilm"
+            except Exception as e:
+                logger.error(f"❌ minilm 임베더 초기화 실패: {e}")
+                return _get_openai_embedder()
+        else:
             logger.warning("sentence-transformers not installed, falling back to openai")
             return _get_openai_embedder()
     elif emb == "openai":
