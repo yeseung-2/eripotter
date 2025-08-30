@@ -1,4 +1,7 @@
 // src/lib/reportApi.ts
+// 새로운 통일된 엔드포인트 사용
+// 서버에서 /api/report/indicator/{id}/... 형태로 구현됨
+
 import type {
   InputFieldsResponse,
   DraftResponse,
@@ -15,7 +18,6 @@ export function getInputFields(indicatorId: string): Promise<InputFieldsResponse
 }
 
 export function generateDraft(indicatorId: string, companyName: string, inputs: Record<string, any>): Promise<DraftResponse> {
-  // 서버는 문자열 본문을 반환함
   return http<DraftResponse>(
     `/api/report/indicator/${encodeURIComponent(indicatorId)}/draft?company_name=${encodeURIComponent(companyName)}`,
     { method: "POST", body: JSON.stringify(inputs) }
@@ -23,7 +25,6 @@ export function generateDraft(indicatorId: string, companyName: string, inputs: 
 }
 
 export function saveIndicatorData(indicatorId: string, companyName: string, inputs: Record<string, any>): Promise<SaveResponse> {
-  // 서버는 boolean 반환
   return http<SaveResponse>(
     `/api/report/indicator/${encodeURIComponent(indicatorId)}/save?company_name=${encodeURIComponent(companyName)}`,
     { method: "POST", body: JSON.stringify(inputs) }

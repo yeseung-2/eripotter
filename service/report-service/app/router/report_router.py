@@ -1,7 +1,7 @@
 """
 Report Router - ESG 매뉴얼 기반 보고서 API 라우팅
 """
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from ..domain.controller.report_controller import ReportController, get_report_controller
 from ..domain.model.report_model import (
     ReportCreateRequest, ReportCreateResponse,
@@ -118,6 +118,37 @@ async def generate_indicator_draft_only(
     개별 지표의 초안만 생성 (입력된 데이터 기반)
     """
     return controller.generate_indicator_draft_only(indicator_id, body.company_name, body.inputs)
+
+# ===== 새로운 통일된 API 엔드포인트 =====
+# 프론트엔드에서 요청한 새로운 엔드포인트들
+@router.get("/indicator/{indicator_id}/input-fields")
+async def get_input_fields_new(indicator_id: str, controller: ReportController = Depends(get_report_controller)):
+    """새로운 통일된 엔드포인트: 입력필드 조회"""
+    return controller.generate_input_fields(indicator_id)
+
+@router.post("/indicator/{indicator_id}/draft")
+async def generate_draft_new(indicator_id: str, company_name: str, request: Request, controller: ReportController = Depends(get_report_controller)):
+    """새로운 통일된 엔드포인트: 초안 생성"""
+    # 요청 바디에서 inputs를 직접 받음
+    body = await request.json()
+    return controller.generate_indicator_draft(indicator_id, company_name, body)
+
+@router.post("/indicator/{indicator_id}/save")
+async def save_indicator_data_new(indicator_id: str, company_name: str, request: Request, controller: ReportController = Depends(get_report_controller)):
+    """새로운 통일된 엔드포인트: 입력값 저장"""
+    # 요청 바디에서 inputs를 직접 받음
+    body = await request.json()
+    return controller.save_indicator_data(indicator_id, company_name, body)
+
+@router.get("/indicator/{indicator_id}/data")
+async def get_indicator_data_new(indicator_id: str, company_name: str, controller: ReportController = Depends(get_report_controller)):
+    """새로운 통일된 엔드포인트: 입력값 조회"""
+    return controller.get_indicator_data(indicator_id, company_name)
+
+@router.get("/indicator/{indicator_id}/summary")
+async def get_indicator_summary_new(indicator_id: str, controller: ReportController = Depends(get_report_controller)):
+    """새로운 통일된 엔드포인트: 지표 요약"""
+    return controller.get_indicator_summary(indicator_id)
 
 # 헬스체크
 @router.get("/reports/health")
