@@ -1,4 +1,4 @@
-# 기본 의존성 (최소 필수 패키지만)
+# --- 기존 라인 유지 ---
 eripotter-common==0.1.4
 uvicorn[standard]==0.24.0
 psycopg2-binary==2.9.9
@@ -6,14 +6,14 @@ alembic==1.13.1
 python-multipart==0.0.9
 python-dotenv==1.0.0
 
-# RAG 관련 패키지 (필수만 포함, 버전 고정으로 빌드 시간 단축)
 qdrant-client==1.15.1
 openai==1.12.0
 langchain==0.1.20
 langchain-community>=0.0.38,<0.1
 langchain-openai==0.0.8
-sentence-transformers==2.2.2
 
-# bge-m3 임베더 사용을 위해 sentence-transformers 추가
-# - Qdrant 컬렉션과 차원 일치 (1024차원)
-# - fallback 시에도 정확한 차원 유지
+# --- 여기부터 RAG 필수 3종 고정 ---
+# bge-m3 호환 안정 조합
+torch==2.3.1             # CPU 휠 자동 설치
+transformers==4.41.2     # torch 2.3.x와 호환
+sentence-transformers==2.7.0  # bge-m3 신규 모델 호환성 좋음
