@@ -56,7 +56,7 @@ class ReportService:
                 model=os.getenv("OPENAI_MODEL", "gpt-4o"),
                 temperature=0.3,
                 max_tokens=3000,
-                api_key=os.getenv("OPENAI_API_KEY")
+                openai_api_key=os.getenv("OPENAI_API_KEY")  # api_key -> openai_api_key로 수정
             )
         except Exception as e:
             logger.error(f"ChatOpenAI 초기화 실패: {e}")
@@ -232,9 +232,9 @@ class ReportService:
                 logger.warning(f"⚠️ KBZ 테이블에서 지표를 찾을 수 없음: {indicator_id}")
                 return []
             
-            # 2. KBZ 테이블의 title과 sub_title을 검색 쿼리로 사용
+            # 2. KBZ 테이블의 title과 subcategory를 검색 쿼리로 사용
             search_title = kbz_indicator.title
-            search_subtitle = kbz_indicator.sub_title if hasattr(kbz_indicator, 'sub_title') and kbz_indicator.sub_title else None
+            search_subtitle = getattr(kbz_indicator, "subcategory", None)  # sub_title -> subcategory로 수정
             
             logger.info(f"🔍 KBZ 테이블 title로 검색: {search_title}")
             if search_subtitle:
@@ -647,8 +647,11 @@ class ReportService:
             # 2. RAG 기반 입력필드 생성 (필요시)
             if not inputs:
                 inputs = self.generate_input_fields_only(indicator_id)
+            
+            # 3. 필드 스키마를 값으로 변환 (보정)
+            inputs = self._coerce_field_schema_to_values(inputs)
 
-            # 3. 초안 생성
+            # 4. 초안 생성
             draft_content = self.generate_indicator_draft(indicator_id, company_name, inputs)
 
             return IndicatorDraftResponse(
@@ -819,5 +822,79 @@ class ReportService:
                 draft_content="",
                 generated_at=datetime.now()
             )
+
+    def get_indicator_with_recommended_fields(self, indicator_id: str) -> IndicatorInputFieldResponse:
+        """
+        지표와 함께 추천 필드를 반환
+        """
+        try:
+            indicator = self.report_repository.get_indicator_by_id(indicator_id)
+            if not indicator:
+                return IndicatorInputFieldResponse(
+                    success=False, 
+                    message=f"지표 {indicator_id}를 찾을 수 없습니다.",
+                    indicator_id=indicator_id, 
+                    title="", 
+                    input_fields={}, 
+                    recommended_fields=[]
+                )
+            
+            # 추천 필드 생성 (기존 generate_input_fields 활용)
+            gen = self.generate_input_fields(indicator_id)
+            return IndicatorInputFieldResponse(
+                success=True, 
+                message="입력필드 추천을 생성했습니다.",
+                indicator_id=indicator_id,
+                title=indicator.title,
+                input_fields={},  # 저장된 정의가 있다면 채워넣기
+                recommended_fields=gen.get("required_fields", []),
+            )
+        except Exception as e:
+            logger.exception(f"추천 필드 생성 실패: {indicator_id}")
+            return IndicatorInputFieldResponse(
+                success=False,
+                message=f"추천 필드 생성 중 오류가 발생했습니다: {str(e)}",
+                indicator_id=indicator_id,
+                title="",
+                input_fields={},
+                recommended_fields=[]
+            )
+
+    def generate_enhanced_draft(self, indicator_id: str, company_name: str, inputs: Dict[str, Any]) -> IndicatorDraftResponse:
+        """
+        향상된 초안 생성
+        """
+        try:
+            draft = self.generate_indicator_draft(indicator_id, company_name, inputs)
+            return IndicatorDraftResponse(
+                success=True, 
+                message="향상된 초안을 생성했습니다.",
+                indicator_id=indicator_id, 
+                company_name=company_name,
+                draft_content=draft, 
+                generated_at=datetime.now()
+            )
+        except Exception as e:
+            logger.exception(f"향상된 초안 생성 실패: {indicator_id}")
+            return IndicatorDraftResponse(
+                success=False,
+                message=f"향상된 초안 생성 중 오류가 발생했습니다: {str(e)}",
+                indicator_id=indicator_id,
+                company_name=company_name,
+                draft_content="",
+                generated_at=datetime.now()
+            )
+
+    def _coerce_field_schema_to_values(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        필드 스키마를 값으로 변환
+        {"field": {"type": "...", "label": "...", ...}} -> {"field": ""}
+        """
+        if not inputs: 
+            return {}
+        out = {}
+        for k, v in inputs.items():
+            out[k] = "" if isinstance(v, dict) else v
+        return out
 
 

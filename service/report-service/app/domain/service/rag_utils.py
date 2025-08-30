@@ -44,8 +44,8 @@ def _get_embedder():
                 logger.warning("🔄 OpenAI로 fallback")
                 return _get_openai_embedder()
         else:
-            logger.warning("sentence-transformers not installed, falling back to openai")
-            return _get_openai_embedder()
+            raise RuntimeError("EMBEDDER=bge-m3 이지만 sentence-transformers 미설치. "
+                               "pip install sentence-transformers 또는 컬렉션을 1536차원으로 재색인 후 EMBEDDER=openai 사용.")
     elif emb == "minilm":
         if sentence_transformers_available:
             try:
@@ -156,22 +156,26 @@ class RAGUtils:
             # 차원 검증 강화
             try:
                 actual = info.config.params.vectors.size
-                expected = self.dim
-                embedder = self.embedder_name
+                logger.info(f"📊 컬렉션 벡터 차원: {actual}")
                 
-                logger.info(f"📊 벡터 차원 검증: 실제={actual}, 예상={expected}, 임베더={embedder}")
+                # 컬렉션 차원에 맞춰 EMBEDDER 강제 세팅
+                if actual == 1024:
+                    os.environ["EMBEDDER"] = "bge-m3"
+                    logger.info("🔧 EMBEDDER를 bge-m3로 설정 (1024차원)")
+                elif actual == 1536:
+                    os.environ["EMBEDDER"] = "openai"
+                    logger.info("🔧 EMBEDDER를 openai로 설정 (1536차원)")
+                else:
+                    logger.warning(f"⚠️ 알 수 없는 차원: {actual}, 기본값 사용")
                 
-                if actual and actual != expected:
-                    error_msg = f"[{self.collection_name}] 벡터 차원 불일치: 실제={actual} != 예상={expected} (임베더={embedder})"
-                    logger.error(f"❌ {error_msg}")
-                    
-                    # 차원 불일치 시 상세 정보 제공
-                    if embedder == "openai-fallback":
-                        logger.error("💡 해결 방법: EMBEDDER=bge-m3 환경변수 설정 또는 sentence-transformers 설치")
-                    elif embedder == "bge-m3":
-                        logger.error("💡 해결 방법: Qdrant 컬렉션 재생성 또는 다른 임베더 사용")
-                    
-                    raise ValueError(error_msg)
+                # 이후 비교 대신 경고만 남기고 진행
+                try:
+                    expected = self.dim
+                    if expected and expected != actual:
+                        logger.error(f"❌ 벡터 차원 불일치: Qdrant={actual}, Embedder={expected}")
+                        logger.error("💡 해결: EMBEDDER를 컬렉션 차원과 일치시키세요 (1024=bge-m3, 1536=openai).")
+                except Exception as e:
+                    logger.warning(f"⚠️ 차원 검증 중 오류: {e}")
                     
             except AttributeError:
                 logger.warning("⚠️ 벡터 차원 정보를 가져올 수 없음 (Qdrant 버전 호환성)")
