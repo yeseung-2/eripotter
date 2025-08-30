@@ -231,15 +231,45 @@ class ReportService:
                 logger.warning(f"⚠️ KBZ 테이블에서 지표를 찾을 수 없음: {indicator_id}")
                 return []
             
-            # 2. KBZ 테이블의 title을 검색 쿼리로 사용
+            # 2. KBZ 테이블의 title과 sub_title을 검색 쿼리로 사용
             search_title = kbz_indicator.title
-            logger.info(f"🔍 KBZ 테이블 title로 검색: {search_title}")
+            search_subtitle = kbz_indicator.sub_title if hasattr(kbz_indicator, 'sub_title') and kbz_indicator.sub_title else None
             
-            # 3. Qdrant에서 title이 정확히 일치하는 문서 검색 (limit 없이)
+            logger.info(f"🔍 KBZ 테이블 title로 검색: {search_title}")
+            if search_subtitle:
+                logger.info(f"🔍 KBZ 테이블 sub_title로도 검색 가능: {search_subtitle}")
+            
+            # 3. Qdrant에서 title과 sub_title로 검색 (정확한 매칭 + 부분 매칭 시도)
             try:
+                # 먼저 정확한 title로 검색
                 results = self.esg_manual_rag.search_similar(search_title, limit=limit or 100)
+                
+                # title로 찾지 못했고 sub_title이 있으면 sub_title로 검색
+                if (not results or len(results) == 0) and search_subtitle:
+                    logger.info(f"🔍 title 매칭 실패, sub_title로 검색 시도: {search_subtitle}")
+                    results = self.esg_manual_rag.search_similar(search_subtitle, limit=limit or 100)
+                    if results and len(results) > 0:
+                        logger.info(f"✅ sub_title '{search_subtitle}'로 {len(results)}개 결과 발견")
+                
+                # 여전히 없으면 부분 매칭 시도
+                if not results or len(results) == 0:
+                    logger.info(f"🔍 정확한 매칭 실패, 부분 매칭 시도: {search_title}")
+                    
+                    # title에서 키워드 추출 (예: "사업장 안전보건 활동" -> "안전보건")
+                    keywords = search_title.split()
+                    if len(keywords) > 1:
+                        # 가장 중요한 키워드들로 검색
+                        important_keywords = [kw for kw in keywords if len(kw) > 1]
+                        for keyword in important_keywords[:3]:  # 상위 3개 키워드만 시도
+                            logger.info(f"🔍 키워드 검색 시도: {keyword}")
+                            keyword_results = self.esg_manual_rag.search_similar(keyword, limit=limit or 50)
+                            if keyword_results and len(keyword_results) > 0:
+                                results = keyword_results
+                                logger.info(f"✅ 키워드 '{keyword}'로 {len(results)}개 결과 발견")
+                                break
+                
                 if isinstance(results, list) and results:
-                    logger.info(f"✅ Qdrant에서 {len(results)}개 결과 발견")
+                    logger.info(f"✅ Qdrant에서 총 {len(results)}개 결과 발견")
                     
                     # 중복 제거 (chunk_id 기준) 및 점수 순 정렬
                     seen_chunks = set()
