@@ -2,6 +2,7 @@
 Report Service main ㅡ MSA 프랙탈 구조
 """
 import logging, sys, traceback, os
+import threading  # 🔥 워밍업용
 
 # ---------- Logging ----------
 logging.basicConfig(
@@ -82,6 +83,32 @@ except Exception as e:
 
 # ---------- Include Routers ----------
 app.include_router(report_router)
+
+# ---------- RAG Embedder Warm-up (콜드스타트 제거) ----------
+def _warmup_rag_embedder():
+    """
+    RAG 임베더(bge-m3/openai) 콜드스타트 제거용 워밍업.
+    실패해도 서비스는 계속 동작한다.
+    """
+    try:
+        logger.info("🔥 RAG embedder warm-up 시작...")
+        from .domain.service.rag_utils import RAGUtils
+        rag = RAGUtils(collection_name="esg_manual")  # Qdrant 차원 기반으로 임베더 자동 선택
+        _ = rag.encode(["warmup ping"])               # 임베더 로딩 트리거
+        logger.info("✅ RAG embedder warm-up completed")
+    except Exception as e:
+        # 워밍업 실패해도 치명적이지 않으므로 경고만 남긴다.
+        logger.warning(f"⚠️ RAG warm-up skipped: {e}")
+        logger.debug("Warm-up stacktrace:", exc_info=True)
+
+@app.on_event("startup")
+async def warmup_on_startup():
+    # 필요 시 비활성화: DISABLE_RAG_WARMUP=1
+    if os.getenv("DISABLE_RAG_WARMUP") == "1":
+        logger.info("⏭️ RAG warm-up disabled via env.")
+        return
+    # 논블로킹 백그라운드로 워밍업 실행 (부팅/헬스체크 지연 없음)
+    threading.Thread(target=_warmup_rag_embedder, daemon=True).start()
 
 # ---------- Root Route ----------
 logger.info("🏠 Root Route 설정 중...")
