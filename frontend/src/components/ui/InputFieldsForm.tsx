@@ -13,7 +13,20 @@ export default function InputFieldsForm({
 }) {
   const [data, setData] = useState<Record<string, any>>(value || {});
 
-  useEffect(() => setData(value || {}), [value]);
+  // value가 변경될 때만 data를 업데이트 (초기화가 아닌 경우)
+  useEffect(() => {
+    // value가 있고, 현재 data와 다른 경우에만 업데이트
+    if (value && Object.keys(value).length > 0) {
+      setData(prev => {
+        const newData = { ...prev, ...value };
+        // 실제로 변경된 경우에만 업데이트
+        if (JSON.stringify(newData) !== JSON.stringify(prev)) {
+          return newData;
+        }
+        return prev;
+      });
+    }
+  }, [value]);
 
   const set = (k: string, v: any) => {
     const next = { ...data, [k]: v };
