@@ -230,25 +230,6 @@ class CompanyListResponse(BaseModel):
     message: Optional[str] = None
 
 
-class CompanyCreateRequest(BaseModel):
-    """회사 생성 요청"""
-    company_name: str
-    tier1: Optional[str] = None
-
-
-class CompanyUpdateRequest(BaseModel):
-    """회사 수정 요청"""
-    company_name: Optional[str] = None
-    tier1: Optional[str] = None
-
-
-class CompanyDeleteResponse(BaseModel):
-    """회사 삭제 응답"""
-    status: str = "success"
-    company_id: int
-    message: str = "회사가 성공적으로 삭제되었습니다."
-
-
 # ===== Error Response Models =====
 
 class ErrorResponse(BaseModel):
