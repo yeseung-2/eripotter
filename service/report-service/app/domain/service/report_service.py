@@ -22,7 +22,6 @@ import json
 # LLM 관련 (최신 langchain-openai)
 from langchain_openai import ChatOpenAI
 from langchain.schema import SystemMessage, HumanMessage
-# import httpx  # 제거됨 - 프록시 오류 방지
 
 logger = logging.getLogger(__name__)
 
@@ -51,12 +50,16 @@ class ReportService:
         OPENAI_API_KEY / OPENAI_MODEL 환경변수 사용.
         """
         try:
-            # 기본 설정으로 ChatOpenAI 초기화 (http_client 제거)
+            # ✅ 방어: 혹시 남아 있을지 모르는 프록시 ENV 무시 (OpenAI 1.x 'proxies' 인자 미지원 이슈 회피)
+            for k in ("OPENAI_PROXY", "HTTP_PROXY", "HTTPS_PROXY",
+                      "http_proxy", "https_proxy", "ALL_PROXY"):
+                os.environ.pop(k, None)
+
             return ChatOpenAI(
                 model=os.getenv("OPENAI_MODEL", "gpt-4o"),
                 temperature=0.3,
                 max_tokens=3000,
-                openai_api_key=os.getenv("OPENAI_API_KEY")  # api_key -> openai_api_key로 수정
+                openai_api_key=os.getenv("OPENAI_API_KEY")  # api_key -> openai_api_key
             )
         except Exception as e:
             logger.error(f"ChatOpenAI 초기화 실패: {e}")
@@ -896,5 +899,3 @@ class ReportService:
         for k, v in inputs.items():
             out[k] = "" if isinstance(v, dict) else v
         return out
-
-
