@@ -7,15 +7,28 @@ from datetime import datetime
 import logging
 
 # Domain imports
+from ..domain.repository.monitoring_repository import MonitoringRepository
 from ..domain.service.monitoring_service import MonitoringService
 from ..domain.controller.monitoring_controller import MonitoringController
+from ..domain.model.monitoring_model import (
+    CompanyListResponse,
+    CompanyVulnerabilityResponse,
+    SupplyChainVulnerabilityResponse,
+    CompanyAssessmentResponse,
+    SupplyChainAssessmentResponse,
+    CompanySolutionResponse
+)
 
 logger = logging.getLogger("monitoring-router")
 
 # DI 함수들
-def get_monitoring_service() -> MonitoringService:
+def get_monitoring_repository() -> MonitoringRepository:
+    """Monitoring Repository 인스턴스 생성"""
+    return MonitoringRepository()
+
+def get_monitoring_service(repository: MonitoringRepository = Depends(get_monitoring_repository)) -> MonitoringService:
     """Monitoring Service 인스턴스 생성"""
-    return MonitoringService()
+    return MonitoringService(repository)
 
 def get_monitoring_controller(service: MonitoringService = Depends(get_monitoring_service)) -> MonitoringController:
     """Monitoring Controller 인스턴스 생성"""
@@ -34,49 +47,73 @@ async def health_check():
         "message": "Monitoring service is running"
     }
 
-@monitoring_router.get("/", summary="모든 모니터링 데이터 조회")
-async def get_all_monitoring_data(
+@monitoring_router.get("/companies", summary="회사 목록 조회", response_model=CompanyListResponse)
+async def get_company_list(
     controller: MonitoringController = Depends(get_monitoring_controller)
-):
-    """모든 모니터링 데이터 조회"""
-    return controller.get_all_monitoring_data()
+) -> CompanyListResponse:
+    """회사 목록 조회"""
+    try:
+        return controller.get_company_list()
+    except Exception as e:
+        logger.error(f"❌ 회사 목록 조회 API 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"회사 목록 조회 중 오류가 발생했습니다: {str(e)}")
 
-@monitoring_router.get("/{company_id}", summary="특정 회사 모니터링 데이터 조회")
-async def get_company_monitoring_data(
-    company_id: str,
+@monitoring_router.get("/vulnerabilities/{company_name}", summary="특정 회사의 취약부문 조회", response_model=CompanyVulnerabilityResponse)
+async def get_company_vulnerabilities(
+    company_name: str,
     controller: MonitoringController = Depends(get_monitoring_controller)
-):
-    """특정 회사 모니터링 데이터 조회"""
-    return controller.get_company_monitoring_data(company_id)
+) -> CompanyVulnerabilityResponse:
+    """특정 회사의 취약부문(score=0) 조회"""
+    try:
+        return controller.get_company_vulnerabilities(company_name)
+    except Exception as e:
+        logger.error(f"❌ 회사 취약부문 조회 API 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"회사 취약부문 조회 중 오류가 발생했습니다: {str(e)}")
 
-@monitoring_router.post("/", summary="새로운 모니터링 데이터 생성")
-async def create_monitoring_data(
-    monitoring_data: dict,
+@monitoring_router.get("/supply-chain/vulnerabilities/{root_company}", summary="공급망 전체 취약부문 조회", response_model=SupplyChainVulnerabilityResponse)
+async def get_supply_chain_vulnerabilities(
+    root_company: str,
     controller: MonitoringController = Depends(get_monitoring_controller)
-):
-    """새로운 모니터링 데이터 생성"""
-    return controller.create_monitoring_data(monitoring_data)
+) -> SupplyChainVulnerabilityResponse:
+    """공급망 전체 취약부문 조회"""
+    try:
+        return controller.get_supply_chain_vulnerabilities(root_company)
+    except Exception as e:
+        logger.error(f"❌ 공급망 취약부문 조회 API 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"공급망 취약부문 조회 중 오류가 발생했습니다: {str(e)}")
 
-@monitoring_router.put("/{company_id}", summary="모니터링 데이터 업데이트")
-async def update_monitoring_data(
-    company_id: str,
-    monitoring_data: dict,
+@monitoring_router.get("/assessments/{company_name}", summary="특정 회사 Assessment 결과 조회", response_model=CompanyAssessmentResponse)
+async def get_company_assessment(
+    company_name: str,
     controller: MonitoringController = Depends(get_monitoring_controller)
-):
-    """모니터링 데이터 업데이트"""
-    return controller.update_monitoring_data(company_id, monitoring_data)
+) -> CompanyAssessmentResponse:
+    """특정 회사의 Assessment 결과 조회"""
+    try:
+        return controller.get_company_assessment(company_name)
+    except Exception as e:
+        logger.error(f"❌ 회사 Assessment 결과 조회 API 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"회사 Assessment 결과 조회 중 오류가 발생했습니다: {str(e)}")
 
-@monitoring_router.delete("/{company_id}", summary="모니터링 데이터 삭제")
-async def delete_monitoring_data(
-    company_id: str,
+@monitoring_router.get("/supply-chain/assessments/{root_company}", summary="공급망 전체 Assessment 결과 조회", response_model=SupplyChainAssessmentResponse)
+async def get_supply_chain_assessment(
+    root_company: str,
     controller: MonitoringController = Depends(get_monitoring_controller)
-):
-    """모니터링 데이터 삭제"""
-    return controller.delete_monitoring_data(company_id)
+) -> SupplyChainAssessmentResponse:
+    """공급망 전체 Assessment 결과 조회"""
+    try:
+        return controller.get_supply_chain_assessment(root_company)
+    except Exception as e:
+        logger.error(f"❌ 공급망 Assessment 결과 조회 API 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"공급망 Assessment 결과 조회 중 오류가 발생했습니다: {str(e)}")
 
-@monitoring_router.get("/metrics", summary="서비스 메트릭 조회")
-async def get_metrics(
+@monitoring_router.get("/solutions/{company_name}", summary="특정 회사 솔루션 목록 조회", response_model=CompanySolutionResponse)
+async def get_company_solutions(
+    company_name: str,
     controller: MonitoringController = Depends(get_monitoring_controller)
-):
-    """서비스 메트릭 조회"""
-    return controller.get_metrics()
+) -> CompanySolutionResponse:
+    """특정 회사의 솔루션 목록 조회"""
+    try:
+        return controller.get_company_solutions(company_name)
+    except Exception as e:
+        logger.error(f"❌ 회사 솔루션 목록 조회 API 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"회사 솔루션 목록 조회 중 오류가 발생했습니다: {str(e)}")
