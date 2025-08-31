@@ -57,7 +57,7 @@ def cors_headers_for(request: Request):
 ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL", "http://account-service:8001")
 ASSESSMENT_SERVICE_URL = os.getenv("ASSESSMENT_SERVICE_URL", "http://localhost:8002")
 CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "http://localhost:8003")
-REPORT_SERVICE_URL = os.getenv("REPORT_SERVICE_URL", "http://localhost:8007")
+REPORT_SERVICE_URL = os.getenv("REPORT_SERVICE_URL", "http://report-service:8007")
 TIMEOUT = float(os.getenv("UPSTREAM_TIMEOUT", "20"))
 
 @app.get("/health")
@@ -141,6 +141,9 @@ async def report_root(request: Request):
 
 @app.api_route("/api/report/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def report_any(path: str, request: Request):
+    logger.info(f"📡 Report Service 요청: {request.method} {request.url.path}")
+    logger.info(f"🔗 Report Service URL: {REPORT_SERVICE_URL}")
+    logger.info(f"📝 Path: {path}")
     return await _proxy(request, REPORT_SERVICE_URL, path)
 
 # Auth 라우터를 두 경로에 마운트

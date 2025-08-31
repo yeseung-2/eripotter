@@ -29,7 +29,11 @@ export default function InputFieldsForm({
             {f.label}
             {f.required && <span className="text-red-500 ml-1">*</span>}
           </label>
-          {f.description && <p className="text-xs text-slate-500 mt-1">{f.description}</p>}
+          <div className="flex gap-2 text-xs text-slate-500 mt-1">
+            {f.description && <span>{f.description}</span>}
+            {f.unit && <span className="text-blue-600">단위: {f.unit}</span>}
+            {f.year && <span className="text-green-600">연도: {f.year}</span>}
+          </div>
 
           {f.type === "select" ? (
             <select
