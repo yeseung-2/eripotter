@@ -11,4 +11,4 @@ import type {
 } from "@/types/report";
 
 export const getAllIndicators = (): Promise<IndicatorListResponse> =>
-  api("/report/indicators");
+  api("/api/report/indicators");

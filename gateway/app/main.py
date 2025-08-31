@@ -72,6 +72,7 @@ async def options_handler(path: str, request: Request):
 async def _proxy(request: Request, upstream_base: str, rest: str):
     url = upstream_base.rstrip("/") + "/" + rest.lstrip("/")
     logger.info(f"🔗 프록시 요청: {request.method} {request.url.path} -> {url}")
+    logger.info(f"📝 상세 정보: upstream_base={upstream_base}, rest={rest}")
 
     headers = dict(request.headers)
     headers.pop("host", None)
@@ -140,15 +141,7 @@ async def report_root(request: Request):
 
 @app.api_route("/api/report/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def report_any(path: str, request: Request):
-    # /api/report/indicators -> /indicators로 매핑
-    if path.startswith("indicators"):
-        return await _proxy(request, REPORT_SERVICE_URL, f"/{path}")
-    return await _proxy(request, REPORT_SERVICE_URL, f"/{path}")
-
-# /report/indicators 직접 라우팅
-@app.api_route("/report/indicators", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
-async def report_indicators_direct(request: Request):
-    return await _proxy(request, REPORT_SERVICE_URL, "/indicators")
+    return await _proxy(request, REPORT_SERVICE_URL, path)
 
 # Auth 라우터를 두 경로에 마운트
 app.include_router(auth_router, prefix="/api/auth")  # 프론트엔드 API 요청용
