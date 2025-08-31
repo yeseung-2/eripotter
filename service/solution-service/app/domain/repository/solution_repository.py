@@ -63,15 +63,26 @@ class SolutionEntity(BaseModel):
 
 
 """
-Solution Repository - Mock Repository Layer
-DB 연결 없이 임시 데이터 반환
+Solution Repository - Assessment Service 연동
+실제 assessment 데이터를 기반으로 취약 부문 조회
 """
 
+import requests
+import logging
 from typing import List, Dict, Union, Optional
 from datetime import datetime
 
+logger = logging.getLogger("solution-service")
+
 class SolutionRepository:
-    # 샘플 DB 역할을 하는 in-memory 스토리지
+    def __init__(self):
+        # Assessment Service URL
+        self.assessment_service_url = "http://assessment-service:8002"
+        # 개발 환경에서는 localhost 사용
+        if not self.assessment_service_url.startswith("http"):
+            self.assessment_service_url = "http://localhost:8002"
+    
+    # KESG 데이터 (Mock - 실제로는 DB에서 조회)
     _kesg = [
         {
             "id": 1,
@@ -111,6 +122,7 @@ class SolutionRepository:
         }
     ]
 
+    # Mock assessment 데이터 (개발용 - 실제로는 assessment-service에서 조회)
     _assessments = [
         {
             "id": 101,
@@ -147,6 +159,71 @@ class SolutionRepository:
     # === Repository 메서드 ===
     def get_vulnerable_sections(self, company_name: str) -> List[Dict[str, Union[str, int, None]]]:
         """assessment에서 score=0인 항목 + kesg 데이터 join"""
+        try:
+            # 1. Assessment Service에서 실제 assessment 데이터 조회
+            assessment_results = self._get_assessment_results_from_service(company_name)
+            
+            # 2. score=0인 항목만 필터링
+            vulnerable = [a for a in assessment_results if a.get("score", 1) == 0]
+            
+            logger.info(f"📝 취약 부문 조회: {len(vulnerable)}개 score=0 항목 발견")
+            
+            # 3. KESG 데이터와 조인
+            kesg_map = {k["id"]: k for k in self._kesg}
+            results = []
+            
+            for v in vulnerable:
+                # score=0 조건을 한번 더 확인
+                if v.get("score", 1) != 0:
+                    logger.warning(f"⚠️ score가 0이 아닌 항목 발견: {v}")
+                    continue
+                    
+                kesg_item = kesg_map.get(v["question_id"])
+                if kesg_item:
+                    results.append({**v, **{
+                        "item_name": kesg_item["item_name"],
+                        "item_desc": kesg_item["item_desc"],
+                        "classification": kesg_item["classification"],
+                        "domain": kesg_item["domain"]
+                    }})
+                else:
+                    logger.warning(f"⚠️ KESG 데이터를 찾을 수 없음: question_id={v['question_id']}")
+            
+            logger.info(f"✅ 취약 부문 조회 완료: {len(results)}개 항목")
+            return results
+            
+        except Exception as e:
+            logger.error(f"❌ 취약 부문 조회 실패: {e}")
+            # 실패 시 Mock 데이터 사용 (fallback)
+            logger.info("🔄 Mock 데이터로 fallback")
+            return self._get_vulnerable_sections_mock(company_name)
+    
+    def _get_assessment_results_from_service(self, company_name: str) -> List[Dict[str, Union[str, int, None]]]:
+        """Assessment Service에서 실제 assessment 결과 조회"""
+        try:
+            url = f"{self.assessment_service_url}/assessment/assessment-results/{company_name}"
+            logger.info(f"📡 Assessment Service 호출: {url}")
+            
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            
+            data = response.json()
+            assessment_results = data.get("assessment_results", [])
+            
+            logger.info(f"✅ Assessment Service 응답: {len(assessment_results)}개 결과")
+            return assessment_results
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"❌ Assessment Service 호출 실패: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"❌ Assessment Service 응답 파싱 실패: {e}")
+            raise
+    
+    def _get_vulnerable_sections_mock(self, company_name: str) -> List[Dict[str, Union[str, int, None]]]:
+        """Mock 데이터로 취약 부문 조회 (fallback)"""
+        logger.info("🔄 Mock 데이터로 취약 부문 조회")
+        
         # 반드시 score == 0인 항목만 필터링
         vulnerable = [a for a in self._assessments if a["company_name"] == company_name and a["score"] == 0]
         kesg_map = {k["id"]: k for k in self._kesg}

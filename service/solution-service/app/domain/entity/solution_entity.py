@@ -75,6 +75,43 @@ class KesgEntity(Base):
         }
 
 
+class AssessmentEntity(Base):
+    """Assessment 테이블 엔티티"""
+    __tablename__ = "assessment"
+
+    # Primary Key
+    id = Column(Integer, primary_key=True, autoincrement=True, comment="Assessment ID")
+
+    # Foreign Keys / 식별자
+    company_name = Column(Text, nullable=False, index=True, comment="회사명")
+    question_id = Column(Integer, nullable=False, index=True, comment="KESG 문항 ID")
+
+    # 응답 정보
+    question_type = Column(Text, nullable=False, comment="질문 타입")
+    level_no = Column(Integer, nullable=True, comment="선택된 레벨 번호 (3단계형, 5단계형용)")
+    choice_ids = Column(ARRAY(Integer), nullable=True, comment="선택된 선택지 ID 배열 (5선택형용)")
+    score = Column(Integer, nullable=False, comment="점수")
+
+    # 타임스탬프
+    timestamp = Column(TIMESTAMP, nullable=True, server_default=func.now(), comment="제출 시간 (기본값 now())")
+
+    def __repr__(self):
+        return f"<AssessmentEntity(id={self.id}, company_name='{self.company_name}', question_id={self.question_id}, score={self.score})>"
+
+    def to_dict(self) -> Dict[str, object]:
+        """엔티티를 딕셔너리로 변환"""
+        return {
+            'id': self.id,
+            'company_name': self.company_name,
+            'question_id': self.question_id,
+            'question_type': self.question_type,
+            'level_no': self.level_no,
+            'choice_ids': self.choice_ids,
+            'score': self.score,
+            'timestamp': self.timestamp
+        }
+
+
 class SolutionEntity(Base):
     """Solution 테이블 엔티티"""
     __tablename__ = "solution"

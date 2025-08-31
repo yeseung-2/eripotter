@@ -23,6 +23,17 @@ export interface AssessmentResult {
   item_desc: string;
   classification: string;
   domain: string;
+  levels_json?: Array<{
+    level_no: number;
+    label: string;
+    desc: string;
+    score: number;
+  }>;
+  choices_json?: Array<{
+    id: number;
+    text: string;
+  }>;
+  weight?: number; // KESG 테이블의 weight 추가
 }
 
 export interface VulnerableSection {
@@ -59,6 +70,8 @@ export default function AssessmentResultPage() {
   const [solutions, setSolutions] = useState<SolutionSubmissionResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [generatingSolutions, setGeneratingSolutions] = useState(false);
+  const [totalScore, setTotalScore] = useState<number>(0);
+  const [maxPossibleScore, setMaxPossibleScore] = useState<number>(0);
   const router = useRouter();
 
   useEffect(() => {
@@ -71,8 +84,6 @@ export default function AssessmentResultPage() {
         
         // 자가진단 결과 데이터 가져오기
         fetchAssessmentResults();
-        // 취약 부문 데이터 가져오기
-        fetchVulnerableSections();
         // 솔루션은 버튼 클릭 시에만 생성되므로 초기 로딩 시에는 불러오지 않음
       } catch (error) {
         console.error('응답 데이터 파싱 오류:', error);
@@ -83,6 +94,14 @@ export default function AssessmentResultPage() {
     }
     setLoading(false);
   }, [router]);
+
+  // Assessment 결과가 변경될 때마다 취약 부문 업데이트 및 총 점수 계산
+  useEffect(() => {
+    if (assessmentResults.length > 0) {
+      fetchVulnerableSections();
+      calculateTotalScore();
+    }
+  }, [assessmentResults]);
 
   const fetchAssessmentResults = async () => {
     try {
@@ -100,15 +119,11 @@ export default function AssessmentResultPage() {
 
   const fetchVulnerableSections = async () => {
     try {
-      const response = await fetch('http://localhost:8002/assessment/vulnerable-sections/테스트회사');
-      if (response.ok) {
-        const data = await response.json();
-        setVulnerableSections(data.vulnerable_sections || []);
-      } else {
-        console.error('취약 부문 데이터를 불러오는데 실패했습니다.');
-      }
+      // Assessment 결과에서 score=0인 항목을 직접 필터링하여 취약 부문으로 설정
+      const vulnerableFromAssessment = assessmentResults.filter(result => result.score === 0);
+      setVulnerableSections(vulnerableFromAssessment);
     } catch (error) {
-      console.error('취약 부문 API 호출 오류:', error);
+      console.error('취약 부문 데이터 처리 오류:', error);
     }
   };
 
@@ -142,7 +157,7 @@ export default function AssessmentResultPage() {
         if (data && data.length > 0) {
           alert(`${data.length}개의 솔루션이 성공적으로 생성되었습니다!`);
         } else {
-          alert('생성할 취약 부문이 없습니다. (score=0인 항목이 없음)');
+          alert('생성할 취약 부문이 없습니다.');
         }
       } else {
         console.error('솔루션 생성에 실패했습니다.');
@@ -154,6 +169,23 @@ export default function AssessmentResultPage() {
     } finally {
       setGeneratingSolutions(false);
     }
+  };
+
+  const calculateTotalScore = () => {
+    let total = 0;
+    let maxScore = 0;
+    
+    assessmentResults.forEach(result => {
+      const weight = result.weight || 1.0; // weight가 없으면 기본값 1.0
+      const weightedScore = result.score * weight;
+      total += weightedScore;
+      
+      // 최대 가능 점수 계산 (100점 * weight)
+      maxScore += 100 * weight;
+    });
+    
+    setTotalScore(Math.round(total * 100) / 100); // 소수점 2자리까지 반올림
+    setMaxPossibleScore(Math.round(maxScore * 100) / 100);
   };
 
   const handleRetakeAssessment = () => {
@@ -168,13 +200,27 @@ export default function AssessmentResultPage() {
 
   const getResponseText = (result: AssessmentResult) => {
     if (result.question_type === 'five_level' || result.question_type === 'three_level') {
-      return result.level_no ? `${result.level_no}단계` : '미응답';
-    } else if (result.question_type === 'five_choice') {
-      if (result.choice_ids && result.choice_ids.length > 0) {
-        return `${result.choice_ids.length}개 선택`;
-      } else {
-        return '미응답';
+      if (!result.level_no) return '미응답';
+      
+      // levels_json에서 해당 level_no의 desc 찾기
+      const levelInfo = result.levels_json?.find(level => level.level_no === result.level_no);
+      if (levelInfo) {
+        return `${result.level_no}단계: ${levelInfo.desc}`;
       }
+      return `${result.level_no}단계`;
+    } else if (result.question_type === 'five_choice') {
+      if (!result.choice_ids || result.choice_ids.length === 0) return '미응답';
+      
+      // choices_json에서 선택된 choice들의 text 찾기
+      const selectedChoices = result.choices_json?.filter(choice => 
+        result.choice_ids?.includes(choice.id)
+      );
+      
+      if (selectedChoices && selectedChoices.length > 0) {
+        const choiceTexts = selectedChoices.map(choice => choice.text).join(', ');
+        return `${result.choice_ids.length}개 선택: ${choiceTexts}`;
+      }
+      return `${result.choice_ids.length}개 선택`;
     }
     return '미응답';
   };
@@ -234,13 +280,96 @@ export default function AssessmentResultPage() {
         }}>
           자가진단 결과
         </h1>
+        
+        {/* 총 점수 표시 섹션 */}
+        {assessmentResults.length > 0 && (
+          <div style={{
+            backgroundColor: '#e8f5e8',
+            border: '2px solid #28a745',
+            borderRadius: '12px',
+            padding: '24px',
+            marginBottom: '40px',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: '20px',
+              flexWrap: 'wrap'
+            }}>
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <span style={{
+                  fontSize: '16px',
+                  color: '#495057',
+                  fontWeight: '500'
+                }}>
+                  총 점수
+                </span>
+                <span style={{
+                  fontSize: '36px',
+                  color: '#28a745',
+                  fontWeight: '700'
+                }}>
+                  {totalScore}점
+                </span>
+              </div>
+              
+              <div style={{
+                width: '2px',
+                height: '60px',
+                backgroundColor: '#28a745',
+                opacity: '0.3'
+              }} />
+              
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <span style={{
+                  fontSize: '16px',
+                  color: '#495057',
+                  fontWeight: '500'
+                }}>
+                  최대 점수
+                </span>
+                <span style={{
+                  fontSize: '24px',
+                  color: '#6c757d',
+                  fontWeight: '600'
+                }}>
+                  {maxPossibleScore}점
+                </span>
+              </div>
+              
+
+            </div>
+            
+            <p style={{
+              fontSize: '14px',
+              color: '#6c757d',
+              marginTop: '12px',
+              marginBottom: '0'
+            }}>
+              * 총 점수 = Σ(문항별 점수 × 가중치)
+            </p>
+          </div>
+        )}
+
         <p style={{
           fontSize: '16px',
           color: '#7f8c8d',
           textAlign: 'center',
           marginBottom: '40px'
         }}>
-          ESG 자가진단 결과를 확인하세요.
+
         </p>
 
         {/* 자가진단 결과 섹션 */}
@@ -251,7 +380,7 @@ export default function AssessmentResultPage() {
             color: '#2c3e50',
             marginBottom: '20px'
           }}>
-            자가진단 결과
+            
           </h3>
           
           <div style={{
@@ -346,47 +475,104 @@ export default function AssessmentResultPage() {
                     <div style={{
                       display: 'flex',
                       justifyContent: 'space-between',
-                      alignItems: 'center'
+                      alignItems: 'flex-start'
                     }}>
                       <div style={{
                         display: 'flex',
-                        alignItems: 'center',
-                        gap: '16px'
+                        flexDirection: 'column',
+                        gap: '8px',
+                        flex: 1
                       }}>
                         <span style={{
                           fontSize: '14px',
                           color: '#495057',
                           fontWeight: '500'
                         }}>
-                          응답 결과: <strong>{getResponseText(result)}</strong>
+                          응답 결과:
                         </span>
-                        <span style={{
+                        <div style={{
                           fontSize: '14px',
-                          color: '#495057',
-                          fontWeight: '500'
+                          color: '#2c3e50',
+                          lineHeight: '1.6',
+                          backgroundColor: '#f8f9fa',
+                          padding: '12px',
+                          borderRadius: '6px',
+                          border: '1px solid #e9ecef'
                         }}>
-                          문항 유형: <strong>{result.question_type}</strong>
-                        </span>
+                          {getResponseText(result)}
+                        </div>
                       </div>
                       <div style={{
                         display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
+                        flexDirection: 'column',
+                        alignItems: 'flex-end',
+                        gap: '8px',
+                        marginLeft: '16px'
                       }}>
-                        <span style={{
-                          fontSize: '14px',
-                          color: '#28a745',
-                          fontWeight: '600'
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
                         }}>
-                          점수:
-                        </span>
-                        <span style={{
-                          fontSize: '18px',
-                          color: '#28a745',
-                          fontWeight: '700'
-                        }}>
-                          {result.score}점
-                        </span>
+                          <span style={{
+                            fontSize: '14px',
+                            color: '#28a745',
+                            fontWeight: '600'
+                          }}>
+                            점수:
+                          </span>
+                          <span style={{
+                            fontSize: '18px',
+                            color: '#28a745',
+                            fontWeight: '700'
+                          }}>
+                            {result.score}점
+                          </span>
+                        </div>
+                        {result.weight && result.weight !== 1.0 && (
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}>
+                            <span style={{
+                              fontSize: '12px',
+                              color: '#6c757d',
+                              fontWeight: '500'
+                            }}>
+                              가중치:
+                            </span>
+                            <span style={{
+                              fontSize: '14px',
+                              color: '#6c757d',
+                              fontWeight: '600'
+                            }}>
+                              {result.weight}
+                            </span>
+                          </div>
+                        )}
+                        {result.weight && result.weight !== 1.0 && (
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}>
+                            <span style={{
+                              fontSize: '12px',
+                              color: '#007bff',
+                              fontWeight: '500'
+                            }}>
+                              가중점수:
+                            </span>
+                            <span style={{
+                              fontSize: '14px',
+                              color: '#007bff',
+                              fontWeight: '600'
+                            }}>
+                              {Math.round(result.score * result.weight * 100) / 100}점
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -437,7 +623,7 @@ export default function AssessmentResultPage() {
               textAlign: 'center',
               fontWeight: '500'
             }}>
-              ⚠️ 다음 부문들은 개선이 필요한 취약 영역입니다.
+              ⚠️ 다음 부문들은 자가진단 점수가 0점인 취약 영역입니다.
             </p>
           </div>
           
@@ -547,23 +733,23 @@ export default function AssessmentResultPage() {
                 </div>
               ))}
             </div>
-          ) : (
-            <div style={{
-              backgroundColor: '#f8f9fa',
-              border: '1px solid #dee2e6',
-              borderRadius: '8px',
-              padding: '40px',
-              textAlign: 'center'
-            }}>
-              <p style={{
-                fontSize: '16px',
-                color: '#6c757d',
-                margin: '0'
+                      ) : (
+              <div style={{
+                backgroundColor: '#f8f9fa',
+                border: '1px solid #dee2e6',
+                borderRadius: '8px',
+                padding: '40px',
+                textAlign: 'center'
               }}>
-                취약 부문이 없습니다. 모든 영역에서 양호한 성과를 보이고 있습니다.
-              </p>
-            </div>
-          )}
+                <p style={{
+                  fontSize: '16px',
+                  color: '#6c757d',
+                  margin: '0'
+                }}>
+                  자가진단 점수가 0점인 취약 부문이 없습니다.
+                </p>
+              </div>
+            )}
         </div>
 
         {/* 솔루션 섹션 */}
@@ -701,7 +887,7 @@ export default function AssessmentResultPage() {
                 margin: '0',
                 marginBottom: '20px'
               }}>
-                아직 생성된 솔루션이 없습니다. 아래 버튼을 클릭하여 취약 부문(score=0)에 대한 AI 솔루션을 생성해보세요.
+                아직 생성된 솔루션이 없습니다. 아래 버튼을 클릭하여 취약 부문에 대한 AI 솔루션을 생성해보세요.
               </p>
             </div>
           )}
@@ -744,7 +930,7 @@ export default function AssessmentResultPage() {
               }
             }}
           >
-            {generatingSolutions ? '솔루션 생성 중...' : '취약 부문 솔루션 생성하기'}
+            {generatingSolutions ? '솔루션 생성 중...' : '취약부문 솔루션 생성하기'}
           </button>
           
           <button 

@@ -1,6 +1,17 @@
 from pydantic import BaseModel
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Union
 from datetime import datetime
+
+class AssessmentEntity(BaseModel):
+    """Assessment 테이블 엔티티 - Repository의 AssessmentEntity와 동일"""
+    id: int
+    company_name: str
+    question_id: int
+    question_type: str
+    level_no: Optional[int] = None
+    choice_ids: Optional[List[int]] = None
+    score: int
+    timestamp: Optional[datetime] = None
 
 class KesgItem(BaseModel):
     """KESG 항목 1개 - Repository의 KesgEntity 구조와 동일"""
@@ -60,4 +71,54 @@ class SolutionListResponse(BaseModel):
     status: str
     company_name: str
     solutions: List[SolutionSubmissionResponse]
+    total_count: int
+
+# === Assessment 관련 파생 모델 ===
+
+class VulnerableSection(BaseModel):
+    """취약 부문 정보 - Assessment + KESG 조인 결과"""
+    id: int
+    company_name: str
+    question_id: int
+    question_type: str
+    level_no: Optional[int] = None
+    choice_ids: Optional[List[int]] = None
+    score: int
+    timestamp: Optional[datetime] = None
+    # KESG 정보
+    item_name: Optional[str] = None
+    item_desc: Optional[str] = None
+    classification: Optional[str] = None
+    domain: Optional[str] = None
+
+class AssessmentResult(BaseModel):
+    """Assessment 결과 - score 포함"""
+    id: int
+    company_name: str
+    question_id: int
+    question_type: str
+    level_no: Optional[int] = None
+    choice_ids: Optional[List[int]] = None
+    score: int
+    timestamp: Optional[datetime] = None
+    # KESG 정보
+    item_name: Optional[str] = None
+    item_desc: Optional[str] = None
+    classification: Optional[str] = None
+    domain: Optional[str] = None
+    levels_json: Optional[List[Dict[str, Union[str, int]]]] = None
+    choices_json: Optional[List[Dict[str, Union[str, int]]]] = None
+
+class AssessmentResultsResponse(BaseModel):
+    """Assessment 결과 목록 응답"""
+    status: str
+    company_name: str
+    assessment_results: List[AssessmentResult]
+    total_count: int
+
+class VulnerableSectionsResponse(BaseModel):
+    """취약 부문 목록 응답"""
+    status: str
+    company_name: str
+    vulnerable_sections: List[VulnerableSection]
     total_count: int

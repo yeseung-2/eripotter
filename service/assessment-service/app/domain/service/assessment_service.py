@@ -299,7 +299,10 @@ class AssessmentService:
                         'item_name': kesg_data.get('item_name'),
                         'item_desc': kesg_data.get('item_desc'),
                         'classification': kesg_data.get('classification'),
-                        'domain': kesg_data.get('domain')
+                        'domain': kesg_data.get('domain'),
+                        'levels_json': kesg_data.get('levels_json'),
+                        'choices_json': kesg_data.get('choices_json'),
+                        'weight': kesg_data.get('weight')
                     }
                 else:
                     detailed_result = {
@@ -307,7 +310,10 @@ class AssessmentService:
                         'item_name': f'문항 {question_id}',
                         'item_desc': '설명 없음',
                         'classification': 'N/A',
-                        'domain': 'N/A'
+                        'domain': 'N/A',
+                        'levels_json': None,
+                        'choices_json': None,
+                        'weight': 1.0
                     }
                 
                 detailed_results.append(detailed_result)
