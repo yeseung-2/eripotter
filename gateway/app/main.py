@@ -57,6 +57,7 @@ def cors_headers_for(request: Request):
 ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL", "http://account-service:8001")
 ASSESSMENT_SERVICE_URL = os.getenv("ASSESSMENT_SERVICE_URL", "http://localhost:8002")
 CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "http://localhost:8003")
+SHARING_SERVICE_URL = os.getenv("SHARING_SERVICE_URL", "http://localhost:8008")
 REPORT_SERVICE_URL = os.getenv("REPORT_SERVICE_URL", "http://localhost:8007")
 TIMEOUT = float(os.getenv("UPSTREAM_TIMEOUT", "20"))
 
@@ -149,6 +150,15 @@ async def report_any(path: str, request: Request):
 @app.api_route("/report/indicators", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def report_indicators_direct(request: Request):
     return await _proxy(request, REPORT_SERVICE_URL, "/indicators")
+
+# Sharing service 라우팅
+@app.api_route("/sharing", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+async def sharing_root(request: Request):
+    return await _proxy(request, SHARING_SERVICE_URL, "/sharing")
+
+@app.api_route("/sharing/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+async def sharing_any(path: str, request: Request):
+    return await _proxy(request, SHARING_SERVICE_URL, f"/sharing/{path}")
 
 # Auth 라우터를 두 경로에 마운트
 app.include_router(auth_router, prefix="/api/auth")  # 프론트엔드 API 요청용

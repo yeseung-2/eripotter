@@ -163,9 +163,6 @@ services:
     build: ./service/sharing-service
     ports:
       - "8008:8008"
-    volumes:
-      - ./service/sharing-service/app:/app/app
-      - ./service/sharing-service/requirements.txt:/app/requirements.txt
     environment:
       - PYTHONUNBUFFERED=1
       - DATABASE_URL=${DATABASE_URL}

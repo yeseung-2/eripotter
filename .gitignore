@@ -85,3 +85,11 @@ ENV/
 
 # Alembic
 alembic/*.ini
+
+# Temporary/Test files
+**/test_*.py
+**/check_*.py
+**/*_test.py
+**/*.backup
+*-commands.txt
+gpu_test.py
