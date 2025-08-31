@@ -112,6 +112,9 @@ export default function PartnerDataUploadPage() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedDetailData, setSelectedDetailData] = useState<any>(null);
   
+  // State for selected substances in history
+  const [selectedSubstances, setSelectedSubstances] = useState<Set<string>>(new Set());
+  
   const [partnerInfo] = useState({
      name: 'LG화학',
      companyId: 'LG001',
@@ -627,6 +630,40 @@ export default function PartnerDataUploadPage() {
     alert('매핑이 저장되었습니다.');
     setShowMappingModal(false);
     setSelectedMappingData(null);
+  };
+
+  // Substance selection functions
+  const toggleSelectSubstance = (substanceId: string) => {
+    setSelectedSubstances(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(substanceId)) {
+        newSet.delete(substanceId);
+      } else {
+        newSet.add(substanceId);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllSubstances = () => {
+    setSelectedSubstances(new Set(substanceHistory.map(substance => substance.id)));
+  };
+
+  const deselectAllSubstances = () => {
+    setSelectedSubstances(new Set());
+  };
+
+  const deleteSelectedSubstances = () => {
+    if (selectedSubstances.size === 0) {
+      alert('삭제할 항목을 선택해주세요.');
+      return;
+    }
+    
+    if (confirm(`선택한 ${selectedSubstances.size}개 항목을 삭제하시겠습니까?`)) {
+      setSubstanceHistory(prev => prev.filter(substance => !selectedSubstances.has(substance.id)));
+      setSelectedSubstances(new Set());
+      alert('선택한 항목이 삭제되었습니다.');
+    }
   };
 
   // 자동 매핑 시작
@@ -1463,10 +1500,10 @@ export default function PartnerDataUploadPage() {
                           <p className="text-2xl font-bold text-gray-900">
                             {getFilteredHistory().filter(item => item.status === 'failed').length}
                 </p>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
                   {/* Upload History Table */}
                   <div className="overflow-x-auto">
@@ -1555,7 +1592,7 @@ export default function PartnerDataUploadPage() {
                         ))}
                       </tbody>
                     </table>
-                  </div>
+            </div>
 
                   {getFilteredHistory().length === 0 && (
                     <div className="text-center py-8">
@@ -1569,12 +1606,40 @@ export default function PartnerDataUploadPage() {
               {/* 물질 데이터 서브탭 */}
               {historySubTab === "substances" && (
                 <div className="p-6">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-6">물질 데이터 히스토리</h2>
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold text-gray-900">물질 데이터 히스토리</h2>
+                    
+                    {/* 선택된 항목 삭제 버튼 */}
+                    {selectedSubstances.size > 0 && (
+                      <div className="flex items-center space-x-4">
+                        <span className="text-sm text-gray-600">
+                          {selectedSubstances.size}개 항목 선택됨
+                        </span>
+                        <button
+                          onClick={deleteSelectedSubstances}
+                          className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                          <span>선택한 물질 삭제</span>
+                        </button>
+                      </div>
+                    )}
+                    </div>
                   
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <input
+                              type="checkbox"
+                              checked={selectedSubstances.size === substanceHistory.length && substanceHistory.length > 0}
+                              onChange={(e) => e.target.checked ? selectAllSubstances() : deselectAllSubstances()}
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                          </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">제품명</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">납품처</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">제조일</th>
@@ -1587,6 +1652,14 @@ export default function PartnerDataUploadPage() {
                       <tbody className="bg-white divide-y divide-gray-200">
                         {substanceHistory.map((substance) => (
                           <tr key={substance.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <input
+                                type="checkbox"
+                                checked={selectedSubstances.has(substance.id)}
+                                onChange={() => toggleSelectSubstance(substance.id)}
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              />
+                            </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                               {substance.productName}
                             </td>
@@ -1643,10 +1716,10 @@ export default function PartnerDataUploadPage() {
                           <div className="flex items-center space-x-2">
                             <div className="w-20 bg-gray-200 rounded-full h-2">
                               <div className="bg-blue-600 h-2 rounded-full" style={{ width: '80%' }}></div>
-                             </div>
+                      </div>
                             <span className="text-sm font-medium">4건</span>
-                             </div>
-                             </div>
+                      </div>
+                      </div>
                         <div className="flex justify-between items-center">
                           <span className="text-gray-600">12월</span>
                           <div className="flex items-center space-x-2">
