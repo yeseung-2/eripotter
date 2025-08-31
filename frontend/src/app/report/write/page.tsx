@@ -12,6 +12,7 @@ import Stepper from "@/components/ui/Stepper";
 import IndicatorPicker from "@/components/ui/IndicatorPicker";
 import InputFieldsForm from "@/components/ui/InputFieldsForm";
 import DraftViewer from "@/components/ui/DraftViewer";
+import ProgressChart from "@/components/ui/ProgressChart";
 
 interface ProcessedIndicator {
   indicator: Indicator;
@@ -173,8 +174,10 @@ export default function ReportWritePage() {
   // 현재 처리 중인 지표
   const currentIndicator = processedIndicators.find(p => p.indicator.indicator_id === currentIndicatorId);
 
-  // 완료된 지표 수
+  // 진행상황 계산
   const completedCount = processedIndicators.filter(p => p.status === 'draft-generated').length;
+  const inProgressCount = processedIndicators.filter(p => p.status === 'input-fields' || p.status === 'data-input').length;
+  const pendingCount = indicators.length - completedCount - inProgressCount;
 
   return (
     <div className="h-screen flex flex-col">
@@ -182,21 +185,24 @@ export default function ReportWritePage() {
       <div className="bg-white border-b px-6 py-4">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold">보고서 작성 (개별 지표 처리)</h1>
-          <div className="flex items-center space-x-4">
-            <div className="text-sm text-gray-600">
-              회사명: <input
-                className="border rounded px-2 py-1 w-40"
-                placeholder="예) 에코머티리얼즈"
-                value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
-              />
-            </div>
-            {processedIndicators.length > 0 && (
-              <div className="text-sm text-gray-600">
-                완료: {completedCount}/{indicators.length}
-              </div>
-            )}
-          </div>
+                     <div className="flex items-center space-x-4">
+             <div className="text-sm text-gray-600">
+               회사명: <input
+                 className="border rounded px-2 py-1 w-40"
+                 placeholder="예) 에코머티리얼즈"
+                 value={companyName}
+                 onChange={(e) => setCompanyName(e.target.value)}
+               />
+             </div>
+             {processedIndicators.length > 0 && (
+               <ProgressChart
+                 total={indicators.length}
+                 completed={completedCount}
+                 inProgress={inProgressCount}
+                 pending={pendingCount}
+               />
+             )}
+           </div>
         </div>
       </div>
 

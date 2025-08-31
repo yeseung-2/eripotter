@@ -57,7 +57,7 @@ def cors_headers_for(request: Request):
 ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL", "http://account-service:8001")
 ASSESSMENT_SERVICE_URL = os.getenv("ASSESSMENT_SERVICE_URL", "http://localhost:8002")
 CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "http://localhost:8003")
-REPORT_SERVICE_URL = os.getenv("REPORT_SERVICE_URL", "http://report-service:8007")
+REPORT_SERVICE_URL = os.getenv("REPORT_SERVICE_URL", "https://report-service-production-91aa.up.railway.app")
 TIMEOUT = float(os.getenv("UPSTREAM_TIMEOUT", "20"))
 
 @app.get("/health")
@@ -73,6 +73,9 @@ async def _proxy(request: Request, upstream_base: str, rest: str):
     url = upstream_base.rstrip("/") + "/" + rest.lstrip("/")
     logger.info(f"🔗 프록시 요청: {request.method} {request.url.path} -> {url}")
     logger.info(f"📝 상세 정보: upstream_base={upstream_base}, rest={rest}")
+    logger.info(f"🌐 전체 URL: {url}")
+    logger.info(f"🔧 환경변수: RAILWAY_ENVIRONMENT={os.getenv('RAILWAY_ENVIRONMENT')}")
+    logger.info(f"🔧 환경변수: REPORT_SERVICE_URL={os.getenv('REPORT_SERVICE_URL')}")
 
     headers = dict(request.headers)
     headers.pop("host", None)
