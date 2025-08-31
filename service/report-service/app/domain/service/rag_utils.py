@@ -107,11 +107,14 @@ def _get_llm():
 
     model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
     try:
-        return ChatOpenAI(
-            model=model,
-            temperature=0.7,
-            openai_api_key=os.getenv("OPENAI_API_KEY"),
-        )
+        # 명시적으로 허용된 파라미터만 전달
+        llm_params = {
+            "model": model,
+            "temperature": 0.7,
+            "openai_api_key": os.getenv("OPENAI_API_KEY")
+        }
+        
+        return ChatOpenAI(**llm_params)
     except Exception as e:
         logger.error(f"ChatOpenAI 초기화 실패: {e}")
         raise

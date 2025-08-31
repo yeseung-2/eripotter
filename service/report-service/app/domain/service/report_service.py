@@ -55,12 +55,15 @@ class ReportService:
                       "http_proxy", "https_proxy", "ALL_PROXY"):
                 os.environ.pop(k, None)
 
-            return ChatOpenAI(
-                model=os.getenv("OPENAI_MODEL", "gpt-4o"),
-                temperature=0.3,
-                max_tokens=3000,
-                openai_api_key=os.getenv("OPENAI_API_KEY")  # api_key -> openai_api_key
-            )
+            # 명시적으로 허용된 파라미터만 전달
+            llm_params = {
+                "model": os.getenv("OPENAI_MODEL", "gpt-4o"),
+                "temperature": 0.3,
+                "max_tokens": 3000,
+                "openai_api_key": os.getenv("OPENAI_API_KEY")
+            }
+            
+            return ChatOpenAI(**llm_params)
         except Exception as e:
             logger.error(f"ChatOpenAI 초기화 실패: {e}")
             raise
