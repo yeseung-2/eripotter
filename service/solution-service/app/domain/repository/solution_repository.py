@@ -147,11 +147,16 @@ class SolutionRepository:
     # === Repository 메서드 ===
     def get_vulnerable_sections(self, company_name: str) -> List[Dict[str, Union[str, int, None]]]:
         """assessment에서 score=0인 항목 + kesg 데이터 join"""
+        # 반드시 score == 0인 항목만 필터링
         vulnerable = [a for a in self._assessments if a["company_name"] == company_name and a["score"] == 0]
         kesg_map = {k["id"]: k for k in self._kesg}
 
         results = []
         for v in vulnerable:
+            # score == 0 조건을 한번 더 확인
+            if v["score"] != 0:
+                continue
+                
             kesg_item = kesg_map.get(v["question_id"])
             if kesg_item:
                 results.append({**v, **{

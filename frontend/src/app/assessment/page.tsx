@@ -145,7 +145,7 @@ export default function AssessmentPage() {
   };
 
   // 폼 제출 처리
-  const handleSubmit = async (e: any) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const formattedResponses: AssessmentSubmissionRequest[] = kesgItems.map((item) => {

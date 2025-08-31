@@ -164,6 +164,8 @@ services:
       - ./service/solution-service/requirements.txt:/app/requirements.txt
     environment:
       - PYTHONUNBUFFERED=1
+    env_file:
+      - ./service/solution-service/.env
     networks:
       - msa_network
 

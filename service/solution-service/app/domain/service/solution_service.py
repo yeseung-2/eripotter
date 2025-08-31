@@ -38,10 +38,16 @@ class SolutionService:
             
             logger.info(f"📝 취약 부문 {len(vulnerable_sections)}개 발견")
             
-            # 2) GPT API 호출하여 솔루션 생성
+            # 2) GPT API 호출하여 솔루션 생성 (score=0인 항목만)
             solutions = []
             for section in vulnerable_sections:
                 try:
+                    # score=0 조건을 한번 더 확인하여 보장
+                    if section.get('score', 1) != 0:
+                        logger.info(f"⚠️ score가 0이 아닌 항목은 건너뜀: question_id={section['question_id']}, score={section.get('score')}")
+                        continue
+                    
+                    # GPT 솔루션 생성 (score=0인 항목에 대해서만)
                     solution_text = self._generate_solution_with_gpt(section)
                     
                     # 3) 솔루션 저장

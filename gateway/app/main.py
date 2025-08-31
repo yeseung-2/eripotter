@@ -43,6 +43,7 @@ def cors_headers_for(request: Request):
 ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL")
 ASSESSMENT_SERVICE_URL = os.getenv("ASSESSMENT_SERVICE_URL", "http://localhost:8002")
 CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "http://localhost:8003")
+SOLUTION_SERVICE_URL = os.getenv("SOLUTION_SERVICE_URL", "http://localhost:8009")
 TIMEOUT = float(os.getenv("UPSTREAM_TIMEOUT", "20"))
 
 @app.get("/health")
@@ -130,6 +131,11 @@ async def chatbot_root(request: Request):
 @app.api_route("/api/chatbot/{path:path}", methods=["GET","POST","PUT","PATCH","DELETE"])
 async def chatbot_any(path: str, request: Request):
     return await _proxy(request, CHATBOT_SERVICE_URL, path)
+
+# ---- solution-service 프록시 ----
+@app.api_route("/solution/{path:path}", methods=["GET","POST","PUT","PATCH","DELETE"])
+async def solution_any(path: str, request: Request):
+    return await _proxy(request, SOLUTION_SERVICE_URL, f"/solution/{path}")
 
 if __name__ == "__main__":
     import uvicorn

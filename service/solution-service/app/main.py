@@ -28,8 +28,8 @@ app.add_middleware(
     allow_origins=[
         "https://eripotter.com",
         "https://www.eripotter.com",
-        # 개발용 필요 시 주석 해제
-        "http://localhost:3000", "http://localhost:8080",
+        "http://localhost:3000", 
+        "http://localhost:8080",
     ],
     allow_credentials=True,
     allow_methods=["*"],

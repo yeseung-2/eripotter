@@ -40,11 +40,25 @@ export interface VulnerableSection {
   domain: string;
 }
 
+export interface SolutionSubmissionResponse {
+  id: number;
+  company_name: string;
+  question_id: number;
+  sol: string;
+  timestamp: string;
+  item_name: string;
+  item_desc: string;
+  classification: string;
+  domain: string;
+}
+
 export default function AssessmentResultPage() {
   const [responses, setResponses] = useState<AssessmentSubmissionRequest[]>([]);
   const [assessmentResults, setAssessmentResults] = useState<AssessmentResult[]>([]);
   const [vulnerableSections, setVulnerableSections] = useState<VulnerableSection[]>([]);
+  const [solutions, setSolutions] = useState<SolutionSubmissionResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [generatingSolutions, setGeneratingSolutions] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -59,6 +73,7 @@ export default function AssessmentResultPage() {
         fetchAssessmentResults();
         // 취약 부문 데이터 가져오기
         fetchVulnerableSections();
+        // 솔루션은 버튼 클릭 시에만 생성되므로 초기 로딩 시에는 불러오지 않음
       } catch (error) {
         console.error('응답 데이터 파싱 오류:', error);
       }
@@ -94,6 +109,50 @@ export default function AssessmentResultPage() {
       }
     } catch (error) {
       console.error('취약 부문 API 호출 오류:', error);
+    }
+  };
+
+  const fetchSolutions = async () => {
+    try {
+      const response = await fetch('http://localhost:8080/solution/테스트회사');
+      if (response.ok) {
+        const data = await response.json();
+        setSolutions(data || []);
+      } else {
+        console.error('솔루션 데이터를 불러오는데 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('솔루션 API 호출 오류:', error);
+    }
+  };
+
+  const generateSolutions = async () => {
+    setGeneratingSolutions(true);
+    try {
+      const response = await fetch('http://localhost:8080/solution/generate/테스트회사', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setSolutions(data || []);
+        if (data && data.length > 0) {
+          alert(`${data.length}개의 솔루션이 성공적으로 생성되었습니다!`);
+        } else {
+          alert('생성할 취약 부문이 없습니다. (score=0인 항목이 없음)');
+        }
+      } else {
+        console.error('솔루션 생성에 실패했습니다.');
+        alert('솔루션 생성에 실패했습니다. 다시 시도해주세요.');
+      }
+    } catch (error) {
+      console.error('솔루션 생성 API 호출 오류:', error);
+      alert('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
+    } finally {
+      setGeneratingSolutions(false);
     }
   };
 
@@ -507,12 +566,187 @@ export default function AssessmentResultPage() {
           )}
         </div>
 
+        {/* 솔루션 섹션 */}
+        <div style={{ marginBottom: '40px' }}>
+          <h3 style={{
+            fontSize: '20px',
+            fontWeight: '600',
+            color: '#2c3e50',
+            marginBottom: '20px'
+          }}>
+            취약 부문 솔루션
+          </h3>
+          
+          {solutions.length > 0 ? (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
+            }}>
+              {solutions.map((solution, index) => (
+                <div key={`solution-${solution.company_name}-${solution.question_id}-${index}`} style={{
+                  backgroundColor: 'white',
+                  border: '1px solid #dee2e6',
+                  borderRadius: '8px',
+                  padding: '20px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    marginBottom: '12px'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px'
+                    }}>
+                      <span style={{
+                        backgroundColor: '#28a745',
+                        color: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        minWidth: '24px',
+                        textAlign: 'center'
+                      }}>
+                        {solution.question_id}
+                      </span>
+                      <h4 style={{
+                        fontSize: '18px',
+                        fontWeight: '600',
+                        color: '#2c3e50',
+                        margin: '0'
+                      }}>
+                        {solution.item_name}
+                      </h4>
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      gap: '8px',
+                      alignItems: 'center'
+                    }}>
+                      <span style={{
+                        backgroundColor: '#28a745',
+                        color: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        fontWeight: '500'
+                      }}>
+                        {solution.classification}
+                      </span>
+                      <span style={{
+                        backgroundColor: '#17a2b8',
+                        color: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        fontWeight: '500'
+                      }}>
+                        {solution.domain}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <p style={{
+                    fontSize: '14px',
+                    color: '#6c757d',
+                    lineHeight: '1.6',
+                    marginBottom: '12px'
+                  }}>
+                    {solution.item_desc}
+                  </p>
+                  
+                  <div style={{
+                    backgroundColor: '#e8f5e8',
+                    border: '1px solid #c3e6c3',
+                    borderRadius: '8px',
+                    padding: '16px',
+                    marginTop: '12px'
+                  }}>
+                    <h5 style={{
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      color: '#28a745',
+                      marginBottom: '8px'
+                    }}>
+                      AI 솔루션 제안:
+                    </h5>
+                    <div 
+                      dangerouslySetInnerHTML={{ __html: solution.sol }}
+                      style={{
+                        fontSize: '14px',
+                        color: '#495057',
+                        lineHeight: '1.6'
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{
+              backgroundColor: '#f8f9fa',
+              border: '1px solid #dee2e6',
+              borderRadius: '8px',
+              padding: '40px',
+              textAlign: 'center'
+            }}>
+              <p style={{
+                fontSize: '16px',
+                color: '#6c757d',
+                margin: '0',
+                marginBottom: '20px'
+              }}>
+                아직 생성된 솔루션이 없습니다. 아래 버튼을 클릭하여 취약 부문(score=0)에 대한 AI 솔루션을 생성해보세요.
+              </p>
+            </div>
+          )}
+        </div>
+
         <div style={{
           display: 'flex',
           gap: '16px',
           justifyContent: 'center',
           flexWrap: 'wrap'
         }}>
+          <button 
+            onClick={generateSolutions}
+            disabled={generatingSolutions}
+            style={{
+              backgroundColor: generatingSolutions ? '#6c757d' : '#28a745',
+              color: 'white',
+              border: 'none',
+              padding: '16px 24px',
+              fontSize: '16px',
+              fontWeight: '600',
+              borderRadius: '8px',
+              cursor: generatingSolutions ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s ease',
+              minWidth: '200px',
+              opacity: generatingSolutions ? 0.7 : 1
+            }}
+            onMouseEnter={(e) => {
+              if (!generatingSolutions) {
+                e.currentTarget.style.backgroundColor = '#218838';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 12px rgba(40, 167, 69, 0.3)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!generatingSolutions) {
+                e.currentTarget.style.backgroundColor = '#28a745';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }
+            }}
+          >
+            {generatingSolutions ? '솔루션 생성 중...' : '취약 부문 솔루션 생성하기'}
+          </button>
+          
           <button 
             onClick={handleRetakeAssessment}
             style={{
