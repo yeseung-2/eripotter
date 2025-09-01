@@ -2,10 +2,11 @@
 Assessment Service - MSA 프랙탈 구조
 """
 from dotenv import load_dotenv, find_dotenv
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import logging, sys, traceback, os
+from datetime import datetime
 
 # ---------- Logging ----------
 logging.basicConfig(
@@ -16,13 +17,24 @@ logging.basicConfig(
 )
 logger = logging.getLogger("assessment-service")
 
+logger.info("🚀 Assessment Service 시작 중...")
+logger.info("📊 Railway PostgreSQL 데이터베이스 연결 설정 완료")
+
 # ---------- .env ----------
 if os.getenv("RAILWAY_ENVIRONMENT") != "true":
     load_dotenv(find_dotenv())
 
 # ---------- Database ----------
-from eripotter_common.database.base import get_db_engine
-db_engine = get_db_engine()
+from eripotter_common.database import engine
+from .domain.entity.assessment_entity import Base
+
+# 데이터베이스 테이블 생성
+try:
+    Base.metadata.create_all(bind=engine)
+    logger.info("✅ 데이터베이스 연결 및 테이블 생성 완료")
+except Exception as e:
+    logger.error(f"❌ 데이터베이스 연결 실패: {e}")
+    raise
 
 # ---------- FastAPI ----------
 app = FastAPI(title="Assessment Service API", description="Assessment 서비스", version="1.0.0")
@@ -32,8 +44,8 @@ app.add_middleware(
     allow_origins=[
         "https://eripotter.com",
         "https://www.eripotter.com",
-        # 개발용 필요 시 주석 해제
-        "http://localhost:3000", "http://localhost:8080",
+        "http://localhost:3000", 
+        "http://localhost:8080",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -55,6 +67,14 @@ def root():
         "endpoints": ["/assessment", "/health", "/metrics"]
     }
 
+@app.get("/health", summary="Health Check")
+def health_check():
+    return {
+        "status": "healthy",
+        "service": "assessment-service",
+        "timestamp": datetime.now().isoformat()
+    }
+
 # ---------- Middleware ----------
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
@@ -71,5 +91,6 @@ async def log_requests(request: Request, call_next):
 # ---------- Entrypoint ----------
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8002"))
-    logger.info(f"💻 서비스 시작 - 포트: {port}")
+    logger.info(f"💻 Assessment Service 시작 - 포트: {port}")
+    logger.info("🎯 Railway 배포 준비 완료 - 데이터베이스 연결 설정됨")
     uvicorn.run("app.main:app", host="0.0.0.0", port=port, log_level="info", access_log=True)

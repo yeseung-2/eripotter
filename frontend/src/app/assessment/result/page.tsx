@@ -105,7 +105,7 @@ export default function AssessmentResultPage() {
 
   const fetchAssessmentResults = async () => {
     try {
-      const response = await fetch('http://localhost:8002/assessment/assessment-results/테스트회사');
+              const response = await fetch('https://eripotter-gateway-production.up.railway.app/assessment/assessment-results/테스트회사');
       if (response.ok) {
         const data = await response.json();
         setAssessmentResults(data.assessment_results || []);

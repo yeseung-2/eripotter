@@ -15,36 +15,10 @@ import {
 } from "recharts";
 import { AlertTriangle } from "lucide-react";
 
-// --- Color System ------------------------------------------------------------
-const STATUS = {
-  EXCELLENT: {
-    text: "우수",
-    color: "text-green-600",
-    shadow: "shadow-[0_4px_12px_rgba(34,197,94,0.35)]",
-    chip: "bg-green-50 text-green-600",
-  },
-  FAIR: {
-    text: "양호",
-    color: "text-yellow-600",
-    shadow: "shadow-[0_4px_12px_rgba(234,179,8,0.35)]",
-    chip: "bg-yellow-50 text-yellow-600",
-  },
-  RISK: {
-    text: "위험",
-    color: "text-red-600",
-    shadow: "shadow-[0_4px_12px_rgba(239,68,68,0.35)]",
-    chip: "bg-red-50 text-red-600",
-  },
-};
-=======
-import { useState } from 'react';
-import Image from 'next/image';
-import { useRouter } from 'next/navigation';
-
 export default function CompanyDashboard() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('overview');
->>>>>>> origin/feature/sol
+};
 
 // Calm navy/blue foundation
 const THEME = {
