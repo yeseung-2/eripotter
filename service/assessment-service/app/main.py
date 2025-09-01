@@ -41,7 +41,7 @@ app.add_middleware(
 )
 
 # ---------- Import Routers ----------
-from .router.assesment_router import assessment_router
+from .router.assessment_router import assessment_router
 
 # ---------- Include Routers ----------
 app.include_router(assessment_router)

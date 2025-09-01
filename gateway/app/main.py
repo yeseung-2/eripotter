@@ -128,7 +128,7 @@ async def _proxy(request: Request, upstream_base: str, rest: str):
 @app.api_route("/api/account/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def account_any(path: str, request: Request):
     return await _proxy(request, ACCOUNT_SERVICE_URL, path)
-
+    
 @app.api_route("/api/assessment", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def assessment_root(request: Request):
     return await _proxy(request, ASSESSMENT_SERVICE_URL, "/assessment")
@@ -155,6 +155,11 @@ async def report_any(path: str, request: Request):
     logger.info(f"🔗 Report Service URL: {REPORT_SERVICE_URL}")
     logger.info(f"📝 Path: {path}")
     return await _proxy(request, REPORT_SERVICE_URL, path)
+
+# ---- solution-service 프록시 ----
+@app.api_route("/solution/{path:path}", methods=["GET","POST","PUT","PATCH","DELETE"])
+async def solution_any(path: str, request: Request):
+    return await _proxy(request, SOLUTION_SERVICE_URL, f"/solution/{path}")
 
 # Auth 라우터를 두 경로에 마운트
 app.include_router(auth_router, prefix="/api/auth")  # 프론트엔드 API 요청용

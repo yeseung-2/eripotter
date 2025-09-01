@@ -1,35 +1,47 @@
+"""
+Solution Controller - Controller Layer
+API 엔드포인트 요청 처리 및 Service Layer 호출 담당
+"""
+
+import logging
+from typing import List
+from ..service.solution_service import SolutionService
+from ..model.solution_model import SolutionSubmissionResponse
+
+logger = logging.getLogger("solution-service")
+
 class SolutionController:
-    def __init__(self, service):
+    def __init__(self, service: SolutionService):
         self.service = service
 
-    def get_all_solutions(self):
-        """모든 솔루션 목록 조회"""
-        return {"status": "success", "data": []}
+    def generate_solutions(self, company_name: str) -> List[SolutionSubmissionResponse]:
+        """특정 회사의 취약 부문 기반 솔루션 생성"""
+        try:
+            logger.info(f"📝 솔루션 생성 요청 수신: company_name={company_name}")
+            
+            # SolutionService의 generate_solutions 호출
+            solutions = self.service.generate_solutions(company_name)
+            
+            logger.info(f"✅ 솔루션 생성 완료: company_name={company_name}, count={len(solutions)}")
+            return solutions
+            
+        except Exception as e:
+            logger.error(f"❌ 솔루션 생성 실패: company_name={company_name}, error={e}")
+            # 예외를 다시 발생시켜서 상위 FastAPI 라우터에서 처리하도록 함
+            raise
 
-    def get_solution_by_id(self, solution_id: str):
-        """특정 솔루션 조회"""
-        return {"status": "success", "data": {"id": solution_id}}
-
-    def create_solution(self, solution_data: dict):
-        """솔루션 생성"""
-        return {"status": "success", "data": solution_data}
-
-    def update_solution(self, solution_id: str, solution_data: dict):
-        """솔루션 업데이트"""
-        return {"status": "success", "data": {"id": solution_id, **solution_data}}
-
-    def delete_solution(self, solution_id: str):
-        """솔루션 삭제"""
-        return {"status": "success", "message": "deleted"}
-
-    def generate_solution_with_ai(self, assessment_data: dict):
-        """AI를 통한 취약점 기반 솔루션 생성"""
-        return {"status": "success", "message": "AI solution generation initiated", "assessment_data": assessment_data}
-
-    def get_solutions_by_vulnerability(self, vulnerability_id: str):
-        """특정 취약점에 대한 솔루션 조회"""
-        return {"status": "success", "vulnerability_id": vulnerability_id, "solutions": []}
-
-    def get_metrics(self):
-        """메트릭 조회"""
-        return {"status": "success", "metrics": {}}
+    def get_solutions(self, company_name: str) -> List[SolutionSubmissionResponse]:
+        """특정 회사의 솔루션 목록 조회"""
+        try:
+            logger.info(f"📝 솔루션 목록 조회 요청 수신: company_name={company_name}")
+            
+            # SolutionService의 get_solutions 호출
+            solutions = self.service.get_solutions(company_name)
+            
+            logger.info(f"✅ 솔루션 목록 조회 완료: company_name={company_name}, count={len(solutions)}")
+            return solutions
+            
+        except Exception as e:
+            logger.error(f"❌ 솔루션 목록 조회 실패: company_name={company_name}, error={e}")
+            # 예외를 다시 발생시켜서 상위 FastAPI 라우터에서 처리하도록 함
+            raise
