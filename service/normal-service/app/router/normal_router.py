@@ -44,7 +44,7 @@ def get_normal_controller() -> NormalController:
 
 
 # 라우터 생성
-normal_router = APIRouter(prefix="/api/normal", tags=["normal"])
+normal_router = APIRouter(prefix="", tags=["normal"])
 
 # ---------- 어댑터: 서비스 결과 → Pydantic 모델 ----------
 def _to_mapping_result(data: Dict[str, Any]) -> SubstanceMappingResult:
