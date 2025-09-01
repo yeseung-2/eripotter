@@ -201,7 +201,7 @@ export default function CompanyProfilePage() {
           </Link>
 
           {/* 생산성 자가진단 */}
-          <Link href="/assessment" className="group">
+          <Link href={`/assessment?oauth_sub=${localStorage.getItem('oauth_sub')}`} className="group">
             <Card className="hover:shadow-md transition-all cursor-pointer h-full">
               <CardContent className="p-6 flex flex-col items-center text-center">
                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4 group-hover:bg-green-200 transition-colors">

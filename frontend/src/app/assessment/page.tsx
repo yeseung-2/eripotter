@@ -1,11 +1,39 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import axios from '@/lib/axios';
 
 export default function AssessmentMainPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+
+  // OAuth Sub로 회사명 조회
+  useEffect(() => {
+    const fetchCompanyName = async () => {
+      if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search);
+        const oauthSub = urlParams.get('oauth_sub');
+        
+        if (oauthSub) {
+          try {
+            // OAuth Sub로 회사명 조회
+            const response = await axios.get(`/api/account/accounts/me?oauth_sub=${oauthSub}`);
+            if (response.data && response.data.company_name) {
+              localStorage.setItem('companyName', response.data.company_name);
+              console.log('회사명 저장:', response.data.company_name);
+            } else {
+              console.log('회사명이 설정되지 않았습니다.');
+            }
+          } catch (error) {
+            console.error('회사명 조회 실패:', error);
+          }
+        }
+      }
+    };
+
+    fetchCompanyName();
+  }, []);
 
   const handleStartAssessment = () => {
     setIsLoading(true);
