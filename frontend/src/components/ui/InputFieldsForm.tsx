@@ -40,7 +40,7 @@ export default function InputFieldsForm({
         <div key={f.key} className="bg-white border rounded p-3">
           <label className="block text-sm font-medium text-slate-700">
             {f.label}
-            {f.required && <span className="text-red-500 ml-1">*</span>}
+            <span className="text-gray-400 ml-1">(선택사항)</span>
           </label>
           <div className="flex gap-2 text-xs text-slate-500 mt-1">
             {f.description && <span>{f.description}</span>}

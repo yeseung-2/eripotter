@@ -14,6 +14,7 @@ import Stepper from "@/components/ui/Stepper";
 import IndicatorPicker from "@/components/ui/IndicatorPicker";
 import InputFieldsForm from "@/components/ui/InputFieldsForm";
 import DraftViewer from "@/components/ui/DraftViewer";
+import DraftEditor from "@/components/ui/DraftEditor";
 import ProgressChart from "@/components/ui/ProgressChart";
 
 interface ProcessedIndicator {
@@ -33,6 +34,7 @@ export default function ReportWritePage() {
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
 
   // 지표 목록 로드
   useEffect(() => {
@@ -211,11 +213,21 @@ export default function ReportWritePage() {
   // 초안 생성
   const generateDraftForIndicator = async (indicatorId: string) => {
     const indicator = processedIndicators.find(p => p.indicator.indicator_id === indicatorId);
-    if (!indicator || !companyName) return;
+    if (!indicator) return;
 
     setLoading(true);
     try {
-      const response = await generateDraft(indicatorId, companyName, indicator.inputs);
+      // 빈 값들을 필터링하여 실제 입력된 데이터만 전송
+      const filteredInputs = Object.entries(indicator.inputs).reduce((acc, [key, value]) => {
+        if (value && value !== "" && value !== null && value !== undefined) {
+          acc[key] = value;
+        }
+        return acc;
+      }, {} as Record<string, any>);
+
+      console.log(`📝 초안 생성 데이터:`, filteredInputs);
+      
+      const response = await generateDraft(indicatorId, companyName || "기본회사", filteredInputs);
       
       setProcessedIndicators(prev => 
         prev.map(p => 
@@ -224,12 +236,35 @@ export default function ReportWritePage() {
             : p
         )
       );
-      setStep(3);
     } catch (error) {
       console.error("초안 생성 실패:", error);
       alert("초안 생성 중 오류가 발생했습니다.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 초안 저장
+  const saveDraft = async (indicatorId: string, content: string) => {
+    setSavingDraft(true);
+    try {
+      // 여기서 초안 내용을 저장하는 API 호출
+      console.log(`💾 초안 저장: ${indicatorId}`, content);
+      
+      setProcessedIndicators(prev => 
+        prev.map(p => 
+          p.indicator.indicator_id === indicatorId 
+            ? { ...p, draft: content }
+            : p
+        )
+      );
+      
+      alert("초안이 저장되었습니다.");
+    } catch (error) {
+      console.error("초안 저장 실패:", error);
+      alert("초안 저장 중 오류가 발생했습니다.");
+    } finally {
+      setSavingDraft(false);
     }
   };
 
@@ -366,7 +401,12 @@ export default function ReportWritePage() {
               {(currentIndicator.status === 'input-fields' || currentIndicator.status === 'data-input') && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-md font-medium text-gray-700">데이터 입력</h3>
+                    <h3 className="text-md font-medium text-gray-700">
+                      데이터 입력 
+                      <span className="text-sm text-gray-500 ml-2">
+                        ({Object.keys(currentIndicator.inputs).filter(key => currentIndicator.inputs[key] && currentIndicator.inputs[key] !== "").length}개 입력됨)
+                      </span>
+                    </h3>
                     {saving && (
                       <div className="flex items-center text-sm text-blue-600">
                         <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -392,25 +432,31 @@ export default function ReportWritePage() {
                   />
                   <button
                     onClick={() => generateDraftForIndicator(currentIndicator.indicator.indicator_id)}
-                    disabled={!companyName || loading}
+                    disabled={loading || Object.keys(currentIndicator.inputs).length === 0}
                     className={`w-full px-4 py-2 rounded text-white ${
-                      !companyName || loading 
-                        ? "bg-slate-300" 
+                      loading || Object.keys(currentIndicator.inputs).length === 0
+                        ? "bg-slate-300 cursor-not-allowed" 
                         : "bg-blue-600 hover:bg-blue-700"
                     }`}
                   >
-                    {loading ? "초안 생성 중..." : "초안 생성"}
+                    {loading ? "초안 생성 중..." : 
+                     Object.keys(currentIndicator.inputs).length === 0 ? "데이터 입력 후 생성" : "초안 생성"}
                   </button>
                 </div>
               )}
 
-              {/* 초안 표시 */}
+              {/* 초안 표시 및 편집 */}
               {currentIndicator.status === 'draft-generated' && currentIndicator.draft && (
                 <div className="space-y-4">
-                  <h3 className="text-md font-medium text-gray-700">생성된 초안</h3>
-                  <div className="border rounded-lg p-4 bg-gray-50 max-h-96 overflow-y-auto">
-                    <DraftViewer html={currentIndicator.draft} />
-                  </div>
+                  <DraftEditor
+                    initialContent={currentIndicator.draft}
+                    onSave={(content) => saveDraft(currentIndicator.indicator.indicator_id, content)}
+                    onCancel={() => {
+                      setCurrentIndicatorId(null);
+                      setStep(1);
+                    }}
+                    loading={savingDraft}
+                  />
                   <div className="flex gap-2">
                     <button
                       onClick={() => {
@@ -425,7 +471,7 @@ export default function ReportWritePage() {
                       onClick={() => setStep(4)}
                       className="flex-1 px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
                     >
-                      저장
+                      최종 저장
                     </button>
                   </div>
                 </div>
