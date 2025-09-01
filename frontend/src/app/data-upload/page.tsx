@@ -105,9 +105,16 @@ export default function DataUploadPage() {
 
       const result = await response.json();
       
-      if (result.status === 'success') {
+      if (result.status === 'success' || result.status === 'partial') {
         // 매핑 수정 페이지로 이동 (normal_id 전달)
         router.push(`/data-upload/mapping-edit?normalId=${result.normal_id}`);
+        
+        // partial 상태인 경우 사용자에게 알림
+        if (result.status === 'partial') {
+          const successCount = result.success_count || 0;
+          const failedCount = result.failed_count || 0;
+          alert(`저장은 완료되었지만 자동매핑에 실패했습니다.\n성공: ${successCount}개, 실패: ${failedCount}개\n매핑 수정 페이지에서 수동으로 확인해주세요.`);
+        }
       } else {
         alert(`오류가 발생했습니다: ${result.message || result.error}`);
       }

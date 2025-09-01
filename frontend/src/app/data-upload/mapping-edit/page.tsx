@@ -9,7 +9,7 @@ interface MappingResult {
   original_amount: string;
   ai_mapped_name: string;
   ai_confidence: number;
-  status: 'auto_mapped' | 'needs_review' | 'mapping_failed' | 'save_failed';
+  status: 'auto_mapped' | 'needs_review' | 'mapping_failed' | 'save_failed' | 'no_model';
   certification_id?: number;
   error?: string;
   review_notes?: string;
@@ -135,6 +135,8 @@ function MappingEditContent() {
         return 'bg-red-100 text-red-800';
       case 'save_failed':
         return 'bg-red-100 text-red-800';
+      case 'no_model':
+        return 'bg-orange-100 text-orange-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -150,6 +152,8 @@ function MappingEditContent() {
         return '매핑 실패';
       case 'save_failed':
         return '저장 실패';
+      case 'no_model':
+        return '모델 없음';
       default:
         return status;
     }
@@ -235,6 +239,19 @@ function MappingEditContent() {
             <p className="mt-1 text-sm text-gray-500">
               AI가 자동 매핑한 결과를 검토하고 필요시 수정하세요.
             </p>
+            {mappingResults.length > 0 && (
+              <div className="mt-3 flex space-x-4 text-sm">
+                <span className="text-green-600">
+                  성공: {mappingResults.filter(r => r.status === 'auto_mapped').length}개
+                </span>
+                <span className="text-yellow-600">
+                  검토 필요: {mappingResults.filter(r => r.status === 'needs_review').length}개
+                </span>
+                <span className="text-red-600">
+                  실패: {mappingResults.filter(r => r.status === 'mapping_failed' || r.status === 'save_failed').length}개
+                </span>
+              </div>
+            )}
           </div>
           <div className="p-6">
             <div className="space-y-6">
@@ -305,6 +322,22 @@ function MappingEditContent() {
                   {result.error && (
                     <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
                       <p className="text-sm text-red-800">오류: {result.error}</p>
+                    </div>
+                  )}
+                  
+                  {result.status === 'mapping_failed' && !result.error && (
+                    <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                      <p className="text-sm text-yellow-800">
+                        자동 매핑에 실패했습니다. 위의 입력 필드에서 수동으로 매핑 정보를 입력해주세요.
+                      </p>
+                    </div>
+                  )}
+                  
+                  {result.status === 'no_model' && (
+                    <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-md">
+                      <p className="text-sm text-orange-800">
+                        AI 모델이 로드되지 않아 자동 매핑을 수행할 수 없습니다. 수동으로 매핑 정보를 입력해주세요.
+                      </p>
                     </div>
                   )}
                 </div>

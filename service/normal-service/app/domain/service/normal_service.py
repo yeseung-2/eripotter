@@ -121,30 +121,40 @@ class NormalService:
             logger.info(f"🤖 자동매핑 시작: Normal ID {normal_id}")
 
             if not self.db_available:
+                logger.error("❌ 데이터베이스 연결이 불가능합니다.")
                 return {"status": "error", "message": "데이터베이스 연결이 불가능합니다."}
 
             normal_data = self.normal_repository.get_by_id(normal_id)
             if not normal_data:
+                logger.error(f"❌ Normal ID {normal_id}를 찾을 수 없습니다.")
                 return {"status": "error", "message": f"Normal ID {normal_id}를 찾을 수 없습니다."}
 
             greenhouse_gases = normal_data.greenhouse_gas_emissions or []
             if not greenhouse_gases:
+                logger.warning(f"⚠️ Normal ID {normal_id}에 온실가스 배출량 데이터가 없습니다.")
                 return {"status": "error", "message": "온실가스 배출량 데이터가 없습니다."}
+
+            logger.info(f"📊 온실가스 데이터 {len(greenhouse_gases)}개 발견")
 
             mapping_results: List[Dict[str, Any]] = []
 
             logger.info(f"🤖 온실가스 AI 매핑 시작: {len(greenhouse_gases)}개")
-            for gas_data in greenhouse_gases:
+            for i, gas_data in enumerate(greenhouse_gases):
                 gas_name = (gas_data or {}).get("materialName", "")
                 gas_amount = (gas_data or {}).get("amount", "")
 
+                logger.info(f"📝 매핑 중 ({i+1}/{len(greenhouse_gases)}): {gas_name}")
+
                 if not gas_name:
+                    logger.warning(f"⚠️ 빈 물질명 발견: {gas_data}")
                     mapping_results.append({"original_gas_name": "", "status": "mapping_failed", "error": "빈 물질명"})
                     continue
 
                 ai_result = self.map_substance(gas_name)
+                logger.info(f"🤖 AI 매핑 결과: {gas_name} → {ai_result.get('status', 'unknown')}")
 
                 if ai_result.get("status") == "success":
+                    logger.info(f"💾 매핑 결과 저장 시도: {gas_name}")
                     success = self.normal_repository.save_ai_mapping_result(
                         normal_id=normal_id,
                         gas_name=gas_name,
@@ -162,6 +172,7 @@ class NormalService:
                         else:
                             status = "needs_review"
 
+                        logger.info(f"✅ 매핑 결과 저장 성공: {gas_name} → {status} (신뢰도: {confidence:.2f})")
                         mapping_results.append(
                             {
                                 "original_gas_name": gas_name,
@@ -173,19 +184,39 @@ class NormalService:
                             }
                         )
                     else:
+                        logger.error(f"❌ 매핑 결과 저장 실패: {gas_name}")
                         mapping_results.append({"original_gas_name": gas_name, "status": "save_failed"})
                 else:
+                    error_msg = ai_result.get("error") or ai_result.get("message") or "알 수 없는 오류"
+                    logger.error(f"❌ 매핑 실패: {gas_name} → {error_msg}")
                     mapping_results.append(
-                        {"original_gas_name": gas_name, "status": "mapping_failed", "error": ai_result.get("error")}
+                        {"original_gas_name": gas_name, "status": "mapping_failed", "error": error_msg}
                     )
 
-            logger.info(f"✅ 자동매핑 완료: {len(mapping_results)}개 매핑")
-            return {
-                "status": "success",
-                "normal_id": normal_id,
-                "mapping_results": mapping_results,
-                "message": f"자동매핑 완료: {len(mapping_results)}개 온실가스 매핑. 사용자 검토가 필요합니다.",
-            }
+            # 매핑 결과 통계
+            success_count = sum(1 for r in mapping_results if r.get("status") in ["auto_mapped", "needs_review"])
+            failed_count = sum(1 for r in mapping_results if r.get("status") in ["mapping_failed", "save_failed"])
+            
+            logger.info(f"✅ 자동매핑 완료: {len(mapping_results)}개 중 {success_count}개 성공, {failed_count}개 실패")
+            
+            if failed_count > 0:
+                return {
+                    "status": "partial",
+                    "normal_id": normal_id,
+                    "mapping_results": mapping_results,
+                    "message": f"저장은 완료됐지만 자동매핑에 실패했습니다. {success_count}개 성공, {failed_count}개 실패.",
+                    "success_count": success_count,
+                    "failed_count": failed_count,
+                }
+            else:
+                return {
+                    "status": "success",
+                    "normal_id": normal_id,
+                    "mapping_results": mapping_results,
+                    "message": f"자동매핑 완료: {len(mapping_results)}개 온실가스 매핑. 사용자 검토가 필요합니다.",
+                    "success_count": success_count,
+                    "failed_count": failed_count,
+                }
         except Exception as e:
             logger.error(f"❌ 자동매핑 실패: {e}")
             return {"status": "error", "error": str(e), "message": "자동매핑 중 오류가 발생했습니다."}
