@@ -3,3 +3,4 @@ uvicorn[standard]==0.24.0
 httpx==0.25.2
 pydantic==2.5.0
 python-multipart==0.0.6
+psycopg2-binary==2.9.9
