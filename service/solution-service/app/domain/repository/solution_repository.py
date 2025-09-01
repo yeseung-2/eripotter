@@ -68,6 +68,7 @@ Solution Repository - Assessment Service 연동
 """
 
 import requests
+import os
 import logging
 from typing import List, Dict, Union, Optional
 from datetime import datetime
@@ -76,11 +77,9 @@ logger = logging.getLogger("solution-service")
 
 class SolutionRepository:
     def __init__(self):
-        # Assessment Service URL
-        self.assessment_service_url = "http://assessment-service:8002"
-        # 개발 환경에서는 localhost 사용
-        if not self.assessment_service_url.startswith("http"):
-            self.assessment_service_url = "http://localhost:8002"
+        # Gateway URL (환경변수로 주입)
+        # 예) https://gateway-production-5d19.up.railway.app
+        self.gateway_url = os.getenv("GATEWAY_URL", "http://localhost:8080")
     
     # KESG 데이터 (Mock - 실제로는 DB에서 조회)
     _kesg = [
@@ -194,15 +193,14 @@ class SolutionRepository:
             
         except Exception as e:
             logger.error(f"❌ 취약 부문 조회 실패: {e}")
-            # 실패 시 Mock 데이터 사용 (fallback)
-            logger.info("🔄 Mock 데이터로 fallback")
-            return self._get_vulnerable_sections_mock(company_name)
+            # Mock fallback 금지: 상위로 예외 전달
+            raise
     
     def _get_assessment_results_from_service(self, company_name: str) -> List[Dict[str, Union[str, int, None]]]:
-        """Assessment Service에서 실제 assessment 결과 조회"""
+        """Gateway를 통해 Assessment 결과 조회"""
         try:
-            url = f"{self.assessment_service_url}/assessment/assessment-results/{company_name}"
-            logger.info(f"📡 Assessment Service 호출: {url}")
+            url = f"{self.gateway_url}/api/assessment/assessment-results/{company_name}"
+            logger.info(f"📡 Gateway 경유 Assessment 호출: {url}")
             
             response = requests.get(url, timeout=10)
             response.raise_for_status()
