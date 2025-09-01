@@ -10,7 +10,8 @@ const withPWA = require('next-pwa')({
 })
 
 // 게이트웨이 (없으면 로컬 게이트웨이로 프록시)
-const gateway = process.env.NEXT_PUBLIC_GATEWAY_ORIGIN || 'http://localhost:8080'
+const raw = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const gateway = raw.replace(/\/+$/, ''); // 끝 슬래시 제거
 
 const nextConfig = {
   // 빌드 막힘 방지
