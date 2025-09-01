@@ -1,5 +1,5 @@
 """
-Normal Service - 새로운 테이블 구조에 맞춘 통합 서비스
+Normal Service - MSA 구조에 맞춘 통합 서비스
 프론트엔드 데이터 처리 + AI 매핑 + 사용자 검토
 """
 from eripotter_common.database.base import get_db_engine
@@ -12,16 +12,12 @@ import faiss
 import os
 from pathlib import Path
 from sentence_transformers import SentenceTransformer
-# SubstanceMappingRepository는 이제 NormalRepository에 통합됨
 from ..repository.normal_repository import NormalRepository
-from .data_normalization_service import DataNormalizationService
-
-from .interfaces import ISubstanceMapping, IDataNormalization, IESGValidation
 
 logger = logging.getLogger("normal-service")
 
-class NormalService(ISubstanceMapping, IDataNormalization, IESGValidation):
-    """통합 Normal 서비스 - 새로운 테이블 구조 대응"""
+class NormalService:
+    """Normal Service - MSA 구조에 맞춘 통합 서비스"""
     
     def __init__(self):
         # 데이터베이스 연결을 선택적으로 시도
@@ -38,8 +34,7 @@ class NormalService(ISubstanceMapping, IDataNormalization, IESGValidation):
             logger.warning(f"⚠️ 데이터베이스 연결 실패: {e}")
             logger.info("📝 AI 매핑만 사용합니다 (결과 저장 불가)")
         
-        # 기능별 서비스 초기화
-        self.data_normalization_service = DataNormalizationService()
+        # MSA 구조에 맞춘 단순화된 초기화
         
         # Substance Mapping 관련 초기화
         self.model = None
@@ -518,138 +513,13 @@ class NormalService(ISubstanceMapping, IDataNormalization, IESGValidation):
                 "status": "error"
             }
 
-    # ===== 인터페이스 구현 (추상 메서드들) =====
-    
-    def get_mapping_statistics(self) -> dict:
-        """매핑 통계 조회 (인터페이스 구현)"""
-        return self.get_substance_mapping_statistics()
-    
-    def normalize_excel_data(self, file_data: bytes, filename: str, company_id: str = None) -> dict:
-        """엑셀 데이터 정규화 (인터페이스 구현)"""
-        return self.data_normalization_service.normalize_excel_data(file_data, filename)
-    
-    def validate_data_structure(self, data: dict) -> dict:
-        """데이터 구조 검증 (인터페이스 구현)"""
-        return {"status": "valid", "data": data}
-    
-    def standardize_data(self, data: dict) -> dict:
-        """데이터 표준화 (인터페이스 구현)"""
-        return data
-    
-    def validate_esg_data(self, data: dict, industry: str = None) -> dict:
-        """ESG 데이터 검증 (인터페이스 구현)"""
-        return {"status": "valid", "data": data}
-    
-    def calculate_esg_score(self, data: dict) -> int:
-        """ESG 점수 계산 (인터페이스 구현)"""
-        return 85  # 기본 점수
-    
-    def generate_esg_report(self, company_id: str, report_type: str) -> dict:
-        """ESG 보고서 생성 (인터페이스 구현)"""
-        return {"company_id": company_id, "report_type": report_type, "status": "generated"}
-
-    # ===== 레거시 메서드들 (호환성) =====
-    
-    def get_all_normalized_data(self):
-        """모든 정규화 데이터 조회"""
-        return self.get_original_data(limit=50)
-
-    def get_normalized_data_by_id(self, data_id: str):
-        """특정 정규화 데이터 조회"""
-        if not self.db_available:
-            return {"id": data_id, "error": "데이터베이스 연결 불가"}
-        
-        try:
-            normal_entity = self.normal_repository.get_by_id(int(data_id))
-            return normal_entity.to_dict() if normal_entity else {"error": "데이터를 찾을 수 없습니다"}
-        except:
-            return {"id": data_id, "error": "조회 실패"}
-
-    def create_normalized_data(self, data: dict):
-        """정규화 데이터 생성"""
-        return data
-
-    def update_normalized_data(self, data_id: str, data: dict):
-        """정규화 데이터 업데이트"""
-        return {"id": data_id, **data}
-
-    def delete_normalized_data(self, data_id: str):
-        """정규화 데이터 삭제"""
-        return True
+    # ===== MSA 구조에 맞춘 핵심 메서드들 =====
 
     def get_metrics(self):
         """메트릭 조회"""
         return self.get_substance_mapping_statistics()
 
-    # ===== 협력사 ESG 관련 메서드들 (기존 유지) =====
-    
-    def upload_partner_esg_data(self, file, company_id: str = None):
-        """협력사 ESG 데이터 파일 업로드"""
-        return {"status": "not_implemented"}
-
-    def validate_partner_esg_data(self, data: dict):
-        """협력사 ESG 데이터 검증"""
-        return {"status": "not_implemented"}
-
-    def get_partner_dashboard(self, company_id: str):
-        """협력사 자가진단 대시보드"""
-        return {"company_id": company_id, "status": "not_implemented"}
-
-    def generate_partner_report(self, report_type: str, company_id: str):
-        """협력사 ESG 보고서 생성"""
-        return {"report_type": report_type, "company_id": company_id, "status": "not_implemented"}
-
-    def get_esg_schema(self, industry: str):
-        """업종별 ESG 스키마 조회"""
-        return {"industry": industry, "status": "not_implemented"}
-
-    def get_esg_schema_by_industry(self, industry: str) -> Dict[str, Any]:
-        """업종별 ESG 데이터 스키마 조회"""
-        try:
-            # 업종별 기본 ESG 스키마 정의
-            schemas = {
-                "배터리": {
-                    "environmental": {
-                        "carbon_footprint": {"required": True, "unit": "tCO2eq"},
-                        "energy_consumption": {"required": True, "unit": "MWh"},
-                        "water_usage": {"required": True, "unit": "m3"},
-                        "waste_management": {"required": True, "unit": "ton"},
-                        "recycled_materials": {"required": True, "unit": "%"}
-                    },
-                    "social": {
-                        "labor_standards": {"required": True},
-                        "safety_incidents": {"required": True},
-                        "community_engagement": {"required": False}
-                    },
-                    "governance": {
-                        "compliance_status": {"required": True},
-                        "risk_management": {"required": True},
-                        "transparency": {"required": False}
-                    }
-                },
-                "화학소재": {
-                    "environmental": {
-                        "carbon_footprint": {"required": True, "unit": "tCO2eq"},
-                        "chemical_emissions": {"required": True, "unit": "kg"},
-                        "water_usage": {"required": True, "unit": "m3"},
-                        "hazardous_waste": {"required": True, "unit": "ton"}
-                    }
-                }
-            }
-            
-            if not industry:
-                raise Exception("업종 정보가 제공되지 않았습니다.")
-            
-            if industry not in schemas:
-                logger.warning(f"지원하지 않는 업종: {industry}, 기본값(배터리) 사용")
-                industry = "배터리"
-            
-            return schemas[industry]
-        except Exception as e:
-            logger.error(f"ESG 스키마 조회 실패: {e}")
-            raise Exception(f"ESG 스키마를 조회할 수 없습니다: {str(e)}")
-
-    # ===== 실제 DB 환경 데이터 조회 메서드들 =====
+    # ===== 환경 데이터 조회 메서드들 =====
 
     def get_environmental_data_by_company(self, company_name: str) -> Dict[str, Any]:
         """회사별 실제 환경 데이터 조회 (DB에서 계산)"""
@@ -1063,62 +933,3 @@ class NormalService(ISubstanceMapping, IDataNormalization, IESGValidation):
                 "avg_confidence": 0.0
             }
     
-    def get_saved_mappings(self, company_id: str = None, limit: int = 10) -> List[Dict[str, Any]]:
-        """저장된 매핑 결과 조회"""
-        try:
-            if not self.db_available:
-                raise Exception("데이터베이스 연결이 불가능합니다. 서비스 관리자에게 문의하세요.")
-            
-            if not self.normal_repository:
-                raise Exception("데이터 저장소가 초기화되지 않았습니다. 서비스를 재시작해주세요.")
-            
-            return self.normal_repository.get_saved_mappings(company_id, limit)
-        except Exception as e:
-            logger.error(f"매핑 결과 조회 실패: {e}")
-            raise Exception(f"저장된 매핑 결과를 조회할 수 없습니다: {str(e)}")
-    
-    def get_original_data(self, company_id: str = None, limit: int = 10) -> List[Dict[str, Any]]:
-        """원본 데이터 조회"""
-        try:
-            if not self.db_available:
-                raise Exception("데이터베이스 연결이 불가능합니다. 서비스 관리자에게 문의하세요.")
-            
-            if not self.normal_repository:
-                raise Exception("데이터 저장소가 초기화되지 않았습니다. 서비스를 재시작해주세요.")
-            
-            return self.normal_repository.get_original_data(company_id, limit)
-        except Exception as e:
-            logger.error(f"원본 데이터 조회 실패: {e}")
-            raise Exception(f"원본 데이터를 조회할 수 없습니다: {str(e)}")
-    
-    def get_corrections(self, company_id: str = None, limit: int = 10) -> List[Dict[str, Any]]:
-        """사용자 수정 데이터 조회"""
-        try:
-            if not self.db_available:
-                raise Exception("데이터베이스 연결이 불가능합니다. 서비스 관리자에게 문의하세요.")
-            
-            if not self.normal_repository:
-                raise Exception("데이터 저장소가 초기화되지 않았습니다. 서비스를 재시작해주세요.")
-            
-            # 현재는 certification 테이블에서 user_reviewed 상태인 것들을 조회
-            mappings = self.normal_repository.get_saved_mappings(company_id, limit)
-            return [m for m in mappings if m.get('mapping_status') == 'user_reviewed']
-        except Exception as e:
-            logger.error(f"수정 데이터 조회 실패: {e}")
-            raise Exception(f"사용자 수정 데이터를 조회할 수 없습니다: {str(e)}")
-    
-    def correct_mapping(self, certification_id: int, correction_data: Dict[str, Any]) -> bool:
-        """매핑 결과를 수동으로 수정"""
-        try:
-            if not self.db_available:
-                raise Exception("데이터베이스 연결이 불가능합니다. 서비스 관리자에게 문의하세요.")
-            
-            if not self.normal_repository:
-                raise Exception("데이터 저장소가 초기화되지 않았습니다. 서비스를 재시작해주세요.")
-            
-            return self.normal_repository.update_user_mapping_correction(
-                certification_id, correction_data
-            )
-        except Exception as e:
-            logger.error(f"매핑 수정 실패: {e}")
-            raise Exception(f"매핑 결과를 수정할 수 없습니다: {str(e)}")

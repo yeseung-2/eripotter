@@ -27,12 +27,10 @@ def get_normal_controller(service: NormalService = Depends(get_normal_service)) 
     """Normal Controller 인스턴스 생성"""
     return NormalController(service)
 
-def get_substance_mapping_service() -> NormalService:
-    """Substance Mapping Service 인스턴스 생성"""
-    return NormalService()
+# get_substance_mapping_service는 get_normal_service와 동일하므로 제거
 
 # 라우터 생성
-normal_router = APIRouter(tags=["normal"])
+normal_router = APIRouter(prefix="/api/normal", tags=["normal"])
 
 @normal_router.get("/health", summary="서비스 상태 확인")
 async def health_check(service: NormalService = Depends(get_normal_service)):
@@ -219,7 +217,7 @@ async def get_environmental_data(
 @normal_router.post("/substance/map", summary="단일 물질 매핑")
 async def map_single_substance(
     request: SubstanceMappingRequest,
-    service: NormalService = Depends(get_substance_mapping_service)
+    service: NormalService = Depends(get_normal_service)
 ):
     """단일 물질명을 표준 물질 ID로 매핑"""
     try:
@@ -259,7 +257,7 @@ async def map_single_substance(
 @normal_router.post("/substance/map-batch", summary="배치 물질 매핑")
 async def map_substances_batch(
     request: SubstanceMappingBatchRequest,
-    service: NormalService = Depends(get_substance_mapping_service)
+    service: NormalService = Depends(get_normal_service)
 ):
     """여러 물질명을 배치로 매핑"""
     try:
@@ -305,7 +303,7 @@ async def map_substances_batch(
 @normal_router.post("/substance/map-file", summary="파일 기반 물질 매핑")
 async def map_substances_from_file(
     file: UploadFile = File(...),
-    service: NormalService = Depends(get_substance_mapping_service)
+    service: NormalService = Depends(get_normal_service)
 ):
     """업로드된 파일에서 물질명을 추출하여 매핑"""
     try:
@@ -383,7 +381,7 @@ async def map_substances_from_file(
 
 @normal_router.get("/substance/status", summary="매핑 서비스 상태 확인")
 async def get_substance_mapping_status(
-    service: NormalService = Depends(get_substance_mapping_service)
+    service: NormalService = Depends(get_normal_service)
 ):
     """물질 매핑 서비스 상태 및 통계 조회"""
     try:
@@ -410,7 +408,7 @@ async def get_substance_mapping_status(
 async def get_saved_mappings(
     company_id: str = None,
     limit: int = 10,
-    service: NormalService = Depends(get_substance_mapping_service)
+    service: NormalService = Depends(get_normal_service)
 ):
     """저장된 매핑 결과 조회"""
     try:
@@ -438,7 +436,7 @@ async def get_saved_mappings(
 async def get_original_data(
     company_id: str = None,
     limit: int = 10,
-    service: NormalService = Depends(get_substance_mapping_service)
+    service: NormalService = Depends(get_normal_service)
 ):
     """원본 데이터 조회"""
     try:
@@ -466,7 +464,7 @@ async def get_original_data(
 async def get_corrections(
     company_id: str = None,
     limit: int = 10,
-    service: NormalService = Depends(get_substance_mapping_service)
+    service: NormalService = Depends(get_normal_service)
 ):
     """사용자 수정 데이터 조회"""
     try:
@@ -494,7 +492,7 @@ async def get_corrections(
 async def correct_substance_mapping(
     certification_id: int,
     correction_data: dict,
-    service: NormalService = Depends(get_substance_mapping_service)
+    service: NormalService = Depends(get_normal_service)
 ):
     """매핑 결과를 수동으로 수정 (certification 테이블 업데이트)"""
     try:
