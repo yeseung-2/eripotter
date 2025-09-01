@@ -57,7 +57,6 @@ def cors_headers_for(request: Request):
 ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL", "http://localhost:8001")
 ASSESSMENT_SERVICE_URL = os.getenv("ASSESSMENT_SERVICE_URL", "http://localhost:8002")
 CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "http://localhost:8003")
-REPORT_SERVICE_URL = os.getenv("REPORT_SERVICE_URL", "https://report-service-production-91aa.up.railway.app")
 SOLUTION_SERVICE_URL = os.getenv("SOLUTION_SERVICE_URL", "http://localhost:8009")
 NORMAL_SERVICE_URL = os.getenv("NORMAL_SERVICE_URL", "http://localhost:8005")
 TIMEOUT = float(os.getenv("UPSTREAM_TIMEOUT", "60"))
@@ -180,11 +179,12 @@ async def sharing_any(path: str, request: Request):
 # Normal service 라우팅
 @app.api_route("/api/normal", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def normal_root(request: Request):
-    return await _proxy(request, NORMAL_SERVICE_URL, "/")
+    # upstream도 /api/normal 로 보내야 normal-service가 매칭됩니다.
+    return await _proxy(request, NORMAL_SERVICE_URL, "/api/normal")
 
 @app.api_route("/api/normal/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def normal_any(path: str, request: Request):
-    return await _proxy(request, NORMAL_SERVICE_URL, f"/{path}")
+    return await _proxy(request, NORMAL_SERVICE_URL, f"/api/normal/{path}")
 
 # Auth 라우터를 두 경로에 마운트
 app.include_router(auth_router, prefix="/api/auth")  # 프론트엔드 API 요청용
