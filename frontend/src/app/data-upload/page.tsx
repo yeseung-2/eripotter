@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 // 인터페이스 정의
@@ -39,16 +39,6 @@ interface SubstanceData {
   chemicalComposition: string;
 }
 
-interface ProductItem {
-  productName: string;
-  supplier: string;
-  manufacturingDate: string;
-  capacity: string;
-  recycledMaterial: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
 // 빈 물질 데이터 생성 함수
 const createEmptySubstance = (): SubstanceData => ({
   productName: '',
@@ -71,11 +61,9 @@ const createEmptySubstance = (): SubstanceData => ({
   chemicalComposition: ''
 });
 
-export default function PartnerDataUploadPage() {
+export default function DataUploadPage() {
   const router = useRouter();
   const [substanceData, setSubstanceData] = useState<SubstanceData>(createEmptySubstance());
-  const [existingProducts, setExistingProducts] = useState<ProductItem[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [partnerInfo] = useState({
@@ -87,33 +75,21 @@ export default function PartnerDataUploadPage() {
     userName: '담당자'
   });
 
-  // 기존 제품 목록 로드
-  useEffect(() => {
-    loadExistingProducts();
-  }, []);
-
-  const loadExistingProducts = async () => {
-    try {
-      setIsLoading(true);
-      const response = await fetch(`/api/normal/company/${partnerInfo.name}/products`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.status === 'success') {
-          setExistingProducts(data.data);
-        }
-      }
-    } catch (error) {
-      console.error('제품 목록 로드 실패:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const predefinedMaterials = ['리튬', '니켈', '코발트', '망간', '알루미늄', '흑연', '형석', '기타'];
+  const countries = ['한국', '중국', '일본', '미국', '독일', '프랑스', '영국', '이탈리아', '스페인', '네덜란드', '벨기에', '스위스', '오스트리아', '기타'];
+  const importCountries = countries.filter(country => country !== '한국');
 
   // 자동 매핑 시작
   const startAutoMapping = async () => {
     try {
+      if (!substanceData.productName) {
+        alert('최소한 제품명은 입력해주세요.');
+        return;
+      }
+
       setIsSubmitting(true);
       
+      // 데이터 저장 및 자동매핑 시작
       const response = await fetch('/api/normal/substance/save-and-map', {
         method: 'POST',
         headers: {
@@ -127,20 +103,14 @@ export default function PartnerDataUploadPage() {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('데이터 저장 및 매핑 실패');
-      }
-
       const result = await response.json();
-      console.log('자동매핑 결과:', result);
       
-      alert('제품 데이터 저장 및 자동매핑 완료!');
-      
-      // 폼 초기화
-      setSubstanceData(createEmptySubstance());
-      
-      // 제품 목록 새로고침
-      loadExistingProducts();
+      if (result.status === 'success') {
+        // 매핑 수정 페이지로 이동 (normal_id 전달)
+        router.push(`/data-upload/mapping-edit?normalId=${result.normal_id}`);
+      } else {
+        alert(`오류가 발생했습니다: ${result.message || result.error}`);
+      }
       
     } catch (error) {
       console.error('자동매핑 오류:', error);
@@ -150,264 +120,489 @@ export default function PartnerDataUploadPage() {
     }
   };
 
-  const predefinedMaterials = ['리튬', '니켈', '코발트', '망간', '알루미늄', '흑연', '형석', '기타'];
-  const countries = ['한국', '중국', '일본', '미국', '독일', '프랑스', '영국', '이탈리아', '스페인', '네덜란드', '벨기에', '스위스', '오스트리아', '기타'];
-  const importCountries = countries.filter(country => country !== '한국');
+  const updateSubstanceData = (field: keyof SubstanceData, value: any) => {
+    setSubstanceData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // 원재료 관련 함수들
+  const handleRawMaterialChange = (material: string, checked: boolean) => {
+    setSubstanceData(prev => ({
+      ...prev,
+      rawMaterials: checked 
+        ? [...prev.rawMaterials, material]
+        : prev.rawMaterials.filter(m => m !== material)
+    }));
+  };
+
+  const addOtherRawMaterial = () => {
+    setSubstanceData(prev => ({
+      ...prev,
+      rawMaterialsOther: [...prev.rawMaterialsOther, '']
+    }));
+  };
+
+  const updateOtherRawMaterial = (index: number, value: string) => {
+    setSubstanceData(prev => ({
+      ...prev,
+      rawMaterialsOther: prev.rawMaterialsOther.map((material, i) => 
+        i === index ? value : material
+      )
+    }));
+  };
+
+  const removeOtherRawMaterial = (index: number) => {
+    setSubstanceData(prev => ({
+      ...prev,
+      rawMaterialsOther: prev.rawMaterialsOther.filter((_, i) => i !== index)
+    }));
+  };
+
+  const getAllSelectedMaterials = () => {
+    const materials = [...substanceData.rawMaterials];
+    const otherMaterials = substanceData.rawMaterialsOther.filter(m => m.trim() !== '');
+    return [...materials, ...otherMaterials].map(material => ({
+      key: material,
+      name: material
+    }));
+  };
+
+  const updateMaterialSource = (material: string, field: keyof RawMaterialSource, value: string) => {
+    setSubstanceData(prev => {
+      const existingIndex = prev.rawMaterialSources.findIndex(s => s.material === material);
+      if (existingIndex >= 0) {
+        return {
+          ...prev,
+          rawMaterialSources: prev.rawMaterialSources.map((source, i) => 
+            i === existingIndex ? { ...source, [field]: value } : source
+          )
+        };
+      } else {
+        return {
+          ...prev,
+          rawMaterialSources: [...prev.rawMaterialSources, { material, sourceType: '', [field]: value } as RawMaterialSource]
+        };
+      }
+    });
+  };
+
+  const addGreenhouseGas = () => {
+    setSubstanceData(prev => ({
+      ...prev,
+      greenhouseGasEmissions: [...prev.greenhouseGasEmissions, { materialName: '', amount: '', unit: 'tonCO2eq' }]
+    }));
+  };
+
+  const updateGreenhouseGas = (index: number, field: keyof GreenhouseGasEmission, value: string) => {
+    setSubstanceData(prev => ({
+      ...prev,
+      greenhouseGasEmissions: prev.greenhouseGasEmissions.map((gas, i) => 
+        i === index ? { ...gas, [field]: value } : gas
+      )
+    }));
+  };
+
+  const removeGreenhouseGas = (index: number) => {
+    setSubstanceData(prev => ({
+      ...prev,
+      greenhouseGasEmissions: prev.greenhouseGasEmissions.filter((_, i) => i !== index)
+    }));
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b">
+      <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">데이터 업로드</h1>
-              <p className="text-gray-600 mt-1">제품 정보 및 온실가스 배출량 데이터를 입력하세요</p>
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <h1 className="text-2xl font-bold text-gray-900">ESG 데이터 업로드</h1>
             </div>
-            <div className="text-right">
-              <div className="text-sm text-gray-500">파트너</div>
-              <div className="font-semibold text-gray-900">{partnerInfo.name}</div>
-              <div className="text-sm text-gray-500">{partnerInfo.userName}</div>
+            <div className="flex items-center space-x-4">
+              <div className="text-sm text-gray-600">
+                <span className="font-medium">{partnerInfo.name}</span> • {partnerInfo.userName}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* 메인 폼 */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-sm border">
-              <div className="px-6 py-4 border-b">
-                <h2 className="text-lg font-semibold text-gray-900">제품 정보 입력</h2>
-                <p className="text-sm text-gray-600 mt-1">새로운 제품의 상세 정보를 입력하세요</p>
+      <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-lg font-medium text-gray-900">물질 데이터 입력</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              제품의 환경 정보를 입력하고 자동 매핑을 시작하세요.
+            </p>
               </div>
               
-              <div className="p-6 space-y-6">
-                {/* 기본 정보 */}
+          <div className="p-6 space-y-8">
+            {/* 기본 정보 섹션 */}
+            <div className="border rounded-lg p-6 bg-gray-50">
+              <h4 className="text-md font-semibold text-gray-800 mb-4 border-b border-gray-300 pb-2">
+                기본 정보
+              </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      제품명 <span className="text-red-500">*</span>
-                    </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">제품명</label>
                     <input
                       type="text"
                       value={substanceData.productName}
-                      onChange={(e) => setSubstanceData({...substanceData, productName: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => setSubstanceData(prev => ({ ...prev, productName: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                       placeholder="제품명을 입력하세요"
                     />
                   </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      공급업체
-                    </label>
-                    <input
-                      type="text"
-                      value={substanceData.supplier}
-                      onChange={(e) => setSubstanceData({...substanceData, supplier: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="공급업체명을 입력하세요"
-                    />
-                  </div>
-                </div>
-
-                {/* 제조 정보 */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      제조일자
-                    </label>
-                    <input
-                      type="date"
-                      value={substanceData.manufacturingDate}
-                      onChange={(e) => setSubstanceData({...substanceData, manufacturingDate: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      제조번호
-                    </label>
-                    <input
-                      type="text"
-                      value={substanceData.manufacturingNumber}
-                      onChange={(e) => setSubstanceData({...substanceData, manufacturingNumber: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="제조번호를 입력하세요"
-                    />
-                  </div>
-                </div>
-
-                {/* 용량 및 에너지 밀도 */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      용량
-                    </label>
-                    <input
-                      type="text"
-                      value={substanceData.capacity}
-                      onChange={(e) => setSubstanceData({...substanceData, capacity: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="예: 100Ah"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      에너지 밀도
-                    </label>
-                    <input
-                      type="text"
-                      value={substanceData.energyDensity}
-                      onChange={(e) => setSubstanceData({...substanceData, energyDensity: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="예: 250Wh/kg"
-                    />
-                  </div>
-                </div>
-
-                {/* 온실가스 배출량 */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    온실가스 배출량
-                  </label>
-                  <div className="space-y-3">
-                    {substanceData.greenhouseGasEmissions.map((emission, index) => (
-                      <div key={index} className="flex gap-3 items-end">
-                        <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">납품처</label>
+                  <select
+                    value={substanceData.supplier}
+                    onChange={(e) => setSubstanceData(prev => ({ ...prev, supplier: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">납품처를 선택하세요</option>
+                    <option value="원청">원청</option>
+                    {[...Array(10)].map((_, i) => (
+                      <option key={i} value={`${i + 1}차`}>{i + 1}차</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">제조일</label>
+                  <input
+                    type="date"
+                    value={substanceData.manufacturingDate}
+                    onChange={(e) => setSubstanceData(prev => ({ ...prev, manufacturingDate: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">제조 번호</label>
+                  <input
+                    type="text"
+                    value={substanceData.manufacturingNumber}
+                    onChange={(e) => setSubstanceData(prev => ({ ...prev, manufacturingNumber: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="제조 번호를 입력하세요"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">안전 인증 정보</label>
+                  <input
+                    type="text"
+                    value={substanceData.safetyInformation}
+                    onChange={(e) => setSubstanceData(prev => ({ ...prev, safetyInformation: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="안전 인증 정보를 입력하세요"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">재활용 자재 사용 여부</label>
+                  <select
+                    value={substanceData.recycledMaterial ? 'true' : 'false'}
+                    onChange={(e) => setSubstanceData(prev => ({ ...prev, recycledMaterial: e.target.value === 'true' }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="false">아니오</option>
+                    <option value="true">예</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">용량 (Ah, Wh)</label>
+                  <input
+                    type="text"
+                    value={substanceData.capacity}
+                    onChange={(e) => setSubstanceData(prev => ({ ...prev, capacity: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="용량을 입력하세요"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">에너지밀도</label>
+                  <input
+                    type="text"
+                    value={substanceData.energyDensity}
+                    onChange={(e) => setSubstanceData(prev => ({ ...prev, energyDensity: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="에너지밀도를 입력하세요"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">폐기 방법 및 인증</label>
+                  <input
+                    type="text"
+                    value={substanceData.disposalMethod}
+                    onChange={(e) => setSubstanceData(prev => ({ ...prev, disposalMethod: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="폐기 방법 및 인증을 입력하세요"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">재활용 방법 및 인증</label>
+                  <input
+                    type="text"
+                    value={substanceData.recyclingMethod}
+                    onChange={(e) => setSubstanceData(prev => ({ ...prev, recyclingMethod: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="재활용 방법 및 인증을 입력하세요"
+                  />
+                </div>
+                  <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">제조국</label>
+                  <select
+                    value={substanceData.manufacturingCountry}
+                    onChange={(e) => {
+                      setSubstanceData(prev => ({ 
+                        ...prev, 
+                        manufacturingCountry: e.target.value,
+                        manufacturingCountryOther: e.target.value !== '기타' ? '' : prev.manufacturingCountryOther
+                      }));
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">제조국을 선택하세요</option>
+                    {countries.map(country => (
+                      <option key={country} value={country}>{country}</option>
+                    ))}
+                  </select>
+                  {substanceData.manufacturingCountry === '기타' && (
+                    <input
+                      type="text"
+                      value={substanceData.manufacturingCountryOther}
+                      onChange={(e) => setSubstanceData(prev => ({ ...prev, manufacturingCountryOther: e.target.value }))}
+                      className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="기타 제조국을 입력하세요"
+                    />
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">생산공장 위치</label>
+                  <input
+                    type="text"
+                    value={substanceData.productionPlant}
+                    onChange={(e) => setSubstanceData(prev => ({ ...prev, productionPlant: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="생산공장 위치를 입력하세요"
+                  />
+                </div>
+                  </div>
+                </div>
+
+                        {/* 원재료 정보 섹션 */}
+            <div className="border rounded-lg p-6 bg-gray-50">
+              <h4 className="text-md font-semibold text-gray-800 mb-4 border-b border-gray-300 pb-2">
+                원재료 정보
+              </h4>
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">주요 원재료 사용 여부</label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {predefinedMaterials.map(material => (
+                      <label key={material} className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          checked={substanceData.rawMaterials.includes(material)}
+                          onChange={(e) => handleRawMaterialChange(material, e.target.checked)}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <span className="text-sm text-gray-700">{material}</span>
+                      </label>
+                    ))}
+                  </div>
+                  
+                  {/* 기타 원재료 동적 입력 */}
+                  {substanceData.rawMaterials.includes('기타') && (
+                    <div className="mt-4 space-y-2">
+                      <label className="block text-sm font-medium text-gray-700">기타 원재료</label>
+                      {substanceData.rawMaterialsOther.map((material, index) => (
+                        <div key={index} className="flex items-center space-x-2">
                           <input
                             type="text"
-                            value={emission.materialName}
-                            onChange={(e) => {
-                              const newEmissions = [...substanceData.greenhouseGasEmissions];
-                              newEmissions[index].materialName = e.target.value;
-                              setSubstanceData({...substanceData, greenhouseGasEmissions: newEmissions});
-                            }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="물질명 (예: CO2, CH4)"
+                            value={material}
+                            onChange={(e) => updateOtherRawMaterial(index, e.target.value)}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="기타 원재료를 입력하세요"
                           />
+                          <button
+                            onClick={() => removeOtherRawMaterial(index)}
+                            className="px-3 py-2 text-red-600 hover:text-red-800 border border-red-300 rounded-md hover:bg-red-50"
+                          >
+                            삭제
+                          </button>
                         </div>
-                        <div className="w-24">
-                          <input
-                            type="text"
-                            value={emission.amount}
-                            onChange={(e) => {
-                              const newEmissions = [...substanceData.greenhouseGasEmissions];
-                              newEmissions[index].amount = e.target.value;
-                              setSubstanceData({...substanceData, greenhouseGasEmissions: newEmissions});
-                            }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="양"
-                          />
+                      ))}
+                      <button
+                        onClick={addOtherRawMaterial}
+                        className="px-4 py-2 text-blue-600 hover:text-blue-800 border border-blue-300 rounded-md hover:bg-blue-50"
+                      >
+                        + 추가
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-gray-300 pt-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-4">원재료별 출처 정보</label>
+                  <div className="space-y-4">
+                    {getAllSelectedMaterials().map((material, index) => (
+                      <div key={material.key} className="border border-gray-200 rounded-lg p-4 bg-white">
+                        <h5 className="font-medium text-gray-800 mb-3">{material.name}</h5>
+                        <div className="space-y-3">
+                          <div className="flex space-x-4">
+                            <label className="flex items-center">
+                              <input
+                                type="radio"
+                                name={`sourceType-${material.key.replace(/[^a-zA-Z0-9가-힣]/g, '')}-${index}`}
+                                value="국내 조달"
+                                checked={substanceData.rawMaterialSources.find(s => s.material === material.key)?.sourceType === '국내 조달'}
+                                onChange={(e) => updateMaterialSource(material.key, 'sourceType', e.target.value)}
+                                className="mr-2"
+                              />
+                              국내 조달
+                            </label>
+                            <label className="flex items-center">
+                              <input
+                                type="radio"
+                                name={`sourceType-${material.key.replace(/[^a-zA-Z0-9가-힣]/g, '')}-${index}`}
+                                value="수입"
+                                checked={substanceData.rawMaterialSources.find(s => s.material === material.key)?.sourceType === '수입'}
+                                onChange={(e) => updateMaterialSource(material.key, 'sourceType', e.target.value)}
+                                className="mr-2"
+                              />
+                              수입
+                            </label>
+                          </div>
+
+                          {substanceData.rawMaterialSources.find(s => s.material === material.key)?.sourceType === '국내 조달' && (
+                            <input
+                              type="text"
+                              value={substanceData.rawMaterialSources.find(s => s.material === material.key)?.address || ''}
+                              onChange={(e) => updateMaterialSource(material.key, 'address', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="주소를 입력하세요"
+                            />
+                          )}
+                          
+                          {substanceData.rawMaterialSources.find(s => s.material === material.key)?.sourceType === '수입' && (
+                            <div className="space-y-2">
+                              <select
+                                value={substanceData.rawMaterialSources.find(s => s.material === material.key)?.country || ''}
+                                onChange={(e) => {
+                                  updateMaterialSource(material.key, 'country', e.target.value);
+                                  if (e.target.value !== '기타') {
+                                    updateMaterialSource(material.key, 'countryOther', '');
+                                  }
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              >
+                                <option value="">수입국을 선택하세요</option>
+                                {importCountries.map(country => (
+                                  <option key={country} value={country}>{country}</option>
+                                ))}
+                              </select>
+                              {substanceData.rawMaterialSources.find(s => s.material === material.key)?.country === '기타' && (
+                                <input
+                                  type="text"
+                                  value={substanceData.rawMaterialSources.find(s => s.material === material.key)?.countryOther || ''}
+                                  onChange={(e) => updateMaterialSource(material.key, 'countryOther', e.target.value)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                  placeholder="기타 수입국을 입력하세요"
+                                />
+                              )}
+                            </div>
+                          )}
                         </div>
-                        <div className="w-20">
-                          <input
-                            type="text"
-                            value={emission.unit}
-                            onChange={(e) => {
-                              const newEmissions = [...substanceData.greenhouseGasEmissions];
-                              newEmissions[index].unit = e.target.value;
-                              setSubstanceData({...substanceData, greenhouseGasEmissions: newEmissions});
-                            }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="단위"
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newEmissions = substanceData.greenhouseGasEmissions.filter((_, i) => i !== index);
-                            setSubstanceData({...substanceData, greenhouseGasEmissions: newEmissions});
-                          }}
-                          className="px-3 py-2 text-red-600 hover:text-red-800"
-                        >
-                          삭제
-                        </button>
                       </div>
                     ))}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSubstanceData({
-                          ...substanceData,
-                          greenhouseGasEmissions: [...substanceData.greenhouseGasEmissions, {materialName: '', amount: '', unit: 'tonCO2eq'}]
-                        });
-                      }}
-                      className="text-blue-600 hover:text-blue-800 text-sm"
-                    >
-                      + 온실가스 배출량 추가
-                    </button>
                   </div>
-                </div>
-
-                {/* 제출 버튼 */}
-                <div className="pt-6 border-t">
-                  <button
-                    onClick={startAutoMapping}
-                    disabled={isSubmitting || !substanceData.productName}
-                    className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium"
-                  >
-                    {isSubmitting ? '처리 중...' : '제품 추가 및 자동매핑 시작'}
-                  </button>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* 기존 제품 목록 */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm border">
-              <div className="px-6 py-4 border-b">
-                <h2 className="text-lg font-semibold text-gray-900">기존 제품 목록</h2>
-                <p className="text-sm text-gray-600 mt-1">{partnerInfo.name}의 등록된 제품들</p>
-              </div>
-              
-              <div className="p-6">
-                {isLoading ? (
-                  <div className="text-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                    <p className="text-gray-500 mt-2">제품 목록 로딩 중...</p>
-                  </div>
-                ) : existingProducts.length === 0 ? (
-                  <div className="text-center py-8">
-                    <div className="text-gray-400 text-4xl mb-2">📦</div>
-                    <p className="text-gray-500">등록된 제품이 없습니다</p>
-                    <p className="text-sm text-gray-400 mt-1">새로운 제품을 추가해보세요</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {existingProducts.map((product, index) => (
-                      <div key={index} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <h3 className="font-medium text-gray-900">{product.productName}</h3>
-                            {product.supplier && (
-                              <p className="text-sm text-gray-600 mt-1">공급업체: {product.supplier}</p>
-                            )}
-                            {product.capacity && (
-                              <p className="text-sm text-gray-600">용량: {product.capacity}</p>
-                            )}
-                            {product.manufacturingDate && (
-                              <p className="text-sm text-gray-500 mt-1">
-                                제조일: {new Date(product.manufacturingDate).toLocaleDateString('ko-KR')}
-                              </p>
-                            )}
-                            {product.recycledMaterial && (
-                              <span className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full mt-2">
-                                재활용 소재
-                              </span>
-                            )}
-                          </div>
-                        </div>
+                        {/* 온실가스 배출량 섹션 */}
+            <div className="border rounded-lg p-6 bg-gray-50">
+              <h4 className="text-md font-semibold text-gray-800 mb-4 border-b border-gray-300 pb-2">
+                온실가스 배출량
+              </h4>
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">
+                  제품을 생산할때 발생하는 온실가스 (CH4, CO₂, HFCs, N₂O, NF3, PFCs, SF₆)를 tonCO2eq 기준 단위로 입력하세요
+                </p>
+                
+                {substanceData.greenhouseGasEmissions.map((emission, index) => (
+                  <div key={index} className="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg bg-white">
+                    <div className="flex-1">
+                      <input
+                        type="text"
+                        value={emission.materialName}
+                        onChange={(e) => updateGreenhouseGas(index, 'materialName', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="물질명을 입력하세요"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="number"
+                          value={emission.amount}
+                          onChange={(e) => updateGreenhouseGas(index, 'amount', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="사용량"
+                        />
+                        <span className="text-sm text-gray-500 whitespace-nowrap">tonCO2eq</span>
                       </div>
-                    ))}
+                    </div>
+                    <button
+                      onClick={() => removeGreenhouseGas(index)}
+                      className="px-3 py-2 text-red-600 hover:text-red-800 border border-red-300 rounded-md hover:bg-red-50"
+                    >
+                      삭제
+                    </button>
                   </div>
-                )}
+                ))}
+                
+                <button
+                  onClick={addGreenhouseGas}
+                  className="px-4 py-2 text-blue-600 hover:text-blue-800 border border-blue-300 rounded-md hover:bg-blue-50"
+                >
+                  + 추가
+                </button>
               </div>
+            </div>
+
+                        {/* 기타 정보 섹션 */}
+            <div className="border rounded-lg p-6 bg-gray-50">
+              <h4 className="text-md font-semibold text-gray-800 mb-4 border-b border-gray-300 pb-2">
+                기타 정보
+              </h4>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">화학 조성</label>
+                  <textarea
+                    value={substanceData.chemicalComposition}
+                    onChange={(e) => setSubstanceData(prev => ({ ...prev, chemicalComposition: e.target.value }))}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="화학 조성을 입력하세요"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 제출 버튼 */}
+            <div className="flex justify-end space-x-4 pt-6 border-t">
+              <button
+                onClick={() => router.back()}
+                className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500"
+              >
+                취소
+              </button>
+              <button
+                onClick={startAutoMapping}
+                disabled={isSubmitting || !substanceData.productName}
+                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? '처리 중...' : '자동 매핑 시작'}
+              </button>
             </div>
           </div>
         </div>

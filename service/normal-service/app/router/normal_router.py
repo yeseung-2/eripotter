@@ -44,7 +44,7 @@ def get_normal_controller() -> NormalController:
 
 
 # 라우터 생성
-normal_router = APIRouter(prefix="", tags=["normal"])
+normal_router = APIRouter(prefix="/api/normal", tags=["normal"])
 
 # ---------- 어댑터: 서비스 결과 → Pydantic 모델 ----------
 def _to_mapping_result(data: Dict[str, Any]) -> SubstanceMappingResult:
@@ -384,34 +384,6 @@ async def get_original_data(
         )
 
 
-@normal_router.get("/company/{company_name}/products", summary="회사별 제품 목록 조회")
-async def get_company_products(
-    company_name: str,
-    service: NormalService = Depends(get_normal_service),
-):
-    try:
-        products = service.get_company_products(company_name)
-        return {
-            "status": "success",
-            "data": products,
-            "total_count": len(products),
-            "company_name": company_name,
-            "timestamp": datetime.now().isoformat(),
-            "message": f"{company_name}의 제품 목록 {len(products)}개 조회 완료",
-        }
-    except Exception as e:
-        logger.error(f"회사별 제품 목록 조회 실패: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "status": "error",
-                "message": f"제품 목록을 조회할 수 없습니다: {str(e)}",
-                "timestamp": datetime.now().isoformat(),
-                "error_type": "product_list_retrieval_failed",
-            },
-        )
-
-
 @normal_router.get("/substance/corrections", summary="사용자 수정 데이터 조회")
 async def get_corrections(
     company_id: Optional[str] = None,
@@ -474,5 +446,249 @@ async def correct_substance_mapping(
                 "message": f"매핑 결과를 수정할 수 없습니다: {str(e)}",
                 "timestamp": datetime.now().isoformat(),
                 "error_type": "update_failed",
+            },
+        )
+
+
+# ---------- 프론트엔드 연동용 새로운 엔드포인트들 ----------
+@normal_router.post("/substance/save-and-map", summary="데이터 저장 및 자동매핑 시작")
+async def save_and_map_substance(
+    substance_data: dict,
+    company_id: Optional[str] = None,
+    company_name: Optional[str] = None,
+    uploaded_by: Optional[str] = None,
+    service: NormalService = Depends(get_normal_service),
+):
+    try:
+        if not substance_data:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "status": "error",
+                    "message": "물질 데이터가 제공되지 않았습니다.",
+                    "timestamp": datetime.now().isoformat(),
+                    "error_type": "invalid_request",
+                },
+            )
+
+        result = service.save_substance_data_and_map_gases(
+            substance_data=substance_data,
+            company_id=company_id,
+            company_name=company_name,
+            uploaded_by=uploaded_by,
+        )
+        
+        return {
+            "status": result.get("status", "success"),
+            "normal_id": result.get("normal_id"),
+            "message": result.get("message", "데이터 저장 및 자동매핑이 완료되었습니다."),
+            "timestamp": datetime.now().isoformat(),
+            "data": result,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"데이터 저장 및 자동매핑 실패: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "status": "error",
+                "message": f"데이터 저장 및 자동매핑을 수행할 수 없습니다: {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+                "error_type": "save_and_map_failed",
+            },
+        )
+
+
+@normal_router.get("/substance/{normal_id}", summary="특정 normal 데이터 조회")
+async def get_substance_by_id(
+    normal_id: int,
+    service: NormalService = Depends(get_normal_service),
+):
+    try:
+        if not service.db_available or not service.normal_repository:
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "status": "error",
+                    "message": "데이터베이스 연결이 불가능합니다.",
+                    "timestamp": datetime.now().isoformat(),
+                    "error_type": "database_unavailable",
+                },
+            )
+
+        normal_data = service.normal_repository.get_by_id(normal_id)
+        if not normal_data:
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "status": "error",
+                    "message": f"Normal ID {normal_id}를 찾을 수 없습니다.",
+                    "timestamp": datetime.now().isoformat(),
+                    "error_type": "not_found",
+                },
+            )
+
+        return {
+            "status": "success",
+            "data": {
+                "id": normal_data.id,
+                "product_name": normal_data.product_name,
+                "supplier": normal_data.supplier,
+                "manufacturing_date": normal_data.manufacturing_date,
+                "greenhouse_gas_emissions": normal_data.greenhouse_gas_emissions or [],
+            },
+            "timestamp": datetime.now().isoformat(),
+            "message": f"Normal ID {normal_id} 데이터 조회 완료",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Normal 데이터 조회 실패: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "status": "error",
+                "message": f"Normal 데이터를 조회할 수 없습니다: {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+                "error_type": "data_retrieval_failed",
+            },
+        )
+
+
+@normal_router.get("/substance/mapping-results/{normal_id}", summary="매핑 결과 조회")
+async def get_mapping_results(
+    normal_id: int,
+    service: NormalService = Depends(get_normal_service),
+):
+    try:
+        if not service.db_available or not service.normal_repository:
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "status": "error",
+                    "message": "데이터베이스 연결이 불가능합니다.",
+                    "timestamp": datetime.now().isoformat(),
+                    "error_type": "database_unavailable",
+                },
+            )
+
+        # Normal 데이터 존재 확인
+        normal_data = service.normal_repository.get_by_id(normal_id)
+        if not normal_data:
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "status": "error",
+                    "message": f"Normal ID {normal_id}를 찾을 수 없습니다.",
+                    "timestamp": datetime.now().isoformat(),
+                    "error_type": "not_found",
+                },
+            )
+
+        # 해당 normal_id의 매핑 결과 조회
+        with service.normal_repository.Session() as session:
+            from ..domain.entity import CertificationEntity
+            
+            certifications = session.query(CertificationEntity).filter(
+                CertificationEntity.normal_id == normal_id
+            ).all()
+            
+            mapping_results = []
+            for cert in certifications:
+                # 프론트엔드에서 기대하는 형식으로 변환
+                mapping_results.append({
+                    "original_gas_name": cert.original_gas_name or "",
+                    "original_amount": cert.original_amount or "",
+                    "ai_mapped_name": cert.ai_mapped_name or "",
+                    "ai_confidence": float(cert.ai_confidence_score or 0.0),
+                    "status": cert.mapping_status or "needs_review",
+                    "certification_id": cert.id,
+                    "error": None  # 오류가 있으면 여기에 추가
+                })
+        
+        return {
+            "status": "success",
+            "data": mapping_results,
+            "timestamp": datetime.now().isoformat(),
+            "message": f"Normal ID {normal_id} 매핑 결과 {len(mapping_results)}개 조회 완료",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"매핑 결과 조회 실패: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "status": "error",
+                "message": f"매핑 결과를 조회할 수 없습니다: {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+                "error_type": "data_retrieval_failed",
+            },
+        )
+
+
+@normal_router.post("/substance/save-corrections", summary="수정사항 저장")
+async def save_corrections(
+    normal_id: int,
+    corrections: List[dict],
+    service: NormalService = Depends(get_normal_service),
+):
+    try:
+        if not corrections:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "status": "error",
+                    "message": "수정할 데이터가 제공되지 않았습니다.",
+                    "timestamp": datetime.now().isoformat(),
+                    "error_type": "invalid_request",
+                },
+            )
+
+        if not service.db_available or not service.normal_repository:
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "status": "error",
+                    "message": "데이터베이스 연결이 불가능합니다.",
+                    "timestamp": datetime.now().isoformat(),
+                    "error_type": "database_unavailable",
+                },
+            )
+
+        # 수정사항 저장 (실제 구현에 따라 수정 필요)
+        success_count = 0
+        for correction in corrections:
+            certification_id = correction.get("certification_id")
+            correction_data = correction.get("correction_data", {})
+            reviewed_by = correction.get("reviewed_by", "user")
+            
+            if certification_id and correction_data:
+                success = service.correct_mapping(certification_id, correction_data)
+                if success:
+                    success_count += 1
+
+        return {
+            "status": "success",
+            "message": f"수정사항 {success_count}개가 성공적으로 저장되었습니다.",
+            "timestamp": datetime.now().isoformat(),
+            "data": {
+                "normal_id": normal_id,
+                "total_corrections": len(corrections),
+                "success_count": success_count,
+            },
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"수정사항 저장 실패: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "status": "error",
+                "message": f"수정사항을 저장할 수 없습니다: {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+                "error_type": "save_failed",
             },
         )
