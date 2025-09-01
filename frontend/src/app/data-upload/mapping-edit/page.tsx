@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 // 인터페이스 정의
@@ -27,7 +27,7 @@ interface NormalData {
   }>;
 }
 
-export default function MappingEditPage() {
+function MappingEditContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const normalId = searchParams.get('normalId');
@@ -331,5 +331,20 @@ export default function MappingEditPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function MappingEditPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">페이지를 불러오는 중...</p>
+        </div>
+      </div>
+    }>
+      <MappingEditContent />
+    </Suspense>
   );
 }
