@@ -1,10 +1,19 @@
+# app/domain/model/normal_model.py
 """
-Normal Service Models - Pydantic 모델 정의
+Normal Service Models - Pydantic 모델 정의 (Refactored)
+- 기존 스키마 유지
+- Optional/기본값 명확화, default_factory 활용
+- 타임스탬프는 ISO 문자열(str)로 일관 (라우터 응답과 일치)
 """
-from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
+
+from __future__ import annotations
+
 from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field
+
 
 # ===== 기본 모델 =====
 
@@ -14,13 +23,15 @@ class ValidationIssue(BaseModel):
     message: str
     severity: str = "error"  # error, warning, info
 
+
 class ValidationResult(BaseModel):
     """검증 결과 모델"""
     is_valid: bool
-    issues: List[ValidationIssue] = []
-    standardized_data: Dict[str, Any] = {}
+    issues: List[ValidationIssue] = Field(default_factory=list)
+    standardized_data: Dict[str, Any] = Field(default_factory=dict)
     esg_score: int = 0
     completion_rate: int = 0
+
 
 # ===== 협력사 ESG 데이터 모델 =====
 
@@ -30,17 +41,20 @@ class ESGCategory(str, Enum):
     SOCIAL = "social"
     GOVERNANCE = "governance"
 
+
 class ESGData(BaseModel):
     """ESG 데이터 모델"""
     environmental: Dict[str, Any] = Field(default_factory=dict, description="환경 데이터")
     social: Dict[str, Any] = Field(default_factory=dict, description="사회 데이터")
     governance: Dict[str, Any] = Field(default_factory=dict, description="지배구조 데이터")
 
+
 class PartnerUploadRequest(BaseModel):
     """협력사 파일 업로드 요청"""
     company_id: str = Field(..., description="협력사 ID")
     file_type: str = Field(..., description="파일 타입")
     description: Optional[str] = Field(None, description="파일 설명")
+
 
 class PartnerUploadResponse(BaseModel):
     """협력사 파일 업로드 응답"""
@@ -52,6 +66,7 @@ class PartnerUploadResponse(BaseModel):
     status: str
     validation_status: str = "pending"
 
+
 class PartnerDashboardData(BaseModel):
     """협력사 대시보드 데이터"""
     company_id: str
@@ -61,11 +76,13 @@ class PartnerDashboardData(BaseModel):
     next_deadline: str
     categories: Dict[str, Dict[str, Any]]
 
+
 class ESGReportRequest(BaseModel):
     """ESG 보고서 생성 요청"""
     report_type: str = Field(..., description="보고서 타입")
     company_id: str = Field(..., description="협력사 ID")
     format: str = Field("pdf", description="보고서 형식")
+
 
 class ESGReportResponse(BaseModel):
     """ESG 보고서 생성 응답"""
@@ -76,12 +93,14 @@ class ESGReportResponse(BaseModel):
     download_url: Optional[str] = None
     content: Dict[str, Any]
 
+
 class ESGSchemaResponse(BaseModel):
     """ESG 스키마 응답"""
     industry: str
     schema: Dict[str, List[str]]
     version: str = "1.0"
     last_updated: datetime
+
 
 # ===== 파일 업로드 관련 모델 =====
 
@@ -91,6 +110,7 @@ class FileUploadStatus(str, Enum):
     VALIDATING = "validating"
     SUCCESS = "success"
     ERROR = "error"
+
 
 class FileInfo(BaseModel):
     """파일 정보"""
@@ -104,6 +124,7 @@ class FileInfo(BaseModel):
     uploaded_at: datetime
     company_id: Optional[str] = None
 
+
 # ===== API 응답 모델 =====
 
 class APIResponse(BaseModel):
@@ -113,17 +134,20 @@ class APIResponse(BaseModel):
     data: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
 
+
 class PartnerDataValidationRequest(BaseModel):
     """협력사 데이터 검증 요청"""
     data: ESGData
     company_id: str
     industry: Optional[str] = "general"
 
+
 class PartnerDataValidationResponse(BaseModel):
     """협력사 데이터 검증 응답"""
     validation_result: ValidationResult
-    recommendations: List[str] = []
-    next_steps: List[str] = []
+    recommendations: List[str] = Field(default_factory=list)
+    next_steps: List[str] = Field(default_factory=list)
+
 
 # ===== 물질 매핑 관련 모델 =====
 
@@ -133,11 +157,13 @@ class SubstanceMappingRequest(BaseModel):
     company_id: Optional[str] = Field(None, description="회사 ID")
     confidence_threshold: float = Field(0.7, description="신뢰도 임계값")
 
+
 class SubstanceMappingBatchRequest(BaseModel):
     """배치 물질 매핑 요청"""
     substance_names: List[str] = Field(..., description="매핑할 물질명 목록")
     company_id: Optional[str] = Field(None, description="회사 ID")
     confidence_threshold: float = Field(0.7, description="신뢰도 임계값")
+
 
 class SubstanceMappingResult(BaseModel):
     """물질 매핑 결과"""
@@ -148,28 +174,32 @@ class SubstanceMappingResult(BaseModel):
     status: str = Field("pending", description="매핑 상태")
     error_message: Optional[str] = Field(None, description="오류 메시지")
 
+
 class SubstanceMappingResponse(BaseModel):
     """단일 물질 매핑 응답"""
     status: str = Field(..., description="응답 상태")
     data: SubstanceMappingResult = Field(..., description="매핑 결과")
-    timestamp: str = Field(..., description="처리 시간")
+    timestamp: str = Field(..., description="처리 시간 (ISO 문자열)")
+
 
 class SubstanceMappingBatchResponse(BaseModel):
     """배치 물질 매핑 응답"""
     status: str = Field(..., description="응답 상태")
-    data: List[SubstanceMappingResult] = Field(..., description="매핑 결과 목록")
+    data: List[SubstanceMappingResult] = Field(default_factory=list, description="매핑 결과 목록")
     total_count: int = Field(..., description="총 처리 개수")
     success_count: int = Field(0, description="성공 개수")
     error_count: int = Field(0, description="실패 개수")
-    timestamp: str = Field(..., description="처리 시간")
+    timestamp: str = Field(..., description="처리 시간 (ISO 문자열)")
+
 
 class SubstanceMappingFileResponse(BaseModel):
     """파일 기반 물질 매핑 응답"""
     status: str = Field(..., description="응답 상태")
-    data: List[SubstanceMappingResult] = Field(..., description="매핑 결과 목록")
+    data: List[SubstanceMappingResult] = Field(default_factory=list, description="매핑 결과 목록")
     original_filename: str = Field(..., description="원본 파일명")
     processed_count: int = Field(0, description="처리된 물질 개수")
-    timestamp: str = Field(..., description="처리 시간")
+    timestamp: str = Field(..., description="처리 시간 (ISO 문자열)")
+
 
 class SubstanceMappingStatistics(BaseModel):
     """물질 매핑 통계"""
@@ -179,6 +209,7 @@ class SubstanceMappingStatistics(BaseModel):
     average_confidence: float = Field(0.0, description="평균 신뢰도")
     last_updated: datetime = Field(default_factory=datetime.now, description="마지막 업데이트 시간")
     service_status: str = Field("active", description="서비스 상태")
+
 
 class SavedMapping(BaseModel):
     """저장된 매핑 데이터"""
@@ -191,6 +222,7 @@ class SavedMapping(BaseModel):
     created_at: datetime = Field(..., description="생성 시간")
     updated_at: datetime = Field(..., description="수정 시간")
 
+
 class OriginalData(BaseModel):
     """원본 데이터"""
     id: int = Field(..., description="데이터 ID")
@@ -199,6 +231,7 @@ class OriginalData(BaseModel):
     quantity: Optional[float] = Field(None, description="수량")
     unit: Optional[str] = Field(None, description="단위")
     created_at: datetime = Field(..., description="생성 시간")
+
 
 class CorrectionData(BaseModel):
     """수정 데이터"""
@@ -209,6 +242,7 @@ class CorrectionData(BaseModel):
     corrected_by: Optional[str] = Field(None, description="수정자")
     correction_reason: Optional[str] = Field(None, description="수정 사유")
     created_at: datetime = Field(..., description="수정 시간")
+
 
 class MappingCorrectionRequest(BaseModel):
     """매핑 수정 요청"""

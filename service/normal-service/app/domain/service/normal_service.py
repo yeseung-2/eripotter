@@ -1,30 +1,45 @@
+# app/domain/service/normal_service.py
 """
-Normal Service - MSA 구조에 맞춘 통합 서비스
-프론트엔드 데이터 처리 + AI 매핑 + 사용자 검토
+Normal Service - MSA 구조 통합 서비스 (Refactored)
+- DB 가용성 감지 및 graceful degrade
+- 엑셀/CSV 업로드 간단 표준화 파이프라인 내장
+- 저장 → 자동매핑 헬퍼(save_substance_data_and_map_gases) 추가
+- get_substance_mapping_statistics 순환호출 버그 제거
+- SentenceTransformer 로딩 실패 시 'no_model' 상태로 안전 반환
 """
-from eripotter_common.database.base import get_db_engine
+
+from __future__ import annotations
+
+import io
 import logging
-from datetime import datetime
-from typing import Dict, List, Any, Optional
-import pandas as pd
-import numpy as np
-import faiss
 import os
 from pathlib import Path
-from sentence_transformers import SentenceTransformer
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+import numpy as np
+import pandas as pd
+
+try:
+    from sentence_transformers import SentenceTransformer
+except Exception:
+    SentenceTransformer = None  # 런타임에 모델 미설치/미사용 대응
+
+from eripotter_common.database.base import get_db_engine
 from ..repository.normal_repository import NormalRepository
 
 logger = logging.getLogger("normal-service")
 
+
 class NormalService:
     """Normal Service - MSA 구조에 맞춘 통합 서비스"""
-    
+
     def __init__(self):
-        # 데이터베이스 연결을 선택적으로 시도
+        # DB 연결 (가능하면)
         self.engine = None
-        self.normal_repository = None
+        self.normal_repository: Optional[NormalRepository] = None
         self.db_available = False
-        
+
         try:
             self.engine = get_db_engine()
             self.normal_repository = NormalRepository()
@@ -33,313 +48,333 @@ class NormalService:
         except Exception as e:
             logger.warning(f"⚠️ 데이터베이스 연결 실패: {e}")
             logger.info("📝 AI 매핑만 사용합니다 (결과 저장 불가)")
-        
-        # MSA 구조에 맞춘 단순화된 초기화
-        
-        # Substance Mapping 관련 초기화
-        self.model = None
-        self.regulation_data = None
-        self.faiss_index = None
-        self.regulation_sids = None
-        self.regulation_names = None
-        self._load_model_and_data()
 
-    # ===== 프론트엔드 데이터 처리 메서드들 =====
-    
-    def save_substance_data_only(self, substance_data: Dict[str, Any], company_id: str = None, company_name: str = None, uploaded_by: str = None) -> Dict[str, Any]:
+        # AI 모델(선택)
+        self.model: Optional[SentenceTransformer] = None
+        self._load_model()
+
+    # ---------------------------------------------------------------------
+    # 프론트엔드 데이터 처리
+    # ---------------------------------------------------------------------
+
+    def save_substance_data_only(
+        self,
+        substance_data: Dict[str, Any],
+        company_id: str = None,
+        company_name: str = None,
+        uploaded_by: str = None,
+    ) -> Dict[str, Any]:
         """프론트엔드에서 받은 물질 데이터만 저장 (AI 매핑은 별도)"""
         try:
             logger.info(f"📝 물질 데이터 저장 시작: {substance_data.get('productName', 'Unknown')}")
-            logger.info(f"🔍 DB Available: {self.db_available}")
-            logger.info(f"🔍 Repository: {self.normal_repository}")
-            logger.info(f"🔍 Company ID: {company_id}, Company Name: {company_name}")
-            logger.info(f"🔍 Uploaded By: {uploaded_by}")
-            
             if not self.db_available:
-                logger.error("❌ 데이터베이스 연결이 불가능합니다.")
-                return {
-                    "status": "error",
-                    "message": "데이터베이스 연결이 불가능합니다."
-                }
-            
-            # Normal 테이블에 데이터 저장
+                return {"status": "error", "message": "데이터베이스 연결이 불가능합니다."}
+
             normal_id = self.normal_repository.save_substance_data(
                 substance_data=substance_data,
                 company_id=company_id,
                 company_name=company_name,
                 uploaded_by=uploaded_by,
-                uploaded_by_email=substance_data.get('uploadedByEmail')
+                uploaded_by_email=substance_data.get("uploadedByEmail"),
             )
-            
+
             if not normal_id:
-                return {
-                    "status": "error",
-                    "message": "물질 데이터 저장에 실패했습니다."
-                }
-            
+                return {"status": "error", "message": "물질 데이터 저장에 실패했습니다."}
+
             logger.info(f"✅ 물질 데이터 저장 완료: Normal ID {normal_id}")
-            
             return {
                 "status": "success",
                 "normal_id": normal_id,
-                "product_name": substance_data.get('productName'),
-                "message": "물질 데이터 저장 완료. 자동매핑을 시작하세요."
+                "product_name": substance_data.get("productName"),
+                "message": "물질 데이터 저장 완료. 자동매핑을 시작하세요.",
             }
-            
         except Exception as e:
             logger.error(f"❌ 물질 데이터 저장 실패: {e}")
+            return {"status": "error", "error": str(e), "message": "물질 데이터 저장 중 오류가 발생했습니다."}
+
+    def save_substance_data_and_map_gases(
+        self,
+        substance_data: Dict[str, Any],
+        company_id: str = None,
+        company_name: str = None,
+        uploaded_by: str = None,
+    ) -> Dict[str, Any]:
+        """저장 후 해당 레코드의 온실가스 배출량 자동매핑까지 수행"""
+        save_res = self.save_substance_data_only(substance_data, company_id, company_name, uploaded_by)
+        if save_res.get("status") != "success":
+            return save_res
+
+        normal_id = save_res["normal_id"]
+        map_res = self.start_auto_mapping(normal_id=normal_id, company_id=company_id, company_name=company_name)
+        if map_res.get("status") != "success":
             return {
-                "status": "error",
-                "error": str(e),
-                "message": "물질 데이터 저장 중 오류가 발생했습니다."
+                "status": "partial",
+                "normal_id": normal_id,
+                "message": "저장은 완료됐지만 자동매핑에 실패했습니다.",
+                "mapping_error": map_res.get("message") or map_res.get("error"),
             }
+        return map_res
 
     def start_auto_mapping(self, normal_id: int, company_id: str = None, company_name: str = None) -> Dict[str, Any]:
-        """자동매핑 시작 - 저장된 데이터의 온실가스 배출량을 AI로 매핑"""
+        """저장된 데이터의 온실가스 배출량을 AI로 매핑"""
         try:
             logger.info(f"🤖 자동매핑 시작: Normal ID {normal_id}")
-            
+
             if not self.db_available:
-                return {
-                    "status": "error",
-                    "message": "데이터베이스 연결이 불가능합니다."
-                }
-            
-            # Normal 테이블에서 데이터 조회
+                return {"status": "error", "message": "데이터베이스 연결이 불가능합니다."}
+
             normal_data = self.normal_repository.get_by_id(normal_id)
             if not normal_data:
-                return {
-                    "status": "error",
-                    "message": f"Normal ID {normal_id}를 찾을 수 없습니다."
-                }
-            
-            # 온실가스 배출량 데이터 추출
+                return {"status": "error", "message": f"Normal ID {normal_id}를 찾을 수 없습니다."}
+
             greenhouse_gases = normal_data.greenhouse_gas_emissions or []
             if not greenhouse_gases:
-                return {
-                    "status": "error",
-                    "message": "온실가스 배출량 데이터가 없습니다."
-                }
-            
-            mapping_results = []
-            certification_ids = []
-            
+                return {"status": "error", "message": "온실가스 배출량 데이터가 없습니다."}
+
+            mapping_results: List[Dict[str, Any]] = []
+
             logger.info(f"🤖 온실가스 AI 매핑 시작: {len(greenhouse_gases)}개")
-            
             for gas_data in greenhouse_gases:
-                gas_name = gas_data.get('materialName', '')
-                gas_amount = gas_data.get('amount', '')
-                
-                if gas_name:
-                    # AI 매핑 수행
-                    ai_result = self.map_substance(gas_name)
-                    
-                    # Certification 테이블에 저장
-                    if ai_result.get('status') == 'success':
-                        success = self.normal_repository.save_ai_mapping_result(
-                            normal_id=normal_id,
-                            gas_name=gas_name,
-                            gas_amount=gas_amount,
-                            mapping_result=ai_result,
-                            company_id=company_id,
-                            company_name=company_name
-                        )
-                        
-                        if success:
-                            # 신뢰도에 따른 상태 결정
-                            confidence = ai_result.get('confidence', 0.0)
-                            if confidence >= 0.7:
-                                status = 'auto_mapped'
-                            elif confidence >= 0.4:
-                                status = 'needs_review'
-                            else:
-                                status = 'needs_review'  # 낮은 신뢰도도 검토 필요
-                            
-                            mapping_results.append({
-                                'original_gas_name': gas_name,
-                                'original_amount': gas_amount,
-                                'ai_mapped_name': ai_result.get('mapped_name'),
-                                'ai_confidence': ai_result.get('confidence'),
-                                'status': status,
-                                'certification_id': None  # 나중에 조회해서 채워넣기
-                            })
+                gas_name = (gas_data or {}).get("materialName", "")
+                gas_amount = (gas_data or {}).get("amount", "")
+
+                if not gas_name:
+                    mapping_results.append({"original_gas_name": "", "status": "mapping_failed", "error": "빈 물질명"})
+                    continue
+
+                ai_result = self.map_substance(gas_name)
+
+                if ai_result.get("status") == "success":
+                    success = self.normal_repository.save_ai_mapping_result(
+                        normal_id=normal_id,
+                        gas_name=gas_name,
+                        gas_amount=gas_amount,
+                        mapping_result=ai_result,
+                        company_id=company_id,
+                        company_name=company_name,
+                    )
+                    if success:
+                        confidence = float(ai_result.get("confidence", 0.0) or 0.0)
+                        if confidence >= 0.7:
+                            status = "auto_mapped"
+                        elif confidence >= 0.4:
+                            status = "needs_review"
                         else:
-                            mapping_results.append({
-                                'original_gas_name': gas_name,
-                                'status': 'save_failed'
-                            })
+                            status = "needs_review"
+
+                        mapping_results.append(
+                            {
+                                "original_gas_name": gas_name,
+                                "original_amount": gas_amount,
+                                "ai_mapped_name": ai_result.get("mapped_name"),
+                                "ai_confidence": confidence,
+                                "status": status,
+                                "certification_id": None,  # 필요 시 후속 조회로 채울 수 있음
+                            }
+                        )
                     else:
-                        mapping_results.append({
-                            'original_gas_name': gas_name,
-                            'status': 'mapping_failed',
-                            'error': ai_result.get('error')
-                        })
-            
-            # 생성된 certification ID들 조회
-            saved_mappings = self.normal_repository.get_saved_mappings(company_id, limit=len(mapping_results))
-            for i, mapping in enumerate(mapping_results):
-                if i < len(saved_mappings):
-                    mapping['certification_id'] = saved_mappings[i]['id']
-            
+                        mapping_results.append({"original_gas_name": gas_name, "status": "save_failed"})
+                else:
+                    mapping_results.append(
+                        {"original_gas_name": gas_name, "status": "mapping_failed", "error": ai_result.get("error")}
+                    )
+
             logger.info(f"✅ 자동매핑 완료: {len(mapping_results)}개 매핑")
-            
             return {
                 "status": "success",
                 "normal_id": normal_id,
                 "mapping_results": mapping_results,
-                "message": f"자동매핑 완료: {len(mapping_results)}개 온실가스 매핑. 사용자 검토가 필요합니다."
+                "message": f"자동매핑 완료: {len(mapping_results)}개 온실가스 매핑. 사용자 검토가 필요합니다.",
             }
-            
         except Exception as e:
             logger.error(f"❌ 자동매핑 실패: {e}")
-            return {
-                "status": "error",
-                "error": str(e),
-                "message": "자동매핑 중 오류가 발생했습니다."
-            }
+            return {"status": "error", "error": str(e), "message": "자동매핑 중 오류가 발생했습니다."}
+
+    # ---------------------------------------------------------------------
+    # 상태/통계
+    # ---------------------------------------------------------------------
 
     def get_substance_mapping_statistics(self) -> Dict[str, Any]:
-        """물질 매핑 통계 조회 (새로운 구조)"""
+        """매핑 서비스 통계 반환 (DB 통계 + 모델 상태)"""
         try:
-            if not self.db_available:
-                return {"error": "데이터베이스 연결 불가"}
-            
-            # Repository에서 통계 조회
-            stats = self.normal_repository.get_mapping_statistics()
-            
-            # AI 서비스 통계 추가
-            ai_stats = self.get_substance_mapping_statistics()
-            
-            return {
-                "database_stats": stats,
-                "ai_model_stats": ai_stats,
-                "timestamp": datetime.now().isoformat()
+            db_stats: Dict[str, Any] = {}
+            if self.db_available and self.normal_repository:
+                db_stats = self.normal_repository.get_mapping_statistics()
+
+            model_status = {
+                "model_loaded": self.model is not None,
+                "service_status": "ready" if self.model else "not_ready",
             }
-            
+
+            return {
+                "database_stats": db_stats or {
+                    "total_mappings": 0,
+                    "auto_mapped": 0,
+                    "needs_review": 0,
+                    "user_reviewed": 0,
+                    "avg_confidence": 0.0,
+                },
+                "model_status": model_status,
+                "timestamp": datetime.now().isoformat(),
+            }
         except Exception as e:
             logger.error(f"❌ 매핑 통계 조회 실패: {e}")
-            return {"error": str(e)}
+            return {
+                "database_stats": {
+                    "total_mappings": 0,
+                    "auto_mapped": 0,
+                    "needs_review": 0,
+                    "user_reviewed": 0,
+                    "avg_confidence": 0.0,
+                },
+                "model_status": {"model_loaded": False, "service_status": "not_ready"},
+                "timestamp": datetime.now().isoformat(),
+                "error": str(e),
+            }
 
     def get_saved_mappings(self, company_id: str = None, limit: int = 10) -> List[Dict[str, Any]]:
-        """저장된 매핑 결과 조회"""
         if not self.db_available:
             return []
-        
         return self.normal_repository.get_saved_mappings(company_id, limit)
 
     def get_original_data(self, company_id: str = None, limit: int = 10) -> List[Dict[str, Any]]:
-        """원본 데이터 조회"""
         if not self.db_available:
             return []
-        
         return self.normal_repository.get_original_data(company_id, limit)
 
     def get_corrections(self, company_id: str = None, limit: int = 10) -> List[Dict[str, Any]]:
-        """사용자 수정 데이터 조회"""
-        # 현재는 certification 테이블에서 user_reviewed 상태인 것들 조회
+        """현재는 certification user_reviewed를 별도 조회하는 메서드가 없어 빈 리스트 반환."""
         try:
             if not self.db_available:
                 return []
-            
-            # TODO: Repository에 메서드 추가 필요
+            # TODO: repository에 user_reviewed 전용 조회 추가 가능
             return []
-            
         except Exception as e:
             logger.error(f"❌ 수정 데이터 조회 실패: {e}")
             return []
 
     def correct_mapping(self, certification_id: int, correction_data: Dict[str, Any]) -> bool:
-        """매핑 결과 수동 수정"""
         if not self.db_available:
             return False
-        
         return self.normal_repository.update_user_mapping_correction(
             certification_id=certification_id,
             correction_data=correction_data,
-            reviewed_by=correction_data.get('reviewed_by', 'user')
+            reviewed_by=correction_data.get("reviewed_by", "user"),
         )
 
-    def save_mapping_correction(self, **kwargs):
-        """매핑 수정 결과 저장 (레거시 호환)"""
-        # 새로운 구조에서는 correct_mapping 사용
+    def save_mapping_correction(self, **kwargs) -> bool:
+        """레거시 호환. 새 구조에서는 correct_mapping 사용."""
         return True
 
-    # ===== 엑셀 파일 처리 (기존 로직 개선) =====
-    
-    def upload_and_normalize_excel(self, file):
-        """엑셀 파일 업로드 및 정규화 (새로운 구조 대응)"""
-        try:
-            logger.info(f"📝 엑셀 파일 업로드: {file.filename}")
-            
-            # 파일 내용 읽기
-            content = file.file.read()
-            
-            # 1단계: 데이터 정규화
-            normalization_result = self.data_normalization_service.normalize_excel_data(
-                file_data=content,
-                filename=file.filename
-            )
-            
-            if normalization_result['status'] == 'error':
-                return normalization_result
-            
-            # 2단계: 정규화된 데이터를 새로운 구조로 변환
-            normalized_data = normalization_result.get('normalized_data', [])
-            converted_results = []
-            
-            for item in normalized_data:
-                # 엑셀 데이터를 프론트엔드 구조로 변환
-                substance_data = {
-                    'filename': file.filename,
-                    'file_size': len(content),
-                    'file_type': 'excel',
-                    'productName': item.get('substance_name', ''),
-                    'greenhouseGasEmissions': [
-                        {
-                            'materialName': item.get('substance_name', ''),
-                            'amount': str(item.get('amount', 0)),
-                            'unit': item.get('unit', 'tonCO2eq')
-                        }
-                    ]
-                }
-                
-                # 데이터 저장 및 매핑
-                result = self.save_substance_data_and_map_gases(
-                    substance_data=substance_data,
-                    company_id=item.get('company_id'),
-                    company_name=item.get('company_name'),
-                    uploaded_by=item.get('uploaded_by')
-                )
-                
-                converted_results.append(result)
-            
-            return {
-                "filename": file.filename,
-                "status": "uploaded_and_mapped",
-                "normalization": normalization_result,
-                "conversion_results": converted_results,
-                "message": f"엑셀 파일 처리 완료: {len(converted_results)}개 항목"
-            }
-            
-        except Exception as e:
-            logger.error(f"❌ 엑셀 파일 업로드 및 매핑 실패: {e}")
-            return {
-                "filename": file.filename,
-                "status": "error",
-                "error": str(e)
-            }
+    # ---------------------------------------------------------------------
+    # 파일 업로드/정규화
+    # ---------------------------------------------------------------------
 
-    # ===== 기존 인터페이스 호환성 메서드들 =====
-    
+    def upload_and_normalize_excel(self, file) -> Dict[str, Any]:
+        """
+        엑셀/CSV 파일 업로드 및 간단 정규화:
+        - 물질명 컬럼: ['물질','substance','name','chemical'] 중 첫 매칭
+        - 양(수량) 컬럼: ['amount','양','quantity','수량'] 중 첫 매칭
+        - 단위 컬럼: ['unit','단위'] 중 첫 매칭 (없으면 'tonCO2eq')
+        """
+        try:
+            filename = getattr(file, "filename", None) or "uploaded"
+            content: bytes = file.file.read()
+            ext = Path(filename).suffix.lower()
+
+            if ext in [".xlsx", ".xls"]:
+                df = pd.read_excel(io.BytesIO(content))
+            elif ext == ".csv":
+                df = pd.read_csv(io.BytesIO(content))
+            else:
+                return {"status": "error", "message": f"지원하지 않는 파일 형식: {ext or 'unknown'}", "filename": filename}
+
+            # 컬럼 표준화
+            def _lower_cols(cols):
+                return [str(c).strip() for c in cols]
+
+            df.columns = _lower_cols(df.columns)
+
+            # 후보 컬럼 탐색
+            def _find_col(candidates: List[str]) -> Optional[str]:
+                for c in df.columns:
+                    lc = c.lower()
+                    if any(key in lc for key in candidates):
+                        return c
+                return None
+
+            col_name = _find_col(["물질", "substance", "name", "chemical"]) or df.columns[0]
+            col_amount = _find_col(["amount", "양", "quantity", "수량"])
+            col_unit = _find_col(["unit", "단위"])
+
+            normalized_data: List[Dict[str, Any]] = []
+            for _, row in df.iterrows():
+                substance = str(row.get(col_name, "")).strip()
+                if not substance:
+                    continue
+                amount_val = row.get(col_amount) if col_amount is not None else None
+                unit_val = row.get(col_unit) if col_unit is not None else None
+
+                normalized_data.append(
+                    {
+                        "substance_name": substance,
+                        "amount": amount_val if amount_val is not None else 0,
+                        "unit": str(unit_val).strip() if unit_val is not None else "tonCO2eq",
+                        # 추가 메타(있으면 사용)
+                        "company_id": row.get("company_id"),
+                        "company_name": row.get("company_name"),
+                        "uploaded_by": row.get("uploaded_by"),
+                    }
+                )
+
+            # 정규화된 각 항목을 저장+매핑 파이프라인으로 변환
+            conversion_results: List[Dict[str, Any]] = []
+            for item in normalized_data:
+                substance_data = {
+                    "filename": filename,
+                    "file_size": len(content),
+                    "file_type": "excel" if ext in [".xlsx", ".xls"] else "csv",
+                    "productName": item.get("substance_name", ""),
+                    "greenhouseGasEmissions": [
+                        {
+                            "materialName": item.get("substance_name", ""),
+                            "amount": str(item.get("amount") or 0),
+                            "unit": item.get("unit") or "tonCO2eq",
+                        }
+                    ],
+                }
+                # company 정보가 표에 있으면 넘겨서 저장
+                res = self.save_substance_data_and_map_gases(
+                    substance_data=substance_data,
+                    company_id=item.get("company_id"),
+                    company_name=item.get("company_name"),
+                    uploaded_by=item.get("uploaded_by"),
+                )
+                conversion_results.append(res)
+
+            return {
+                "filename": filename,
+                "status": "uploaded_and_mapped",
+                "normalization": {"status": "success", "normalized_count": len(normalized_data)},
+                "conversion_results": conversion_results,
+                "message": f"파일 처리 완료: {len(conversion_results)}개 항목",
+            }
+        except Exception as e:
+            logger.error(f"❌ 엑셀/CSV 파일 업로드 및 매핑 실패: {e}")
+            return {"filename": getattr(file, "filename", None), "status": "error", "error": str(e)}
+
+    # ---------------------------------------------------------------------
+    # 기존 인터페이스(매핑)
+    # ---------------------------------------------------------------------
+
     def map_substance(self, substance_name: str, company_id: str = None) -> dict:
-        """단일 물질 매핑 (BOMI AI 모델 직접 사용)"""
+        """단일 물질 매핑 (간이 로직: 모델이 있으면 임베딩, 없으면 규칙 매핑)"""
         try:
             logger.info(f"📝 물질 매핑 요청: {substance_name}")
-            
+
             if not substance_name or substance_name.strip() == "":
                 return self._create_empty_result(substance_name, "빈 물질명")
-            
-            # BOMI AI 모델이 없으면 오류
+
             if not self.model:
                 return {
                     "substance_name": substance_name,
@@ -351,63 +386,356 @@ class NormalService:
                     "band": "not_mapped",
                     "top5_candidates": [],
                     "message": "BOMI AI 모델이 로드되지 않았습니다.",
-                    "status": "no_model"
+                    "status": "no_model",
                 }
-            
-            # BOMI AI 모델을 사용한 직접 매핑
-            # 모델이 학습된 방식에 따라 입력값을 표준화된 물질명으로 변환
+
             input_text = substance_name.strip()
-            
-            # BOMI AI 모델의 임베딩 생성 (매핑을 위한)
-            embedding = self.model.encode(
-                [input_text], 
-                normalize_embeddings=True,
-                show_progress_bar=False
-            )
-            
-            # 간단한 매핑 로직 (실제로는 BOMI AI 모델의 학습된 매핑 로직 사용)
-            # 여기서는 예시로 입력값을 기반으로 표준화된 이름 생성
+            embedding = self.model.encode([input_text], normalize_embeddings=True, show_progress_bar=False)
+
             mapped_name = self._standardize_substance_name(input_text)
             mapped_sid = self._generate_substance_id(mapped_name)
-            
-            # 신뢰도 계산 (임베딩 기반)
-            confidence = min(0.95, max(0.3, float(np.mean(embedding))))
-            
-            # 신뢰도 밴드 결정
-            if confidence >= 0.70:
-                band = "mapped"
-            elif confidence >= 0.40:
-                band = "needs_review"
-            else:
-                band = "not_mapped"
-            
-            result = {
+
+            # normalize_embeddings=True 이면 평균이 0 근처일 수 있으므로 하한/상한 클램프
+            confidence = float(np.mean(embedding))
+            confidence = min(0.95, max(0.3, confidence))
+
+            band = "mapped" if confidence >= 0.70 else ("needs_review" if confidence >= 0.40 else "not_mapped")
+
+            return {
                 "substance_name": substance_name,
                 "mapped_sid": mapped_sid,
                 "mapped_name": mapped_name,
                 "top1_score": confidence,
-                "margin": 0.1,  # 고정값
+                "margin": 0.1,
                 "confidence": confidence,
                 "band": band,
-                "top5_candidates": [{
-                    "rank": 1,
-                    "sid": mapped_sid,
-                    "name": mapped_name,
-                    "score": confidence
-                }],
-                "status": "success"
+                "top5_candidates": [{"rank": 1, "sid": mapped_sid, "name": mapped_name, "score": confidence}],
+                "status": "success",
             }
-            
-            logger.info(f"✅ BOMI AI 매핑 완료: {substance_name} -> {mapped_name}")
-            return result
-            
         except Exception as e:
             logger.error(f"❌ 물질 매핑 실패: {e}")
             return self._create_empty_result(substance_name, str(e))
-    
+
+    def map_substances_batch(self, substance_names: list, company_id: str = None) -> list:
+        """배치 물질 매핑 (AI만)"""
+        try:
+            if not substance_names:
+                raise Exception("매핑할 물질명 목록이 비어있습니다.")
+            logger.info(f"📝 배치 물질 매핑 요청: {len(substance_names)}개")
+            return [self.map_substance(name, company_id) for name in substance_names]
+        except Exception as e:
+            logger.error(f"❌ 배치 물질 매핑 실패: {e}")
+            raise Exception(f"배치 물질 매핑을 수행할 수 없습니다: {str(e)}")
+
+    def map_file(self, file_path: str) -> dict:
+        """파일에서 물질명을 추출하여 매핑"""
+        try:
+            if file_path.endswith((".xlsx", ".xls")):
+                data = pd.read_excel(file_path)
+            elif file_path.endswith(".csv"):
+                data = pd.read_csv(file_path)
+            else:
+                raise ValueError("지원하지 않는 파일 형식입니다.")
+
+            substance_column = None
+            for col in data.columns:
+                col_lower = str(col).lower()
+                if any(keyword in col_lower for keyword in ["물질", "substance", "name", "chemical"]):
+                    substance_column = col
+                    break
+            if substance_column is None:
+                substance_column = data.columns[0]
+
+            substance_names = data[substance_column].fillna("").astype(str).tolist()
+            mapping_results = self.map_substances_batch(substance_names)
+
+            total_count = len(mapping_results)
+            mapped_count = sum(1 for r in mapping_results if r["band"] == "mapped")
+            review_count = sum(1 for r in mapping_results if r["band"] == "needs_review")
+            not_mapped_count = sum(1 for r in mapping_results if r["band"] == "not_mapped")
+
+            return {
+                "file_path": file_path,
+                "total_substances": total_count,
+                "mapped_count": mapped_count,
+                "needs_review_count": review_count,
+                "not_mapped_count": not_mapped_count,
+                "mapping_results": mapping_results,
+                "status": "success",
+            }
+        except Exception as e:
+            logger.error(f"파일 매핑 실패 ({file_path}): {e}")
+            return {"file_path": file_path, "error": str(e), "status": "error"}
+
+    # ---------------------------------------------------------------------
+    # 메트릭/환경 데이터 (기존 로직 유지·정리)
+    # ---------------------------------------------------------------------
+
+    def get_metrics(self):
+        return self.get_substance_mapping_statistics()
+
+    def get_environmental_data_by_company(self, company_name: str) -> Dict[str, Any]:
+        """회사별 실제 환경 데이터 조회 (DB에서 계산)"""
+        try:
+            if not self.db_available:
+                logger.warning("데이터베이스 연결 불가, 기본값 반환")
+                return self._get_default_environmental_data(company_name)
+
+            normal_data = self.normal_repository.get_company_data(company_name)
+            certification_data = self.normal_repository.get_company_certifications(company_name)
+            environmental_data = self._calculate_environmental_data(normal_data, certification_data)
+
+            return {
+                "status": "success",
+                "company_name": company_name,
+                "data": environmental_data,
+                "last_updated": datetime.now().isoformat(),
+            }
+        except Exception as e:
+            logger.error(f"환경 데이터 조회 실패 ({company_name}): {e}")
+            return {
+                "status": "error",
+                "message": f"환경 데이터 조회 실패: {str(e)}",
+                "data": self._get_default_environmental_data(company_name),
+            }
+
+    # ----------------- 내부 계산/보조 메서드(기존 유지) -----------------
+
+    def _calculate_environmental_data(self, normal_data: List[Dict], certification_data: List[Dict]) -> Dict[str, Any]:
+        try:
+            carbon_footprint = self._calculate_carbon_footprint(certification_data)
+            energy_usage = self._calculate_energy_usage(normal_data)
+            water_usage = self._calculate_water_usage(normal_data)
+            waste_management = self._calculate_waste_management(normal_data)
+            certifications = self._extract_certifications(normal_data)
+            return {
+                "carbonFootprint": carbon_footprint,
+                "energyUsage": energy_usage,
+                "waterUsage": water_usage,
+                "wasteManagement": waste_management,
+                "certifications": certifications,
+            }
+        except Exception as e:
+            logger.error(f"환경 데이터 계산 실패: {e}")
+            return self._get_default_environmental_data("Unknown")
+
+    def _calculate_carbon_footprint(self, certification_data: List[Dict]) -> Dict[str, Any]:
+        try:
+            total_scope1 = total_scope2 = total_scope3 = 0.0
+            for cert in certification_data:
+                if cert.get("final_mapped_sid"):
+                    try:
+                        amount = float(cert.get("original_amount", 0) or 0)
+                    except Exception:
+                        amount = 0.0
+                    sid = cert.get("final_mapped_sid", "") or ""
+                    if ("CO2" in sid or "CH4" in sid):
+                        if "direct" in sid.lower():
+                            total_scope1 += amount
+                        elif "indirect" in sid.lower():
+                            total_scope2 += amount
+                        else:
+                            total_scope3 += amount
+                    else:
+                        total_scope3 += amount
+            total = total_scope1 + total_scope2 + total_scope3
+            return {
+                "total": round(total, 2),
+                "trend": "stable",
+                "lastUpdate": datetime.now().strftime("%Y-%m-%d"),
+                "breakdown": {
+                    "scope1": round(total_scope1, 2),
+                    "scope2": round(total_scope2, 2),
+                    "scope3": round(total_scope3, 2),
+                },
+            }
+        except Exception as e:
+            logger.error(f"탄소배출량 계산 실패: {e}")
+            return {
+                "total": 0,
+                "trend": "no_data",
+                "lastUpdate": datetime.now().strftime("%Y-%m-%d"),
+                "breakdown": {"scope1": 0, "scope2": 0, "scope3": 0},
+                "message": "탄소배출량 데이터를 계산할 수 없습니다.",
+            }
+
+    def _calculate_energy_usage(self, normal_data: List[Dict]) -> Dict[str, Any]:
+        try:
+            total_energy = 0.0
+            renewable_energy = 0.0
+            for data in normal_data:
+                capacity = (data.get("capacity") or "").replace("Ah", "").replace("Wh", "")
+                energy_density = (data.get("energy_density") or "")
+                if capacity:
+                    try:
+                        energy_value = float(capacity) * 0.1
+                        total_energy += energy_value
+                        if data.get("recycled_material"):
+                            renewable_energy += energy_value * 0.3
+                    except Exception:
+                        pass
+            return {
+                "total": round(total_energy, 2),
+                "renewable": round(renewable_energy, 2),
+                "trend": "up" if total_energy else "no_data",
+                "lastUpdate": datetime.now().strftime("%Y-%m-%d"),
+            }
+        except Exception as e:
+            logger.error(f"에너지사용량 계산 실패: {e}")
+            return {
+                "total": 0,
+                "renewable": 0,
+                "trend": "no_data",
+                "lastUpdate": datetime.now().strftime("%Y-%m-%d"),
+                "message": "에너지 사용량 데이터를 계산할 수 없습니다.",
+            }
+
+    def _calculate_water_usage(self, normal_data: List[Dict]) -> Dict[str, Any]:
+        try:
+            total_water = 0.0
+            recycled_water = 0.0
+            for data in normal_data:
+                raw_materials = data.get("raw_materials") or []
+                if raw_materials:
+                    material_count = len(raw_materials)
+                    water_per_material = 100
+                    total_water += material_count * water_per_material
+                    if data.get("recycled_material"):
+                        recycled_water += material_count * water_per_material * 0.3
+            return {
+                "total": round(total_water, 2),
+                "recycled": round(recycled_water, 2),
+                "trend": "stable" if total_water else "no_data",
+                "lastUpdate": datetime.now().strftime("%Y-%m-%d"),
+            }
+        except Exception as e:
+            logger.error(f"물사용량 계산 실패: {e}")
+            return {
+                "total": 0,
+                "recycled": 0,
+                "trend": "no_data",
+                "lastUpdate": datetime.now().strftime("%Y-%m-%d"),
+                "message": "물 사용량 데이터를 계산할 수 없습니다.",
+            }
+
+    def _calculate_waste_management(self, normal_data: List[Dict]) -> Dict[str, Any]:
+        try:
+            total_waste = recycled_waste = landfill_waste = 0.0
+            for data in normal_data:
+                base_waste = 50.0
+                total_waste += base_waste
+                if data.get("recycling_method"):
+                    recycled_waste += base_waste * 0.7
+                    landfill_waste += base_waste * 0.3
+                else:
+                    landfill_waste += base_waste
+            return {
+                "total": round(total_waste, 2),
+                "recycled": round(recycled_waste, 2),
+                "landfill": round(landfill_waste, 2),
+                "trend": "up" if total_waste else "no_data",
+                "lastUpdate": datetime.now().strftime("%Y-%m-%d"),
+            }
+        except Exception as e:
+            logger.error(f"폐기물 관리 계산 실패: {e}")
+            return {
+                "total": 0,
+                "recycled": 0,
+                "landfill": 0,
+                "trend": "no_data",
+                "lastUpdate": datetime.now().strftime("%Y-%m-%d"),
+                "message": "폐기물 관리 데이터를 계산할 수 없습니다.",
+            }
+
+    def _extract_certifications(self, normal_data: List[Dict]) -> List[str]:
+        try:
+            certifications: List[str] = []
+            for data in normal_data:
+                disposal_method = data.get("disposal_method") or ""
+                recycling_method = data.get("recycling_method") or ""
+                if "ISO 14001" in disposal_method or "ISO 14001" in recycling_method:
+                    certifications.append("ISO 14001")
+                if "ISO 50001" in disposal_method or "ISO 50001" in recycling_method:
+                    certifications.append("ISO 50001")
+                if "OHSAS 18001" in disposal_method or "OHSAS 18001" in recycling_method:
+                    certifications.append("OHSAS 18001")
+            return list(set(certifications))
+        except Exception as e:
+            logger.error(f"인증 정보 추출 실패: {e}")
+            return []
+
+    def _get_default_environmental_data(self, company_name: str) -> Dict[str, Any]:
+        today = datetime.now().strftime("%Y-%m-%d")
+        return {
+            "carbonFootprint": {
+                "total": 0,
+                "trend": "no_data",
+                "lastUpdate": today,
+                "breakdown": {"scope1": 0, "scope2": 0, "scope3": 0},
+                "message": f"{company_name}의 온실가스 배출량 데이터가 없습니다.",
+            },
+            "energyUsage": {
+                "total": 0,
+                "renewable": 0,
+                "trend": "no_data",
+                "lastUpdate": today,
+                "message": f"{company_name}의 에너지 사용량 데이터가 없습니다.",
+            },
+            "waterUsage": {
+                "total": 0,
+                "recycled": 0,
+                "trend": "no_data",
+                "lastUpdate": today,
+                "message": f"{company_name}의 물 사용량 데이터가 없습니다.",
+            },
+            "wasteManagement": {
+                "total": 0,
+                "recycled": 0,
+                "landfill": 0,
+                "trend": "no_data",
+                "lastUpdate": today,
+                "message": f"{company_name}의 폐기물 관리 데이터가 없습니다.",
+            },
+            "certifications": [],
+            "message": f"{company_name}의 환경 데이터를 찾을 수 없습니다. 데이터를 입력해주세요.",
+        }
+
+    # ----------------- 내부 AI 유틸 -----------------
+
+    def _load_model(self):
+        """SentenceTransformer 모델을 로드(가능하면)"""
+        try:
+            if SentenceTransformer is None:
+                logger.warning("SentenceTransformer 미설치. 모델 로드를 생략합니다.")
+                self.model = None
+                return
+
+            MODEL_DIR = os.getenv("MODEL_DIR", "/app/model/bomi-ai")
+            HF_REPO_ID = os.getenv("HF_REPO_ID", "galaxybuddy/bomi-ai")
+
+            model_dir = Path(MODEL_DIR)
+            if model_dir.exists() and any(model_dir.glob("*.safetensors")):
+                try:
+                    self.model = SentenceTransformer(str(model_dir), local_files_only=True)
+                    logger.info(f"BOMI AI 모델 로드 성공 (로컬): {model_dir}")
+                    return
+                except Exception as e:
+                    logger.warning(f"로컬 모델 로드 실패: {e}")
+
+            # 원격 로딩 (실패 시 안전히 포기)
+            try:
+                logger.info(f"Hugging Face에서 모델 다운로드 시도: {HF_REPO_ID}")
+                self.model = SentenceTransformer(HF_REPO_ID)
+                logger.info(f"BOMI AI 모델 로드 성공 (Hugging Face): {HF_REPO_ID}")
+            except Exception as e:
+                logger.error(f"Hugging Face 모델 로드 실패: {e}")
+                self.model = None
+        except Exception as e:
+            logger.error(f"모델 로드 실패: {e}")
+            self.model = None
+
     def _standardize_substance_name(self, input_name: str) -> str:
-        """입력된 물질명을 표준화된 이름으로 변환"""
-        # 간단한 표준화 로직 (실제로는 BOMI AI 모델의 학습된 로직 사용)
+        """간단한 표준화 규칙"""
         name_mapping = {
             "이산화탄소": "이산화탄소 (CO2)",
             "메탄": "메탄 (CH4)",
@@ -419,485 +747,19 @@ class NormalService:
             "CH4": "메탄 (CH4)",
             "N2O": "아산화질소 (N2O)",
         }
-        
-        # 정확한 매칭
         if input_name in name_mapping:
             return name_mapping[input_name]
-        
-        # 부분 매칭
         for key, value in name_mapping.items():
             if key in input_name or input_name in key:
                 return value
-        
-        # 기본값: 입력값을 그대로 사용하되 표준화
         return f"{input_name} (표준화됨)"
-    
+
     def _generate_substance_id(self, substance_name: str) -> str:
-        """물질명을 기반으로 표준 ID 생성"""
-        # 간단한 ID 생성 로직
         import re
-        # 특수문자 제거하고 대문자로 변환
-        clean_name = re.sub(r'[^\w가-힣]', '', substance_name)
+        clean_name = re.sub(r"[^\w가-힣]", "", substance_name)
         return f"SUBSTANCE_{clean_name.upper()}"
-    
-    def map_substances_batch(self, substance_names: list, company_id: str = None) -> list:
-        """배치 물질 매핑 (AI만)"""
-        try:
-            if not substance_names:
-                raise Exception("매핑할 물질명 목록이 비어있습니다.")
-            
-            logger.info(f"📝 배치 물질 매핑 요청: {len(substance_names)}개")
-            
-            results = []
-            for substance_name in substance_names:
-                result = self.map_substance(substance_name, company_id)
-                results.append(result)
-            
-            logger.info(f"✅ 배치 물질 매핑 완료: {len(results)}개")
-            return results
-            
-        except Exception as e:
-            logger.error(f"❌ 배치 물질 매핑 실패: {e}")
-            raise Exception(f"배치 물질 매핑을 수행할 수 없습니다: {str(e)}")
-    
-    def map_file(self, file_path: str) -> dict:
-        """파일에서 물질명을 추출하여 매핑합니다."""
-        try:
-            # 파일 읽기
-            if file_path.endswith('.xlsx') or file_path.endswith('.xls'):
-                data = pd.read_excel(file_path)
-            elif file_path.endswith('.csv'):
-                data = pd.read_csv(file_path)
-            else:
-                raise ValueError("지원하지 않는 파일 형식입니다.")
-            
-            # 물질명 컬럼 찾기 (컬럼명에 '물질', 'substance', 'name' 등이 포함된 것)
-            substance_column = None
-            for col in data.columns:
-                col_lower = str(col).lower()
-                if any(keyword in col_lower for keyword in ['물질', 'substance', 'name', 'chemical']):
-                    substance_column = col
-                    break
-            
-            if substance_column is None:
-                # 첫 번째 컬럼을 물질명으로 가정
-                substance_column = data.columns[0]
-            
-            # 물질명 추출
-            substance_names = data[substance_column].fillna("").astype(str).tolist()
-            
-            # 매핑 수행
-            mapping_results = self.map_substances_batch(substance_names)
-            
-            # 통계 계산
-            total_count = len(mapping_results)
-            mapped_count = sum(1 for r in mapping_results if r['band'] == 'mapped')
-            review_count = sum(1 for r in mapping_results if r['band'] == 'needs_review')
-            not_mapped_count = sum(1 for r in mapping_results if r['band'] == 'not_mapped')
-            
-            return {
-                "file_path": file_path,
-                "total_substances": total_count,
-                "mapped_count": mapped_count,
-                "needs_review_count": review_count,
-                "not_mapped_count": not_mapped_count,
-                "mapping_results": mapping_results,
-                "status": "success"
-            }
-            
-        except Exception as e:
-            logger.error(f"파일 매핑 실패 ({file_path}): {e}")
-            return {
-                "file_path": file_path,
-                "error": str(e),
-                "status": "error"
-            }
 
-    # ===== MSA 구조에 맞춘 핵심 메서드들 =====
-
-    def get_metrics(self):
-        """메트릭 조회"""
-        return self.get_substance_mapping_statistics()
-
-    # ===== 환경 데이터 조회 메서드들 =====
-
-    def get_environmental_data_by_company(self, company_name: str) -> Dict[str, Any]:
-        """회사별 실제 환경 데이터 조회 (DB에서 계산)"""
-        try:
-            if not self.db_available:
-                logger.warning("데이터베이스 연결 불가, 기본값 반환")
-                return self._get_default_environmental_data(company_name)
-            
-            # 1. normal 테이블에서 해당 회사의 데이터 조회
-            normal_data = self.normal_repository.get_company_data(company_name)
-            
-            # 2. certification 테이블에서 온실가스 매핑 결과 조회
-            certification_data = self.normal_repository.get_company_certifications(company_name)
-            
-            # 3. 환경 데이터 계산
-            environmental_data = self._calculate_environmental_data(normal_data, certification_data)
-            
-            return {
-                "status": "success",
-                "company_name": company_name,
-                "data": environmental_data,
-                "last_updated": datetime.now().isoformat()
-            }
-            
-        except Exception as e:
-            logger.error(f"환경 데이터 조회 실패 ({company_name}): {e}")
-            return {
-                "status": "error",
-                "message": f"환경 데이터 조회 실패: {str(e)}",
-                "data": self._get_default_environmental_data(company_name)
-            }
-
-    def _calculate_environmental_data(self, normal_data: List[Dict], certification_data: List[Dict]) -> Dict[str, Any]:
-        """실제 DB 데이터로부터 환경 데이터 계산"""
-        try:
-            # 탄소배출량 계산 (certification 테이블 기반)
-            carbon_footprint = self._calculate_carbon_footprint(certification_data)
-            
-            # 에너지사용량 계산 (normal 테이블의 capacity, energy_density 기반)
-            energy_usage = self._calculate_energy_usage(normal_data)
-            
-            # 물사용량 계산 (normal 테이블의 raw_materials 기반)
-            water_usage = self._calculate_water_usage(normal_data)
-            
-            # 폐기물 관리 계산 (normal 테이블의 disposal_method, recycling_method 기반)
-            waste_management = self._calculate_waste_management(normal_data)
-            
-            # 인증 정보 추출
-            certifications = self._extract_certifications(normal_data)
-            
-            return {
-                "carbonFootprint": carbon_footprint,
-                "energyUsage": energy_usage,
-                "waterUsage": water_usage,
-                "wasteManagement": waste_management,
-                "certifications": certifications
-            }
-            
-        except Exception as e:
-            logger.error(f"환경 데이터 계산 실패: {e}")
-            return self._get_default_environmental_data("Unknown")
-
-    def _calculate_carbon_footprint(self, certification_data: List[Dict]) -> Dict[str, Any]:
-        """온실가스 배출량 계산"""
-        try:
-            total_scope1 = 0
-            total_scope2 = 0
-            total_scope3 = 0
-            
-            for cert in certification_data:
-                if cert.get('final_mapped_sid'):
-                    # 매핑된 온실가스 배출량 계산
-                    amount = float(cert.get('original_amount', 0))
-                    
-                    # SID에 따른 Scope 분류
-                    sid = cert.get('final_mapped_sid', '')
-                    if 'CO2' in sid or 'CH4' in sid:
-                        if 'direct' in sid.lower():
-                            total_scope1 += amount
-                        elif 'indirect' in sid.lower():
-                            total_scope2 += amount
-                        else:
-                            total_scope3 += amount
-                    else:
-                        total_scope3 += amount
-            
-            total = total_scope1 + total_scope2 + total_scope3
-            
-            # 트렌드 계산 (임시로 stable 반환)
-            trend = 'stable'
-            
-            return {
-                "total": round(total, 2),
-                "trend": trend,
-                "lastUpdate": datetime.now().strftime('%Y-%m-%d'),
-                "breakdown": {
-                    "scope1": round(total_scope1, 2),
-                    "scope2": round(total_scope2, 2),
-                    "scope3": round(total_scope3, 2)
-                }
-            }
-            
-        except Exception as e:
-            logger.error(f"탄소배출량 계산 실패: {e}")
-            return {
-                "total": 0,
-                "trend": "no_data",
-                "lastUpdate": datetime.now().strftime('%Y-%m-%d'),
-                "breakdown": {"scope1": 0, "scope2": 0, "scope3": 0},
-                "message": "탄소배출량 데이터를 계산할 수 없습니다."
-            }
-
-    def _calculate_energy_usage(self, normal_data: List[Dict]) -> Dict[str, Any]:
-        """에너지사용량 계산"""
-        try:
-            total_energy = 0
-            renewable_energy = 0
-            
-            for data in normal_data:
-                # capacity와 energy_density에서 에너지 사용량 추정
-                capacity = data.get('capacity', '0')
-                energy_density = data.get('energy_density', '0')
-                
-                if capacity and energy_density:
-                    try:
-                        # 간단한 에너지 계산 (실제로는 더 복잡한 계산 필요)
-                        energy_value = float(capacity.replace('Ah', '').replace('Wh', '')) * 0.1
-                        total_energy += energy_value
-                        
-                        # recycled_material이 True면 재생에너지로 간주
-                        if data.get('recycled_material'):
-                            renewable_energy += energy_value * 0.3
-                    except:
-                        pass
-            
-            # 실제 데이터가 없으면 0 반환 (샘플데이터 제거)
-            if total_energy == 0:
-                total_energy = 0
-                renewable_energy = 0
-            
-            return {
-                "total": round(total_energy, 2),
-                "renewable": round(renewable_energy, 2),
-                "trend": "up",
-                "lastUpdate": datetime.now().strftime('%Y-%m-%d')
-            }
-            
-        except Exception as e:
-            logger.error(f"에너지사용량 계산 실패: {e}")
-            return {
-                "total": 0,
-                "renewable": 0,
-                "trend": "no_data",
-                "lastUpdate": datetime.now().strftime('%Y-%m-%d'),
-                "message": "에너지 사용량 데이터를 계산할 수 없습니다."
-            }
-
-    def _calculate_water_usage(self, normal_data: List[Dict]) -> Dict[str, Any]:
-        """물사용량 계산"""
-        try:
-            total_water = 0
-            recycled_water = 0
-            
-            for data in normal_data:
-                # raw_materials에서 물 사용량 추정
-                raw_materials = data.get('raw_materials', [])
-                if raw_materials:
-                    # 원재료 종류에 따른 물 사용량 추정
-                    material_count = len(raw_materials)
-                    water_per_material = 100  # 톤당 물 사용량 추정
-                    total_water += material_count * water_per_material
-                    
-                    # recycled_material이 True면 재활용 물로 간주
-                    if data.get('recycled_material'):
-                        recycled_water += material_count * water_per_material * 0.3
-            
-            # 실제 데이터가 없으면 0 반환 (샘플데이터 제거)
-            if total_water == 0:
-                total_water = 0
-                recycled_water = 0
-            
-            return {
-                "total": round(total_water, 2),
-                "recycled": round(recycled_water, 2),
-                "trend": "stable",
-                "lastUpdate": datetime.now().strftime('%Y-%m-%d')
-            }
-            
-        except Exception as e:
-            logger.error(f"물사용량 계산 실패: {e}")
-            return {
-                "total": 0,
-                "recycled": 0,
-                "trend": "no_data",
-                "lastUpdate": datetime.now().strftime('%Y-%m-%d'),
-                "message": "물 사용량 데이터를 계산할 수 없습니다."
-            }
-
-    def _calculate_waste_management(self, normal_data: List[Dict]) -> Dict[str, Any]:
-        """폐기물 관리 계산"""
-        try:
-            total_waste = 0
-            recycled_waste = 0
-            landfill_waste = 0
-            
-            for data in normal_data:
-                # disposal_method와 recycling_method에서 폐기물 정보 추출
-                disposal_method = data.get('disposal_method', '')
-                recycling_method = data.get('recycling_method', '')
-                
-                # 기본 폐기물량 추정
-                base_waste = 50  # 기본 폐기물량
-                total_waste += base_waste
-                
-                # 재활용 가능한 폐기물 추정
-                if recycling_method:
-                    recycled_waste += base_waste * 0.7
-                    landfill_waste += base_waste * 0.3
-                else:
-                    landfill_waste += base_waste
-            
-            # 실제 데이터가 없으면 0 반환 (샘플데이터 제거)
-            if total_waste == 0:
-                total_waste = 0
-                recycled_waste = 0
-                landfill_waste = 0
-            
-            return {
-                "total": round(total_waste, 2),
-                "recycled": round(recycled_waste, 2),
-                "landfill": round(landfill_waste, 2),
-                "trend": "up",
-                "lastUpdate": datetime.now().strftime('%Y-%m-%d')
-            }
-            
-        except Exception as e:
-            logger.error(f"폐기물 관리 계산 실패: {e}")
-            return {
-                "total": 0,
-                "recycled": 0,
-                "landfill": 0,
-                "trend": "no_data",
-                "lastUpdate": datetime.now().strftime('%Y-%m-%d'),
-                "message": "폐기물 관리 데이터를 계산할 수 없습니다."
-            }
-
-    def _extract_certifications(self, normal_data: List[Dict]) -> List[str]:
-        """인증 정보 추출"""
-        try:
-            certifications = []
-            
-            for data in normal_data:
-                disposal_method = data.get('disposal_method', '')
-                recycling_method = data.get('recycling_method', '')
-                
-                # ISO 인증 정보 추출
-                if 'ISO 14001' in disposal_method or 'ISO 14001' in recycling_method:
-                    certifications.append('ISO 14001')
-                if 'ISO 50001' in disposal_method or 'ISO 50001' in recycling_method:
-                    certifications.append('ISO 50001')
-                if 'OHSAS 18001' in disposal_method or 'OHSAS 18001' in recycling_method:
-                    certifications.append('OHSAS 18001')
-            
-            # 중복 제거
-            certifications = list(set(certifications))
-            
-            # 실제 인증 데이터가 없으면 빈 리스트 반환 (샘플데이터 제거)
-            if not certifications:
-                certifications = []
-            
-            return certifications
-            
-        except Exception as e:
-            logger.error(f"인증 정보 추출 실패: {e}")
-            return []
-
-    def _get_default_environmental_data(self, company_name: str) -> Dict[str, Any]:
-        """기본 환경 데이터 (DB에 데이터가 없을 때 사용)"""
-        return {
-            "carbonFootprint": {
-                "total": 0,
-                "trend": "no_data",
-                "lastUpdate": datetime.now().strftime('%Y-%m-%d'),
-                "breakdown": {"scope1": 0, "scope2": 0, "scope3": 0},
-                "message": f"{company_name}의 온실가스 배출량 데이터가 없습니다."
-            },
-            "energyUsage": {
-                "total": 0,
-                "renewable": 0,
-                "trend": "no_data",
-                "lastUpdate": datetime.now().strftime('%Y-%m-%d'),
-                "message": f"{company_name}의 에너지 사용량 데이터가 없습니다."
-            },
-            "waterUsage": {
-                "total": 0,
-                "recycled": 0,
-                "trend": "no_data",
-                "lastUpdate": datetime.now().strftime('%Y-%m-%d'),
-                "message": f"{company_name}의 물 사용량 데이터가 없습니다."
-            },
-            "wasteManagement": {
-                "total": 0,
-                "recycled": 0,
-                "landfill": 0,
-                "trend": "no_data",
-                "lastUpdate": datetime.now().strftime('%Y-%m-%d'),
-                "message": f"{company_name}의 폐기물 관리 데이터가 없습니다."
-            },
-            "certifications": [],
-            "message": f"{company_name}의 환경 데이터를 찾을 수 없습니다. 데이터를 입력해주세요."
-        }
-
-    # ===== Substance Mapping 관련 메서드들 =====
-    
-    def _load_model_and_data(self):
-        """모델과 규정 데이터를 로드합니다."""
-        try:
-            # 환경변수에서 경로 가져오기
-            MODEL_DIR = os.getenv("MODEL_DIR", "/app/model/bomi-ai")
-            HF_REPO_ID = os.getenv("HF_REPO_ID", "galaxybuddy/bomi-ai")
-            
-            # BOMI AI 모델 로드 (로컬 우선)
-            model_dir = Path(MODEL_DIR)
-            
-            model_loaded = False
-            if model_dir.exists() and any(model_dir.glob("*.safetensors")):
-                # 로컬 모델이 있으면 사용
-                try:
-                    self.model = SentenceTransformer(str(model_dir), local_files_only=True)
-                    logger.info(f"BOMI AI 모델 로드 성공 (로컬): {model_dir}")
-                    model_loaded = True
-                except Exception as e:
-                    logger.warning(f"로컬 모델 로드 실패: {e}")
-                    model_loaded = False
-            
-            if not model_loaded:
-                # 로컬 모델이 없으면 Hugging Face에서 다운로드
-                try:
-                    logger.info(f"Hugging Face에서 모델 다운로드 시도: {HF_REPO_ID}")
-                    self.model = SentenceTransformer(HF_REPO_ID)
-                    logger.info(f"BOMI AI 모델 로드 성공 (Hugging Face): {HF_REPO_ID}")
-                    model_loaded = True
-                except Exception as e:
-                    logger.error(f"Hugging Face 모델 로드 실패: {e}")
-                    raise Exception(f"BOMI AI 모델을 로드할 수 없습니다. 로컬: {MODEL_DIR}, Hugging Face: {HF_REPO_ID}")
-                    
-            # BOMI AI 모델 초기화 (별도 표준 데이터 불필요)
-            self._load_regulation_data()
-                
-        except Exception as e:
-            logger.error(f"모델 및 데이터 로드 실패: {e}")
-            raise
-    
-    def _load_regulation_data(self):
-        """BOMI AI 모델은 이미 학습되어 있어서 별도 표준 데이터 불필요"""
-        try:
-            logger.info("✅ BOMI AI 모델 사용 - 별도 표준 데이터 불필요")
-            # BOMI AI 모델은 이미 학습되어 있어서 별도의 표준 데이터베이스가 필요하지 않음
-            # 모델이 직접 입력값을 표준화된 물질명으로 매핑해줌
-            self.regulation_data = None
-            self.regulation_sids = None
-            self.regulation_names = None
-            self.faiss_index = None
-            
-        except Exception as e:
-            logger.error(f"❌ 모델 초기화 실패: {e}")
-            self.regulation_data = None
-            self.regulation_sids = None
-            self.regulation_names = None
-            self.faiss_index = None
-
-    def _build_faiss_index(self):
-        """BOMI AI 모델 사용으로 FAISS 인덱스 불필요"""
-        logger.info("✅ BOMI AI 모델 사용 - FAISS 인덱스 불필요")
-        self.faiss_index = None
-    
-    def _create_empty_result(self, substance_name: str, error_message: str) -> Dict:
-        """에러 발생 시 빈 결과를 생성합니다."""
+    def _create_empty_result(self, substance_name: str, error_message: str) -> Dict[str, Any]:
         return {
             "substance_name": substance_name,
             "mapped_sid": None,
@@ -908,28 +770,5 @@ class NormalService:
             "band": "not_mapped",
             "top5_candidates": [],
             "error": error_message,
-            "status": "error"
+            "status": "error",
         }
-    
-    def get_substance_mapping_statistics(self) -> Dict:
-        """매핑 서비스 통계를 반환합니다."""
-        try:
-            if self.db_available and self.normal_repository:
-                return self.normal_repository.get_mapping_statistics()
-            else:
-                return {
-                    "model_loaded": self.model is not None,
-                    "regulation_data_count": len(self.regulation_data) if self.regulation_data is not None else 0,
-                    "faiss_index_built": self.faiss_index is not None,
-                    "service_status": "ready" if all([self.model, self.regulation_data, self.faiss_index]) else "not_ready"
-                }
-        except Exception as e:
-            logger.error(f"매핑 통계 조회 실패: {e}")
-            return {
-                "total_mappings": 0,
-                "auto_mapped": 0,
-                "needs_review": 0,
-                "user_reviewed": 0,
-                "avg_confidence": 0.0
-            }
-    
