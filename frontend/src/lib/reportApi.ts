@@ -12,9 +12,26 @@ import type {
 import { http } from "./http";
 
 export function getInputFields(indicatorId: string): Promise<InputFieldsResponse> {
-  return http<InputFieldsResponse>(
-    `/api/report/indicator/${encodeURIComponent(indicatorId)}/input-fields`
-  );
+  // 임시로 직접 백엔드 호출 (게이트웨이 우회)
+  const directBackendUrl = "https://report-service-production-91aa.up.railway.app";
+  const url = `${directBackendUrl}/indicator/${encodeURIComponent(indicatorId)}/input-fields`;
+  
+  console.log(`🔗 직접 백엔드 호출: ${url}`);
+  
+  return fetch(url)
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      return response.json();
+    })
+    .catch(error => {
+      console.error(`❌ 직접 백엔드 호출 실패: ${error}`);
+      // 실패 시 게이트웨이로 폴백
+      return http<InputFieldsResponse>(
+        `/api/report/indicator/${encodeURIComponent(indicatorId)}/input-fields`
+      );
+    });
 }
 
 export function generateDraft(indicatorId: string, companyName: string, inputs: Record<string, any>): Promise<DraftResponse> {

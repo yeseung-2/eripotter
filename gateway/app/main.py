@@ -58,7 +58,8 @@ ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL", "http://account-service:8
 ASSESSMENT_SERVICE_URL = os.getenv("ASSESSMENT_SERVICE_URL", "http://localhost:8002")
 CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "http://localhost:8003")
 REPORT_SERVICE_URL = os.getenv("REPORT_SERVICE_URL", "https://report-service-production-91aa.up.railway.app")
-TIMEOUT = float(os.getenv("UPSTREAM_TIMEOUT", "20"))
+logger.info(f"🔧 REPORT_SERVICE_URL 설정: {REPORT_SERVICE_URL}")
+TIMEOUT = float(os.getenv("UPSTREAM_TIMEOUT", "60"))
 
 @app.get("/health")
 async def health():
@@ -83,13 +84,19 @@ async def _proxy(request: Request, upstream_base: str, rest: str):
     params = dict(request.query_params)
 
     try:
-        async with httpx.AsyncClient(timeout=TIMEOUT, follow_redirects=True) as client:
+        async with httpx.AsyncClient(
+            timeout=TIMEOUT, 
+            follow_redirects=True,
+            limits=httpx.Limits(max_keepalive_connections=20, max_connections=100)
+        ) as client:
             upstream = await client.request(
                 request.method, url, params=params, content=body, headers=headers
             )
             logger.info(f"✅ 프록시 응답: {upstream.status_code} {url}")
     except httpx.HTTPError as e:
         logger.error(f"❌ 프록시 HTTP 오류: {e} {url}")
+        logger.error(f"❌ HTTP 오류 상세: status_code={getattr(e, 'response', {}).get('status_code', 'N/A')}")
+        logger.error(f"❌ HTTP 오류 내용: {getattr(e, 'response', {}).get('text', 'N/A')}")
         return JSONResponse(
             status_code=502,
             content={"error": "Bad Gateway", "detail": str(e)},

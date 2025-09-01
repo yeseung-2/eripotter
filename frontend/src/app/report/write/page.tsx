@@ -104,9 +104,10 @@ export default function ReportWritePage() {
 
   // 입력필드 생성
   const generateInputFieldsForIndicator = async (indicatorId: string) => {
+    console.log(`🔍 입력필드 생성 시작: ${indicatorId}`);
     try {
       const response = await getInputFields(indicatorId);
-      console.log("입력필드 응답:", response);
+      console.log(`✅ 입력필드 응답 (${indicatorId}):`, response);
       
       // required_fields가 배열인 경우 객체로 변환
       let inputFields = {};
@@ -127,6 +128,9 @@ export default function ReportWritePage() {
         inputFields = response.required_fields;
       }
       
+      console.log(`📝 변환된 입력필드 (${indicatorId}):`, inputFields);
+      console.log(`📊 필드 개수: ${Object.keys(inputFields).length}`);
+      
       setProcessedIndicators(prev => 
         prev.map(p => 
           p.indicator.indicator_id === indicatorId 
@@ -135,7 +139,8 @@ export default function ReportWritePage() {
         )
       );
     } catch (error) {
-      console.error("입력필드 생성 실패:", error);
+      console.error(`❌ 입력필드 생성 실패 (${indicatorId}):`, error);
+      console.error(`❌ 에러 상세:`, error instanceof Error ? error.message : String(error));
       // 기본 입력필드 설정
       setProcessedIndicators(prev => 
         prev.map(p => 
