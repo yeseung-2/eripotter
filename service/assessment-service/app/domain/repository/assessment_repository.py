@@ -10,6 +10,8 @@ from datetime import datetime
 from eripotter_common.database import get_session
 from ..entity.assessment_entity import KesgEntity, AssessmentEntity
 
+logger = logging.getLogger("assessment-repository")
+
 
 
 
