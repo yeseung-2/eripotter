@@ -5,11 +5,12 @@ from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from typing import List, Optional
 from datetime import datetime
 import logging
+import os
 
 # Domain imports
 from ..domain.service.normal_service import NormalService
 from ..domain.controller.normal_controller import NormalController
-from ..domain.model.substance_mapping_model import (
+from ..domain.model.normal_model import (
     SubstanceMappingRequest, SubstanceMappingBatchRequest,
     SubstanceMappingResponse, SubstanceMappingBatchResponse,
     SubstanceMappingFileResponse, SubstanceMappingStatistics
@@ -195,6 +196,17 @@ async def map_single_substance(
 ):
     """단일 물질명을 표준 물질 ID로 매핑"""
     try:
+        if not request.substance_name or not request.substance_name.strip():
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "status": "error",
+                    "message": "물질명이 제공되지 않았습니다.",
+                    "timestamp": datetime.now().isoformat(),
+                    "error_type": "invalid_request"
+                }
+            )
+        
         # AI 매핑 수행
         result = service.map_substance(request.substance_name)
         
@@ -203,9 +215,19 @@ async def map_single_substance(
             data=result,
             timestamp=datetime.now().isoformat()
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"물질 매핑 실패: {e}")
-        raise HTTPException(status_code=500, detail=f"매핑 처리 중 오류가 발생했습니다: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail={
+                "status": "error",
+                "message": f"물질 매핑을 수행할 수 없습니다: {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+                "error_type": "mapping_failed"
+            }
+        )
 
 @normal_router.post("/substance/map-batch", summary="배치 물질 매핑")
 async def map_substances_batch(
@@ -214,18 +236,44 @@ async def map_substances_batch(
 ):
     """여러 물질명을 배치로 매핑"""
     try:
+        if not request.substance_names or len(request.substance_names) == 0:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "status": "error",
+                    "message": "매핑할 물질명 목록이 비어있습니다.",
+                    "timestamp": datetime.now().isoformat(),
+                    "error_type": "invalid_request"
+                }
+            )
+        
         # AI 배치 매핑 수행
         results = service.map_substances_batch(request.substance_names)
+        
+        success_count = sum(1 for r in results if r.get('status') == 'success')
+        error_count = len(results) - success_count
         
         return SubstanceMappingBatchResponse(
             status="success",
             data=results,
             total_count=len(results),
+            success_count=success_count,
+            error_count=error_count,
             timestamp=datetime.now().isoformat()
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"배치 매핑 실패: {e}")
-        raise HTTPException(status_code=500, detail=f"배치 매핑 처리 중 오류가 발생했습니다: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail={
+                "status": "error",
+                "message": f"배치 물질 매핑을 수행할 수 없습니다: {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+                "error_type": "batch_mapping_failed"
+            }
+        )
 
 @normal_router.post("/substance/map-file", summary="파일 기반 물질 매핑")
 async def map_substances_from_file(
@@ -234,11 +282,36 @@ async def map_substances_from_file(
 ):
     """업로드된 파일에서 물질명을 추출하여 매핑"""
     try:
+        if not file.filename:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "status": "error",
+                    "message": "파일명이 제공되지 않았습니다.",
+                    "timestamp": datetime.now().isoformat(),
+                    "error_type": "invalid_request"
+                }
+            )
+        
+        # 파일 확장자 검증
+        allowed_extensions = ['.xlsx', '.xls', '.csv']
+        file_extension = os.path.splitext(file.filename)[1].lower()
+        if file_extension not in allowed_extensions:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "status": "error",
+                    "message": f"지원하지 않는 파일 형식입니다. 지원 형식: {', '.join(allowed_extensions)}",
+                    "timestamp": datetime.now().isoformat(),
+                    "error_type": "invalid_file_format"
+                }
+            )
+        
         # 임시 파일로 저장
         import tempfile
         import os
         
-        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as temp_file:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as temp_file:
             content = await file.read()
             temp_file.write(content)
             temp_file_path = temp_file.name
@@ -249,15 +322,37 @@ async def map_substances_from_file(
         # 임시 파일 삭제
         os.unlink(temp_file_path)
         
+        if result.get('status') == 'error':
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "status": "error",
+                    "message": f"파일 처리 중 오류가 발생했습니다: {result.get('error', '알 수 없는 오류')}",
+                    "timestamp": datetime.now().isoformat(),
+                    "error_type": "file_processing_failed"
+                }
+            )
+        
         return SubstanceMappingFileResponse(
             status="success",
-            data=result,
+            data=result.get('mapping_results', []),
             original_filename=file.filename,
+            processed_count=result.get('total_substances', 0),
             timestamp=datetime.now().isoformat()
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"파일 매핑 실패: {e}")
-        raise HTTPException(status_code=500, detail=f"파일 매핑 처리 중 오류가 발생했습니다: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail={
+                "status": "error",
+                "message": f"파일 매핑을 수행할 수 없습니다: {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+                "error_type": "file_mapping_failed"
+            }
+        )
 
 @normal_router.get("/substance/status", summary="매핑 서비스 상태 확인")
 async def get_substance_mapping_status(
@@ -266,10 +361,23 @@ async def get_substance_mapping_status(
     """물질 매핑 서비스 상태 및 통계 조회"""
     try:
         stats = service.get_substance_mapping_statistics()
-        return stats  # 직접 dict 반환 (Pydantic 모델 검증 제거)
+        return {
+            "status": "success",
+            "data": stats,
+            "timestamp": datetime.now().isoformat(),
+            "message": "매핑 서비스 상태 조회 완료"
+        }
     except Exception as e:
         logger.error(f"매핑 서비스 상태 조회 실패: {e}")
-        raise HTTPException(status_code=500, detail=f"서비스 상태 조회 중 오류가 발생했습니다: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail={
+                "status": "error",
+                "message": f"매핑 서비스 상태를 조회할 수 없습니다: {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+                "error_type": "service_unavailable"
+            }
+        )
 
 @normal_router.get("/substance/mappings", summary="저장된 매핑 결과 조회")
 async def get_saved_mappings(
@@ -284,11 +392,20 @@ async def get_saved_mappings(
             "status": "success",
             "data": mappings,
             "total_count": len(mappings),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
+            "message": f"매핑 결과 {len(mappings)}개 조회 완료"
         }
     except Exception as e:
         logger.error(f"매핑 결과 조회 실패: {e}")
-        raise HTTPException(status_code=500, detail=f"매핑 결과 조회 중 오류가 발생했습니다: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail={
+                "status": "error",
+                "message": f"저장된 매핑 결과를 조회할 수 없습니다: {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+                "error_type": "data_retrieval_failed"
+            }
+        )
 
 @normal_router.get("/substance/original-data", summary="원본 데이터 조회")
 async def get_original_data(
@@ -303,11 +420,20 @@ async def get_original_data(
             "status": "success",
             "data": data,
             "total_count": len(data),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
+            "message": f"원본 데이터 {len(data)}개 조회 완료"
         }
     except Exception as e:
         logger.error(f"원본 데이터 조회 실패: {e}")
-        raise HTTPException(status_code=500, detail=f"원본 데이터 조회 중 오류가 발생했습니다: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail={
+                "status": "error",
+                "message": f"원본 데이터를 조회할 수 없습니다: {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+                "error_type": "data_retrieval_failed"
+            }
+        )
 
 @normal_router.get("/substance/corrections", summary="사용자 수정 데이터 조회")
 async def get_corrections(
@@ -322,11 +448,20 @@ async def get_corrections(
             "status": "success",
             "data": corrections,
             "total_count": len(corrections),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
+            "message": f"사용자 수정 데이터 {len(corrections)}개 조회 완료"
         }
     except Exception as e:
         logger.error(f"수정 데이터 조회 실패: {e}")
-        raise HTTPException(status_code=500, detail=f"수정 데이터 조회 중 오류가 발생했습니다: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail={
+                "status": "error",
+                "message": f"사용자 수정 데이터를 조회할 수 없습니다: {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+                "error_type": "data_retrieval_failed"
+            }
+        )
 
 @normal_router.post("/substance/correct/{certification_id}", summary="매핑 결과 수동 수정")
 async def correct_substance_mapping(
@@ -336,13 +471,36 @@ async def correct_substance_mapping(
 ):
     """매핑 결과를 수동으로 수정 (certification 테이블 업데이트)"""
     try:
+        if not correction_data:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "status": "error",
+                    "message": "수정할 데이터가 제공되지 않았습니다.",
+                    "timestamp": datetime.now().isoformat(),
+                    "error_type": "invalid_request"
+                }
+            )
+        
         # 매핑 수정 수행
         success = service.correct_mapping(certification_id, correction_data)
         
-        if success:
-            return {"status": "success", "message": "매핑 결과가 수정되었습니다."}
-        else:
-            raise HTTPException(status_code=400, detail="매핑 결과 수정에 실패했습니다.")
+        return {
+            "status": "success", 
+            "message": f"매핑 결과 (ID: {certification_id})가 성공적으로 수정되었습니다.",
+            "timestamp": datetime.now().isoformat(),
+            "data": {"certification_id": certification_id, "updated": True}
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"매핑 결과 수정 실패: {e}")
-        raise HTTPException(status_code=500, detail=f"매핑 결과 수정 중 오류가 발생했습니다: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail={
+                "status": "error",
+                "message": f"매핑 결과를 수정할 수 없습니다: {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+                "error_type": "update_failed"
+            }
+        )
