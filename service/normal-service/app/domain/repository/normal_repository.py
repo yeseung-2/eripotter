@@ -227,7 +227,10 @@ class NormalRepository:
     def save_substance_data(self, substance_data: Dict[str, Any], company_id: str = None, company_name: str = None, uploaded_by: str = None, uploaded_by_email: str = None) -> Optional[int]:
         """프론트엔드에서 받은 물질 데이터를 normal 테이블에 저장"""
         try:
+            logger.info(f"🔍 Repository: 데이터 저장 시작 - {substance_data.get('productName', 'Unknown')}")
+            logger.info(f"🔍 Repository: Company ID: {company_id}, Company Name: {company_name}")
             session = self.Session()
+            logger.info(f"🔍 Repository: 세션 생성 완료")
             
             # NormalEntity 객체 생성
             normal_entity = NormalEntity(
@@ -272,11 +275,15 @@ class NormalRepository:
                 chemical_composition=substance_data.get('chemicalComposition')
             )
             
+            logger.info(f"🔍 Repository: NormalEntity 객체 생성 완료")
             session.add(normal_entity)
+            logger.info(f"🔍 Repository: 세션에 엔티티 추가 완료")
             session.commit()
+            logger.info(f"🔍 Repository: 커밋 완료")
             
             normal_id = normal_entity.id
             session.close()
+            logger.info(f"🔍 Repository: 세션 종료 완료")
             
             logger.info(f"✅ 물질 데이터 저장 완료: {company_name} - {substance_data.get('productName')} (ID: {normal_id})")
             return normal_id

@@ -35,13 +35,15 @@ def get_substance_mapping_service() -> NormalService:
 normal_router = APIRouter(tags=["normal"])
 
 @normal_router.get("/health", summary="서비스 상태 확인")
-async def health_check():
+async def health_check(service: NormalService = Depends(get_normal_service)):
     """서비스 상태 확인 엔드포인트"""
     return {
         "status": "healthy",
         "service": "normal-service",
         "timestamp": datetime.now().isoformat(),
-        "message": "Normal service is running"
+        "message": "Normal service is running",
+        "db_available": service.db_available,
+        "repository_available": service.normal_repository is not None
     }
 
 @normal_router.get("/", summary="모든 정규화 데이터 조회")

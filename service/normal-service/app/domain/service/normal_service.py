@@ -55,8 +55,13 @@ class NormalService(ISubstanceMapping, IDataNormalization, IESGValidation):
         """프론트엔드에서 받은 물질 데이터만 저장 (AI 매핑은 별도)"""
         try:
             logger.info(f"📝 물질 데이터 저장 시작: {substance_data.get('productName', 'Unknown')}")
+            logger.info(f"🔍 DB Available: {self.db_available}")
+            logger.info(f"🔍 Repository: {self.normal_repository}")
+            logger.info(f"🔍 Company ID: {company_id}, Company Name: {company_name}")
+            logger.info(f"🔍 Uploaded By: {uploaded_by}")
             
             if not self.db_available:
+                logger.error("❌ 데이터베이스 연결이 불가능합니다.")
                 return {
                     "status": "error",
                     "message": "데이터베이스 연결이 불가능합니다."
