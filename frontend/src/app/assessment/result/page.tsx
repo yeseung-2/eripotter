@@ -89,8 +89,8 @@ export default function AssessmentResultPage() {
         console.error('응답 데이터 파싱 오류:', error);
       }
     } else {
-      // 응답 데이터가 없으면 자가진단 페이지로 리다이렉트
-      router.push('/assessment');
+      // 응답 데이터가 없어도 결과 페이지에서 데이터를 불러올 수 있도록 시도
+      fetchAssessmentResults();
     }
     setLoading(false);
   }, [router]);
@@ -240,7 +240,8 @@ export default function AssessmentResultPage() {
     );
   }
 
-  if (responses.length === 0) {
+
+  if (responses.length === 0 && assessmentResults.length === 0) {
     return (
       <div style={{ 
         display: 'flex', 
@@ -250,7 +251,51 @@ export default function AssessmentResultPage() {
         fontSize: '18px',
         color: '#e74c3c'
       }}>
-        응답 데이터를 찾을 수 없습니다.
+        <div style={{
+          textAlign: 'center',
+          maxWidth: '400px',
+          padding: '40px'
+        }}>
+          <h2 style={{
+            fontSize: '24px',
+            fontWeight: '600',
+            color: '#2c3e50',
+            marginBottom: '16px'
+          }}>
+            진단 결과가 없습니다
+          </h2>
+          <p style={{
+            fontSize: '16px',
+            color: '#6c757d',
+            marginBottom: '24px',
+            lineHeight: '1.6'
+          }}>
+            자가진단을 먼저 진행하시거나,<br />
+            기존 진단 결과를 확인해보세요.
+          </p>
+          <button 
+            onClick={() => router.push('/assessment')}
+            style={{
+              backgroundColor: '#007bff',
+              color: 'white',
+              border: 'none',
+              padding: '12px 24px',
+              fontSize: '16px',
+              fontWeight: '600',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#0056b3';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#007bff';
+            }}
+          >
+            자가진단 시작하기
+          </button>
+        </div>
       </div>
     );
   }

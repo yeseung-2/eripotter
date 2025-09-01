@@ -17,6 +17,20 @@ const nextConfig = {
       },
     ],
   },
+  // 파일시스템 오류 해결을 위한 설정
+  experimental: {
+    esmExternals: 'loose',
+  },
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+      };
+    }
+    return config;
+  },
 };
 
 module.exports = withPWA(nextConfig);
