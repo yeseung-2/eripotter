@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { getCompanyResults, getCompanySolutions, generateSolutions } from '@/lib/api';
 
 export interface AssessmentSubmissionRequest {
   question_id: number;
@@ -107,13 +108,8 @@ export default function AssessmentResultPage() {
     try {
       // localStorage에서 회사명 가져오기 (실제로는 사용자 정보에서 가져와야 함)
       const companyName = localStorage.getItem('companyName') || '테스트회사';
-      const response = await fetch(`https://eripotter-gateway-production.up.railway.app/assessment/assessment-results/${encodeURIComponent(companyName)}`);
-      if (response.ok) {
-        const data = await response.json();
-        setAssessmentResults(data.assessment_results || []);
-      } else {
-        console.error('자가진단 결과 데이터를 불러오는데 실패했습니다.');
-      }
+      const data = await getCompanyResults(companyName);
+      setAssessmentResults(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('자가진단 결과 API 호출 오류:', error);
     }
@@ -132,40 +128,23 @@ export default function AssessmentResultPage() {
   const fetchSolutions = async () => {
     try {
       const companyName = localStorage.getItem('companyName') || '테스트회사';
-      const response = await fetch(`https://eripotter-gateway-production.up.railway.app/solution/${encodeURIComponent(companyName)}`);
-      if (response.ok) {
-        const data = await response.json();
-        setSolutions(data || []);
-      } else {
-        console.error('솔루션 데이터를 불러오는데 실패했습니다.');
-      }
+      const data = await getCompanySolutions(companyName);
+      setSolutions(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('솔루션 API 호출 오류:', error);
     }
   };
 
-  const generateSolutions = async () => {
+  const handleGenerateSolutions = async () => {
     setGeneratingSolutions(true);
     try {
       const companyName = localStorage.getItem('companyName') || '테스트회사';
-      const response = await fetch(`https://eripotter-gateway-production.up.railway.app/solution/generate/${encodeURIComponent(companyName)}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setSolutions(data || []);
-        if (data && data.length > 0) {
-          alert(`${data.length}개의 솔루션이 성공적으로 생성되었습니다!`);
-        } else {
-          alert('생성할 취약 부문이 없습니다.');
-        }
+      const data = await generateSolutions(companyName);
+      setSolutions(Array.isArray(data) ? data : []);
+      if (data && data.length > 0) {
+        alert(`${data.length}개의 솔루션이 성공적으로 생성되었습니다!`);
       } else {
-        console.error('솔루션 생성에 실패했습니다.');
-        alert('솔루션 생성에 실패했습니다. 다시 시도해주세요.');
+        alert('생성할 취약 부문이 없습니다.');
       }
     } catch (error) {
       console.error('솔루션 생성 API 호출 오류:', error);
@@ -949,7 +928,7 @@ export default function AssessmentResultPage() {
           flexWrap: 'wrap'
         }}>
           <button 
-            onClick={generateSolutions}
+                            onClick={handleGenerateSolutions}
             disabled={generatingSolutions}
             style={{
               backgroundColor: generatingSolutions ? '#6c757d' : '#28a745',

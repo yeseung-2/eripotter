@@ -66,3 +66,16 @@ export interface ChoiceData {
   id: number;
   text: string;
 }
+
+// Solution types
+export interface SolutionSubmissionResponse {
+  id: number;
+  company_name: string;
+  question_id: number;
+  sol: string;
+  timestamp: string;
+  item_name: string;
+  item_desc: string;
+  classification: string;
+  domain: string;
+}

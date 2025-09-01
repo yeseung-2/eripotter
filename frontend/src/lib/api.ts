@@ -38,3 +38,16 @@ export const getCompanyResults = (companyName: string) =>
 // Assessment 서비스 상태 확인
 export const checkAssessmentHealth = () =>
   api("/api/assessment/health");
+
+// ===== Solution API 함수들 =====
+import type { SolutionSubmissionResponse } from "@/types/assessment";
+
+// 회사별 솔루션 조회
+export const getCompanySolutions = (companyName: string) =>
+  api(`/api/solution/${companyName}`);
+
+// 솔루션 생성
+export const generateSolutions = (companyName: string): Promise<SolutionSubmissionResponse[]> =>
+  api(`/api/solution/generate/${companyName}`, {
+    method: "POST",
+  });
