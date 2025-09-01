@@ -180,7 +180,7 @@ async def sharing_any(path: str, request: Request):
 # Normal service 라우팅
 @app.api_route("/api/normal", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def normal_root(request: Request):
-    return await _proxy(request, NORMAL_SERVICE_URL, "/normal")
+    return await _proxy(request, NORMAL_SERVICE_URL, "/")
 
 @app.api_route("/api/normal/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def normal_any(path: str, request: Request):
