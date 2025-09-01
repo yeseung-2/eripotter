@@ -87,7 +87,24 @@ export default function DataUploadPage() {
         return;
       }
 
+      // 온실가스 배출량 데이터가 있는지 확인
+      if (!substanceData.greenhouseGasEmissions || substanceData.greenhouseGasEmissions.length === 0) {
+        alert('온실가스 배출량 데이터를 최소 1개 이상 추가해주세요. "+ 추가" 버튼을 눌러 CO2, 1 tonCO2eq 등을 입력해주세요.');
+        return;
+      }
+
       setIsSubmitting(true);
+      
+      // 요청 바디 구성 및 로깅
+      const requestBody = {
+        substance_data: substanceData,
+        company_id: partnerInfo.companyId,
+        company_name: partnerInfo.name,
+        uploaded_by: partnerInfo.userName,
+      };
+      
+      console.log('POST body', requestBody);
+      console.log('greenhouseGasEmissions:', substanceData.greenhouseGasEmissions);
       
       // 데이터 저장 및 자동매핑 시작
       const response = await fetch('/api/normal/substance/save-and-map', {
@@ -95,13 +112,15 @@ export default function DataUploadPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          substance_data: substanceData,
-          company_id: partnerInfo.companyId,
-          company_name: partnerInfo.name,
-          uploaded_by: partnerInfo.userName,
-        }),
+        body: JSON.stringify(requestBody),
       });
+
+      // 비 JSON 응답 가드 추가
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        const text = await response.text();
+        throw new Error(`비 JSON 응답: ${response.status} ${text.slice(0, 120)}`);
+      }
 
       const result = await response.json();
       

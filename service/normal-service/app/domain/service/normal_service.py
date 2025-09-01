@@ -25,7 +25,7 @@ try:
 except Exception:
     SentenceTransformer = None  # 런타임에 모델 미설치/미사용 대응
 
-from eripotter_common.database.base import get_db_engine
+from eripotter_common.database import get_session
 from ..repository.normal_repository import NormalRepository
 
 logger = logging.getLogger("normal-service")
@@ -36,12 +36,11 @@ class NormalService:
 
     def __init__(self):
         # DB 연결 (가능하면)
-        self.engine = None
         self.normal_repository: Optional[NormalRepository] = None
         self.db_available = False
 
         try:
-            self.engine = get_db_engine()
+            # get_session 사용으로 일관성 확보
             self.normal_repository = NormalRepository()
             self.db_available = True
             logger.info("✅ 데이터베이스 연결 성공")

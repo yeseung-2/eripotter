@@ -23,8 +23,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
-# 같은 서비스의 Base를 사용 (현재 구조 유지)
-from .normal_entity import Base
+# eripotter_common 공통 Base 사용
+from eripotter_common.database import Base
 
 
 def _iso(dt: Optional[datetime]) -> Optional[str]:

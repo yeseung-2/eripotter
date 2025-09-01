@@ -1,7 +1,7 @@
 # app/domain/repository/normal_repository.py
 """
 Normal Repository - Normal 테이블 전용 Repository (Refactored)
-- 세션 컨텍스트 일원화, 롤백/커밋/클로즈 안전
+- eripotter_common.database.get_session 사용으로 일관성 확보
 - SQLAlchemy 2.x 호환(Row → dict 변환 개선)
 - 기존 인터페이스/반환값 유지
 """
@@ -14,10 +14,9 @@ from datetime import datetime, date
 
 from sqlalchemy import text, func
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import sessionmaker
 
-# 공용 엔진(현 구조 유지)
-from eripotter_common.database import engine
+# eripotter_common 공용 세션 사용
+from eripotter_common.database import get_session
 
 # Entity import (현재 패키지 __init__ 에서 export 된다고 가정)
 from ..entity import NormalEntity, CertificationEntity
@@ -26,22 +25,20 @@ logger = logging.getLogger("normal-repository")
 
 
 class NormalRepository:
-    def __init__(self, _engine=None):
-        # 현 구조 유지: 공용 engine 사용 (MSA 분리 전환은 서비스 레벨에서 조정)
-        self.engine = _engine or engine
-        # expire_on_commit=False: commit 후 객체 접근(to_dict) 안정화
-        self.Session = sessionmaker(bind=self.engine, expire_on_commit=False, autoflush=False)
+    def __init__(self):
+        """Repository 초기화 - get_session 사용으로 일관성 확보"""
+        pass
 
     # ===== CRUD (Normal) =====
 
     def create(self, substance_data: Dict[str, Any]) -> Optional[NormalEntity]:
         """새로운 Normal 데이터 생성"""
         try:
-            with self.Session() as session:
+            with get_session() as db:
                 normal_entity = NormalEntity(**substance_data)
-                session.add(normal_entity)
-                session.commit()
-                session.refresh(normal_entity)
+                db.add(normal_entity)
+                db.commit()
+                db.refresh(normal_entity)
                 logger.info("✅ Normal 데이터 생성 완료: ID %s", normal_entity.id)
                 return normal_entity
         except SQLAlchemyError as e:
@@ -51,8 +48,8 @@ class NormalRepository:
     def get_by_id(self, normal_id: int) -> Optional[NormalEntity]:
         """ID로 Normal 데이터 조회"""
         try:
-            with self.Session() as session:
-                return session.query(NormalEntity).filter_by(id=normal_id).first()
+            with get_session() as db:
+                return db.query(NormalEntity).filter_by(id=normal_id).first()
         except SQLAlchemyError as e:
             logger.error("❌ Normal 데이터 조회 실패 (ID: %s): %s", normal_id, e)
             return None
@@ -60,9 +57,9 @@ class NormalRepository:
     def get_by_company(self, company_id: str, limit: int = 10, offset: int = 0) -> List[NormalEntity]:
         """회사별 Normal 데이터 조회"""
         try:
-            with self.Session() as session:
+            with get_session() as db:
                 return (
-                    session.query(NormalEntity)
+                    db.query(NormalEntity)
                     .filter_by(company_id=company_id)
                     .order_by(NormalEntity.created_at.desc())
                     .limit(limit)
@@ -76,9 +73,9 @@ class NormalRepository:
     def get_all(self, limit: int = 50, offset: int = 0) -> List[NormalEntity]:
         """모든 Normal 데이터 조회"""
         try:
-            with self.Session() as session:
+            with get_session() as db:
                 return (
-                    session.query(NormalEntity)
+                    db.query(NormalEntity)
                     .order_by(NormalEntity.created_at.desc())
                     .limit(limit)
                     .offset(offset)
@@ -91,8 +88,8 @@ class NormalRepository:
     def update(self, normal_id: int, update_data: Dict[str, Any]) -> bool:
         """Normal 데이터 업데이트"""
         try:
-            with self.Session() as session:
-                normal_entity = session.query(NormalEntity).filter_by(id=normal_id).first()
+            with get_session() as db:
+                normal_entity = db.query(NormalEntity).filter_by(id=normal_id).first()
                 if not normal_entity:
                     logger.error("❌ Normal ID %s 를 찾을 수 없습니다.", normal_id)
                     return False
@@ -103,7 +100,7 @@ class NormalRepository:
 
                 # DB 서버 타임스탬프를 쓰지만, 애플리케이션 레벨에서도 갱신 표시
                 normal_entity.updated_at = datetime.now()
-                session.commit()
+                db.commit()
                 logger.info("✅ Normal 데이터 업데이트 완료: ID %s", normal_id)
                 return True
         except SQLAlchemyError as e:
@@ -113,14 +110,14 @@ class NormalRepository:
     def delete(self, normal_id: int) -> bool:
         """Normal 데이터 삭제"""
         try:
-            with self.Session() as session:
-                normal_entity = session.query(NormalEntity).filter_by(id=normal_id).first()
+            with get_session() as db:
+                normal_entity = db.query(NormalEntity).filter_by(id=normal_id).first()
                 if not normal_entity:
                     logger.error("❌ Normal ID %s 를 찾을 수 없습니다.", normal_id)
                     return False
 
-                session.delete(normal_entity)
-                session.commit()
+                db.delete(normal_entity)
+                db.commit()
                 logger.info("✅ Normal 데이터 삭제 완료: ID %s", normal_id)
                 return True
         except SQLAlchemyError as e:
@@ -130,8 +127,8 @@ class NormalRepository:
     def count_by_company(self, company_id: str) -> int:
         """회사별 데이터 개수 조회"""
         try:
-            with self.Session() as session:
-                return session.query(NormalEntity).filter_by(company_id=company_id).count()
+            with get_session() as db:
+                return db.query(NormalEntity).filter_by(company_id=company_id).count()
         except SQLAlchemyError as e:
             logger.error("❌ 회사별 데이터 개수 조회 실패 (company_id: %s): %s", company_id, e)
             return 0
@@ -158,10 +155,8 @@ class NormalRepository:
     def get_all_normalized_data(self) -> List[Dict[str, Any]]:
         """모든 정규화 데이터 조회 (raw SQL)"""
         try:
-            if not self.engine:
-                return []
-            with self.engine.connect() as conn:
-                result = conn.execute(text("SELECT * FROM normal ORDER BY created_at DESC"))
+            with get_session() as db:
+                result = db.execute(text("SELECT * FROM normal ORDER BY created_at DESC"))
                 return self._rows_to_dicts(result)
         except Exception as e:
             logger.error("정규화 데이터 조회 실패: %s", e)
@@ -170,10 +165,8 @@ class NormalRepository:
     def get_normalized_data_by_id(self, data_id: str) -> Optional[Dict[str, Any]]:
         """특정 정규화 데이터 조회 (raw SQL)"""
         try:
-            if not self.engine:
-                return None
-            with self.engine.connect() as conn:
-                result = conn.execute(text("SELECT * FROM normal WHERE id = :data_id"), {"data_id": data_id})
+            with get_session() as db:
+                result = db.execute(text("SELECT * FROM normal WHERE id = :data_id"), {"data_id": data_id})
                 row = result.first()
                 return self._row_to_dict(row)
         except Exception as e:
@@ -183,10 +176,8 @@ class NormalRepository:
     def get_company_data(self, company_name: str) -> List[Dict[str, Any]]:
         """회사별 데이터 조회 (raw SQL)"""
         try:
-            if not self.engine:
-                return []
-            with self.engine.connect() as conn:
-                result = conn.execute(
+            with get_session() as db:
+                result = db.execute(
                     text("SELECT * FROM normal WHERE company_name = :company_name ORDER BY created_at DESC"),
                     {"company_name": company_name},
                 )
@@ -210,7 +201,7 @@ class NormalRepository:
             logger.info("🔍 Repository: 데이터 저장 시작 - %s", substance_data.get("productName", "Unknown"))
             logger.info("🔍 Repository: Company ID: %s, Company Name: %s", company_id, company_name)
 
-            with self.Session() as session:
+            with get_session() as db:
                 normal_entity = NormalEntity(
                     company_id=company_id,
                     company_name=company_name,
@@ -246,8 +237,8 @@ class NormalRepository:
                 )
 
                 logger.info("🔍 Repository: NormalEntity 객체 생성 완료")
-                session.add(normal_entity)
-                session.commit()
+                db.add(normal_entity)
+                db.commit()
                 normal_id = normal_entity.id
                 logger.info("✅ 물질 데이터 저장 완료: %s - %s (ID: %s)", company_name, substance_data.get("productName"), normal_id)
                 return normal_id
@@ -269,7 +260,7 @@ class NormalRepository:
     ) -> bool:
         """AI 매핑 결과를 certification 테이블에 저장"""
         try:
-            with self.Session() as session:
+            with get_session() as db:
                 confidence = float(mapping_result.get("confidence", 0.0) or 0.0)
                 if confidence >= 0.7:
                     mapping_status = "auto_mapped"
@@ -298,8 +289,8 @@ class NormalRepository:
                     mapping_status=mapping_status,
                 )
 
-                session.add(certification_entity)
-                session.commit()
+                db.add(certification_entity)
+                db.commit()
                 logger.info(
                     "✅ AI 매핑 결과 저장 완료: %s -> %s (신뢰도: %.1f%%)",
                     gas_name,
@@ -319,8 +310,8 @@ class NormalRepository:
     ) -> bool:
         """사용자가 매핑을 수정한 결과를 certification 테이블에 업데이트"""
         try:
-            with self.Session() as session:
-                certification = session.query(CertificationEntity).filter_by(id=certification_id).first()
+            with get_session() as db:
+                certification = db.query(CertificationEntity).filter_by(id=certification_id).first()
                 if not certification:
                     logger.error("❌ certification ID %s 를 찾을 수 없습니다.", certification_id)
                     return False
@@ -335,7 +326,7 @@ class NormalRepository:
                 certification.review_comment = correction_data.get("review_comment")
                 certification.updated_at = datetime.now()
 
-                session.commit()
+                db.commit()
                 logger.info("✅ 사용자 매핑 수정 완료: ID %s - %s", certification_id, reviewed_by)
                 return True
         except SQLAlchemyError as e:
@@ -345,8 +336,8 @@ class NormalRepository:
     def get_saved_mappings(self, company_id: str = None, limit: int = 10) -> List[Dict[str, Any]]:
         """저장된 매핑 결과 조회"""
         try:
-            with self.Session() as session:
-                query = session.query(CertificationEntity).join(NormalEntity)
+            with get_session() as db:
+                query = db.query(CertificationEntity).join(NormalEntity)
                 if company_id:
                     query = query.filter(CertificationEntity.company_id == company_id)
 
@@ -379,8 +370,8 @@ class NormalRepository:
     def get_original_data(self, company_id: str = None, limit: int = 10) -> List[Dict[str, Any]]:
         """원본 데이터 조회"""
         try:
-            with self.Session() as session:
-                query = session.query(NormalEntity)
+            with get_session() as db:
+                query = db.query(NormalEntity)
                 if company_id:
                     query = query.filter(NormalEntity.company_id == company_id)
 
@@ -395,13 +386,13 @@ class NormalRepository:
     def get_mapping_statistics(self) -> Dict[str, Any]:
         """매핑 통계 조회"""
         try:
-            with self.Session() as session:
-                total_mappings = session.query(CertificationEntity).count()
-                auto_mapped = session.query(CertificationEntity).filter(CertificationEntity.mapping_status == "auto_mapped").count()
-                needs_review = session.query(CertificationEntity).filter(CertificationEntity.mapping_status == "needs_review").count()
-                user_reviewed = session.query(CertificationEntity).filter(CertificationEntity.mapping_status == "user_reviewed").count()
+            with get_session() as db:
+                total_mappings = db.query(CertificationEntity).count()
+                auto_mapped = db.query(CertificationEntity).filter(CertificationEntity.mapping_status == "auto_mapped").count()
+                needs_review = db.query(CertificationEntity).filter(CertificationEntity.mapping_status == "needs_review").count()
+                user_reviewed = db.query(CertificationEntity).filter(CertificationEntity.mapping_status == "user_reviewed").count()
 
-                avg_confidence_result = session.query(func.avg(CertificationEntity.ai_confidence_score)).filter(
+                avg_confidence_result = db.query(func.avg(CertificationEntity.ai_confidence_score)).filter(
                     CertificationEntity.ai_confidence_score.isnot(None)
                 ).scalar()
 
@@ -424,10 +415,8 @@ class NormalRepository:
     def get_company_certifications(self, company_name: str) -> List[Dict[str, Any]]:
         """회사별 인증 데이터 조회 (raw SQL)"""
         try:
-            if not self.engine:
-                return []
-            with self.engine.connect() as conn:
-                result = conn.execute(
+            with get_session() as db:
+                result = db.execute(
                     text("SELECT * FROM certification WHERE company_name = :company_name ORDER BY created_at DESC"),
                     {"company_name": company_name},
                 )

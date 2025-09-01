@@ -1,7 +1,7 @@
 # app/domain/entity/normal_entity.py
 """
 Normal Entity - ESG 원본 데이터 저장 테이블 (Refactored)
-- SQLAlchemy 2.x 스타일로 정리 (declarative_base from sqlalchemy.orm)
+- SQLAlchemy 2.x 스타일로 정리 (eripotter_common.database.Base 사용)
 - 서버타임스탬프 func.now() 사용
 - to_dict() 안전성 향상 (Date/DateTime None/타입 보호)
 """
@@ -23,9 +23,9 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import declarative_base
 
-Base = declarative_base()
+# eripotter_common 공통 Base 사용
+from eripotter_common.database import Base
 
 
 def _iso(dt: Optional[datetime | date]) -> Optional[str]:

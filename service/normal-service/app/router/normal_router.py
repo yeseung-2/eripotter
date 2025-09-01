@@ -454,14 +454,29 @@ async def correct_substance_mapping(
 
 @normal_router.post("/substance/save-and-map", summary="데이터 저장 및 자동매핑 시작")
 async def save_and_map_substance(
-    substance_data: dict,
+    data: dict,
     company_id: Optional[str] = None,
     company_name: Optional[str] = None,
     uploaded_by: Optional[str] = None,
     service: NormalService = Depends(get_normal_service),
 ):
     try:
-        if not substance_data:
+        if not data:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "status": "error",
+                    "message": "요청 데이터가 제공되지 않았습니다.",
+                    "timestamp": datetime.now().isoformat(),
+                    "error_type": "invalid_request",
+                },
+            )
+
+        # 요청 바디 유연화: 중첩/평평한 형태 모두 허용
+        payload = data or {}
+        substance = payload.get("substance_data") or payload  # ✅ 중첩/평평 둘 다 허용
+        
+        if not substance:
             raise HTTPException(
                 status_code=400,
                 detail={
@@ -472,8 +487,11 @@ async def save_and_map_substance(
                 },
             )
 
+        logger.info(f"📝 요청 바디 처리: substance_data={bool(payload.get('substance_data'))}, 직접={bool(payload != substance)}")
+        logger.info(f"📝 최종 substance 데이터: {substance.get('productName', 'Unknown')}")
+
         result = service.save_substance_data_and_map_gases(
-            substance_data=substance_data,
+            substance_data=substance,
             company_id=company_id,
             company_name=company_name,
             uploaded_by=uploaded_by,

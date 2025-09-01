@@ -36,7 +36,7 @@ if os.getenv("RAILWAY_ENVIRONMENT") != "true":
     load_dotenv(find_dotenv())
 
 # ---------- Database ----------
-from eripotter_common.database import engine
+from eripotter_common.database import get_session
 
 # 엔티티 등록 (create_all 전에 반드시 모듈 임포트)
 from .domain.entity import normal_entity as _normal_entity  # noqa: F401
@@ -45,7 +45,9 @@ from .domain.entity.normal_entity import Base
 
 # 데이터베이스 테이블 생성
 try:
-    Base.metadata.create_all(bind=engine)
+    # get_session을 통해 engine에 접근하여 테이블 생성
+    with get_session() as db:
+        Base.metadata.create_all(bind=db.bind)
     logger.info("✅ 데이터베이스 연결 및 테이블 생성 완료")
 except Exception as e:
     logger.error(f"❌ 데이터베이스 연결/테이블 생성 실패: {e}")
