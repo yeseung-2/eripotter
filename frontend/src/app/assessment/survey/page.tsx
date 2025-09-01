@@ -103,7 +103,7 @@ export default function AssessmentPage() {
   useEffect(() => {
     const fetchKesgData = async () => {
       try {
-        const response = await fetch('https://eripotter-gateway-production.up.railway.app/assessment/kesg');
+        const response = await fetch('https://gateway-production-5d19.up.railway.app/assessment/kesg');
         if (!response.ok) {
           throw new Error('KESG 데이터를 불러오는데 실패했습니다.');
         }
@@ -191,7 +191,7 @@ export default function AssessmentPage() {
     
     try {
       // API 호출하여 실제로 데이터 저장
-      const response = await fetch('https://eripotter-gateway-production.up.railway.app/assessment/', {
+      const response = await fetch('https://gateway-production-5d19.up.railway.app/assessment/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
