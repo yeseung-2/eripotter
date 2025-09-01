@@ -1,0 +1,66 @@
+# Python 가상환경
+venv/
+env/
+.venv/
+.env/
+
+# Python 캐시 파일
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# 배포 파일
+*.egg-info/
+dist/
+build/
+
+# 로그 파일
+*.log
+logs/
+
+# 환경 변수 파일
+.env
+.env.local
+.env.production
+
+# IDE 설정
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 임시 파일
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# 데이터베이스
+*.db
+*.sqlite
+*.sqlite3
+
+# 모델 파일 (큰 파일들)
+*.pkl
+*.pickle
+*.h5
+*.hdf5
+*.model
+*.bin
+*.safetensors
+
+# AI 모델 관련
+model/
+models/
+checkpoints/
+embeddings/
+
+# 평가 결과 파일
+*_eval.csv
+*_results.csv
+finetuned_retrieval_eval.csv
+
+# 테스트 파일
+test_*.py
+*_test.py

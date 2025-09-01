@@ -126,6 +126,10 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - DATABASE_URL=${DATABASE_URL}
+      - HF_REPO_ID=galaxybuddy/bomi-ai
+      - HF_REV=main
+      - MODEL_DIR=/app/model/bomi-ai
+      - DATA_DIR=/app/data
     networks:
       - msa_network
 
@@ -160,9 +164,6 @@ services:
     build: ./service/sharing-service
     ports:
       - "8008:8008"
-    volumes:
-      - ./service/sharing-service/app:/app/app
-      - ./service/sharing-service/requirements.txt:/app/requirements.txt
     environment:
       - PYTHONUNBUFFERED=1
       - DATABASE_URL=${DATABASE_URL}
@@ -208,7 +209,6 @@ services:
 
 volumes:
   postgres_data:
-
 networks:
   msa_network:
     driver: bridge

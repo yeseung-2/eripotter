@@ -1,0 +1,57 @@
+# 파이썬/노드 기본
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+node_modules/
+npm-debug.log
+.yarn/
+*.log
+
+# VCS
+.git/
+.gitignore
+.gitattributes
+
+# 가상환경
+.venv/
+env/
+venv/
+
+# IDE/에디터
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 임시 파일
+*.tmp
+*.temp
+*.bak
+
+# 테스트/개발 파일
+test_*.py
+*_test.py
+pytest.ini
+.coverage
+htmlcov/
+
+# 문서 (모델 README는 제외)
+docs/
+# *.md  # 모델 README 파일을 위해 주석 처리
+
+# 기타
+.env
+.env.local
+.env.production
+
+# 모델 파일 예외 (Docker 빌드에 포함)
+!app/domain/model/
+!app/domain/model/bomi-ai/
+!app/domain/model/bomi-ai/model.safetensors

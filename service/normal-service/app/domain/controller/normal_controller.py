@@ -109,3 +109,14 @@ class NormalController:
             }
         except Exception as e:
             return {"status": "error", "message": f"스키마 조회 실패: {str(e)}"}
+
+    def get_environmental_data(self, company_name: str):
+        """회사별 실제 환경 데이터 조회"""
+        try:
+            environmental_data = self.service.get_environmental_data_by_company(company_name)
+            return {
+                "status": "success",
+                "data": environmental_data
+            }
+        except Exception as e:
+            return {"status": "error", "message": f"환경 데이터 조회 실패: {str(e)}"}
