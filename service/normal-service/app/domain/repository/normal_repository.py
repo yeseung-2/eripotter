@@ -421,6 +421,34 @@ class NormalRepository:
             logger.error("❌ 매핑 통계 조회 실패: %s", e)
             raise Exception(f"데이터베이스에서 매핑 통계를 조회하는 중 오류가 발생했습니다: {str(e)}")
 
+    def get_company_products(self, company_name: str) -> List[Dict[str, Any]]:
+        """회사별 제품 목록 조회 (product_name 기준)"""
+        try:
+            with self.Session() as session:
+                query = text("""
+                    SELECT DISTINCT 
+                        product_name,
+                        supplier,
+                        manufacturing_date,
+                        capacity,
+                        recycled_material,
+                        created_at,
+                        updated_at
+                    FROM normal 
+                    WHERE company_name = :company_name 
+                    AND product_name IS NOT NULL 
+                    AND product_name != ''
+                    ORDER BY created_at DESC
+                """)
+                
+                result = session.execute(query, {"company_name": company_name})
+                rows = result.fetchall()
+                
+                return [dict(row._mapping) for row in rows]
+        except SQLAlchemyError as e:
+            logger.error("❌ 회사별 제품 목록 조회 실패: %s", e)
+            return []
+
     def get_company_certifications(self, company_name: str) -> List[Dict[str, Any]]:
         """회사별 인증 데이터 조회 (raw SQL)"""
         try:

@@ -242,6 +242,12 @@ class NormalService:
             return []
         return self.normal_repository.get_original_data(company_id, limit)
 
+    def get_company_products(self, company_name: str) -> List[Dict[str, Any]]:
+        """회사별 제품 목록 조회"""
+        if not self.db_available:
+            return []
+        return self.normal_repository.get_company_products(company_name)
+
     def get_corrections(self, company_id: str = None, limit: int = 10) -> List[Dict[str, Any]]:
         """현재는 certification user_reviewed를 별도 조회하는 메서드가 없어 빈 리스트 반환."""
         try:

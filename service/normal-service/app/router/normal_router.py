@@ -384,6 +384,34 @@ async def get_original_data(
         )
 
 
+@normal_router.get("/company/{company_name}/products", summary="회사별 제품 목록 조회")
+async def get_company_products(
+    company_name: str,
+    service: NormalService = Depends(get_normal_service),
+):
+    try:
+        products = service.get_company_products(company_name)
+        return {
+            "status": "success",
+            "data": products,
+            "total_count": len(products),
+            "company_name": company_name,
+            "timestamp": datetime.now().isoformat(),
+            "message": f"{company_name}의 제품 목록 {len(products)}개 조회 완료",
+        }
+    except Exception as e:
+        logger.error(f"회사별 제품 목록 조회 실패: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "status": "error",
+                "message": f"제품 목록을 조회할 수 없습니다: {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+                "error_type": "product_list_retrieval_failed",
+            },
+        )
+
+
 @normal_router.get("/substance/corrections", summary="사용자 수정 데이터 조회")
 async def get_corrections(
     company_id: Optional[str] = None,
