@@ -58,7 +58,9 @@ ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL", "http://account-service:8
 ASSESSMENT_SERVICE_URL = os.getenv("ASSESSMENT_SERVICE_URL", "http://localhost:8002")
 CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "http://localhost:8003")
 REPORT_SERVICE_URL = os.getenv("REPORT_SERVICE_URL", "https://report-service-production-91aa.up.railway.app")
+SOLUTION_SERVICE_URL = os.getenv("SOLUTION_SERVICE_URL", "http://localhost:8009")
 logger.info(f"🔧 REPORT_SERVICE_URL 설정: {REPORT_SERVICE_URL}")
+logger.info(f"🔧 SOLUTION_SERVICE_URL 설정: {SOLUTION_SERVICE_URL}")
 TIMEOUT = float(os.getenv("UPSTREAM_TIMEOUT", "60"))
 
 @app.get("/health")
@@ -157,7 +159,7 @@ async def report_any(path: str, request: Request):
     return await _proxy(request, REPORT_SERVICE_URL, path)
 
 # ---- solution-service 프록시 ----
-@app.api_route("/solution/{path:path}", methods=["GET","POST","PUT","PATCH","DELETE"])
+@app.api_route("/api/solution/{path:path}", methods=["GET","POST","PUT","PATCH","DELETE"])
 async def solution_any(path: str, request: Request):
     return await _proxy(request, SOLUTION_SERVICE_URL, f"/solution/{path}")
 
