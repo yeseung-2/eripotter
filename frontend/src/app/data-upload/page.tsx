@@ -74,7 +74,7 @@ interface UploadedFile {
 }
 
 export default function PartnerDataUploadPage() {
-  const [activeTab, setActiveTab] = useState<'upload' | 'dashboard' | 'reports'>('upload');
+  const [activeTab, setActiveTab] = useState<'upload' | 'reports'>('upload');
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [partnerInfo, setPartnerInfo] = useState({
      name: 'LG화학',
@@ -643,12 +643,11 @@ export default function PartnerDataUploadPage() {
           <nav className="flex space-x-8">
             {[
               { id: 'upload', name: '데이터 업로드', icon: '📤' },
-              { id: 'dashboard', name: '자가진단 대시보드', icon: '📊' },
               { id: 'reports', name: '보고서 생성', icon: '📋' }
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as 'upload' | 'dashboard' | 'reports')}
+                onClick={() => setActiveTab(tab.id as 'upload' | 'reports')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
                   activeTab === tab.id
                     ? 'border-blue-500 text-blue-600'
