@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { getAllIndicators } from "@/lib/api";
 import { 
   getInputFields, 
-  generateDraft 
+  generateDraft,
+  saveIndicatorData,
+  getIndicatorData 
 } from "@/lib/reportApi";
 import type { Indicator } from "@/types/report";
 import { normalizeFields, type FormField } from "@/lib/form";
@@ -30,6 +32,7 @@ export default function ReportWritePage() {
   const [currentIndicatorId, setCurrentIndicatorId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // 지표 목록 로드
   useEffect(() => {
@@ -51,10 +54,16 @@ export default function ReportWritePage() {
     })();
   }, []);
 
+  // 회사명 변경 시 현재 선택된 지표의 저장된 데이터 불러오기
+  useEffect(() => {
+    if (currentIndicatorId && companyName) {
+      loadSavedData(currentIndicatorId);
+    }
+  }, [companyName, currentIndicatorId]);
+
   // 지표 선택 시 처리
   const handleIndicatorSelect = async (indicator: Indicator) => {
     console.log("🔍 handleIndicatorSelect 호출됨:", indicator.indicator_id);
-    console.log("🔍 호출 스택:", new Error().stack);
     setLoading(true);
     try {
       // 이미 처리된 지표인지 확인
@@ -80,6 +89,11 @@ export default function ReportWritePage() {
 
       // 입력필드 생성
       await generateInputFieldsForIndicator(indicator.indicator_id);
+      
+      // 기존 저장된 데이터 불러오기 (회사명이 있을 때만)
+      if (companyName) {
+        await loadSavedData(indicator.indicator_id);
+      }
     } catch (error) {
       console.error("지표 선택 처리 실패:", error);
       alert("지표 처리 중 오류가 발생했습니다.");
@@ -137,8 +151,31 @@ export default function ReportWritePage() {
     }
   };
 
+  // 저장된 데이터 불러오기
+  const loadSavedData = async (indicatorId: string) => {
+    if (!companyName) return;
+    
+    try {
+      const response = await getIndicatorData(indicatorId, companyName);
+      if (response?.success && response?.data) {
+        setProcessedIndicators(prev => 
+          prev.map(p => 
+            p.indicator.indicator_id === indicatorId 
+              ? { ...p, inputs: response.data?.inputs || {} }
+              : p
+          )
+        );
+        console.log(`✅ 저장된 데이터 불러오기 완료: ${indicatorId}`);
+      }
+    } catch (error) {
+      console.log(`ℹ️ 저장된 데이터 없음: ${indicatorId}`);
+      // 저장된 데이터가 없는 것은 정상적인 상황이므로 에러로 처리하지 않음
+    }
+  };
+
   // 데이터 입력 처리
-  const handleInputChange = (indicatorId: string, inputs: Record<string, any>) => {
+  const handleInputChange = async (indicatorId: string, inputs: Record<string, any>) => {
+    // 로컬 상태 업데이트
     setProcessedIndicators(prev => 
       prev.map(p => 
         p.indicator.indicator_id === indicatorId 
@@ -146,6 +183,24 @@ export default function ReportWritePage() {
           : p
       )
     );
+
+    // 자동 저장 (회사명이 있을 때만)
+    if (companyName && Object.keys(inputs).length > 0) {
+      setSaving(true);
+      try {
+        const response = await saveIndicatorData(indicatorId, companyName, inputs);
+        if (response.success) {
+          console.log(`✅ 입력 데이터 저장 완료: ${indicatorId}`);
+        } else {
+          console.warn(`⚠️ 입력 데이터 저장 실패: ${indicatorId} - ${response.message}`);
+        }
+      } catch (error) {
+        console.error(`❌ 입력 데이터 저장 실패: ${indicatorId}`, error);
+        // 저장 실패 시에도 사용자 경험을 위해 에러를 표시하지 않음
+      } finally {
+        setSaving(false);
+      }
+    }
   };
 
   // 초안 생성
@@ -305,20 +360,31 @@ export default function ReportWritePage() {
               {/* 입력 필드 */}
               {(currentIndicator.status === 'input-fields' || currentIndicator.status === 'data-input') && (
                 <div className="space-y-4">
-                  <h3 className="text-md font-medium text-gray-700">데이터 입력</h3>
-                                     <InputFieldsForm 
-                     fields={Object.entries(currentIndicator.inputFields).map(([key, field]: [string, any]) => ({
-                       key: key,
-                       label: field.label || key,
-                       type: field.type || 'text',
-                       required: field.required || false,
-                       description: field.description || '',
-                       unit: field.unit || '',
-                       year: field.year || ''
-                     }))}
-                     value={currentIndicator.inputs}
-                     onChange={(inputs) => handleInputChange(currentIndicator.indicator.indicator_id, inputs)}
-                   />
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-md font-medium text-gray-700">데이터 입력</h3>
+                    {saving && (
+                      <div className="flex items-center text-sm text-blue-600">
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        저장 중...
+                      </div>
+                    )}
+                  </div>
+                  <InputFieldsForm 
+                    fields={Object.entries(currentIndicator.inputFields).map(([key, field]: [string, any]) => ({
+                      key: key,
+                      label: field.label || key,
+                      type: field.type || 'text',
+                      required: field.required || false,
+                      description: field.description || '',
+                      unit: field.unit || '',
+                      year: field.year || ''
+                    }))}
+                    value={currentIndicator.inputs}
+                    onChange={(inputs) => handleInputChange(currentIndicator.indicator.indicator_id, inputs)}
+                  />
                   <button
                     onClick={() => generateDraftForIndicator(currentIndicator.indicator.indicator_id)}
                     disabled={!companyName || loading}

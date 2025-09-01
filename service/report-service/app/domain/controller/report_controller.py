@@ -135,7 +135,7 @@ class ReportController:
             logger.error(f"지표 초안 생성 API 오류: {e}")
             raise HTTPException(status_code=500, detail=f"지표 초안 생성 중 오류가 발생했습니다: {str(e)}")
 
-    def save_indicator_data(self, indicator_id: str, company_name: str, inputs: Dict[str, Any]) -> bool:
+    def save_indicator_data(self, indicator_id: str, company_name: str, inputs: Dict[str, Any]) -> Dict[str, Any]:
         try:
             with get_session() as db:
                 service = ReportService(db)
@@ -144,7 +144,7 @@ class ReportController:
             logger.error(f"지표 데이터 저장 API 오류: {e}")
             raise HTTPException(status_code=500, detail=f"지표 데이터 저장 중 오류가 발생했습니다: {str(e)}")
 
-    def get_indicator_data(self, indicator_id: str, company_name: str) -> Optional[Dict[str, Any]]:
+    def get_indicator_data(self, indicator_id: str, company_name: str) -> Dict[str, Any]:
         try:
             with get_session() as db:
                 service = ReportService(db)

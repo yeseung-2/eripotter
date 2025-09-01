@@ -56,9 +56,24 @@ export type Indicator = {
 
   export type DraftResponse = string; // HTML 문자열
 
-  export type SaveResponse = boolean;
+  export type SaveResponse = {
+    success: boolean;
+    message: string;
+    indicator_id: string;
+    company_name: string;
+    saved_at?: string;
+  };
 
-  export type IndicatorDataResponse = Record<string, any> | null;
+  export type IndicatorDataResponse = {
+    success: boolean;
+    message: string;
+    data: {
+      indicator_id: string;
+      company_name: string;
+      inputs: Record<string, any>;
+      retrieved_at: string;
+    } | null;
+  };
 
   export type SummaryResponse = string; // HTML 문자열
   

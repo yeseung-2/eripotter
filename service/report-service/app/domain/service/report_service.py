@@ -536,32 +536,70 @@ class ReportService:
             logger.exception("초안 생성 실패")
             return "⚠️ 초안 생성 중 오류가 발생했습니다."
 
-    def save_indicator_data(self, indicator_id: str, company_name: str, inputs: Dict[str, Any]) -> bool:
+    def save_indicator_data(self, indicator_id: str, company_name: str, inputs: Dict[str, Any]) -> Dict[str, Any]:
         try:
             existing = self.report_repository.get_report(indicator_id, company_name)
             if existing:
+                # KBZ 테이블에서 sub_title 가져오기
+                kbz_indicator = self.report_repository.get_indicator_by_id(indicator_id)
+                title = kbz_indicator.subcategory if kbz_indicator else existing.title
+                
                 self.report_repository.update_report(
-                    topic=indicator_id, company_name=company_name, metadata={"inputs": inputs}
+                    topic=indicator_id, company_name=company_name, 
+                    title=title, metadata={"inputs": inputs}
                 )
             else:
+                # KBZ 테이블에서 sub_title 가져오기
+                kbz_indicator = self.report_repository.get_indicator_by_id(indicator_id)
+                title = kbz_indicator.subcategory if kbz_indicator else f"{indicator_id} 보고서"
+                
                 self.report_repository.create_report(
                     topic=indicator_id, company_name=company_name, report_type="indicator",
-                    title=f"{indicator_id} 보고서", content="", metadata={"inputs": inputs}
+                    title=title, content="", metadata={"inputs": inputs}
                 )
-            return True
-        except Exception:
+            return {
+                "success": True,
+                "message": f"{indicator_id} 지표 데이터가 저장되었습니다.",
+                "indicator_id": indicator_id,
+                "company_name": company_name,
+                "saved_at": datetime.now().isoformat()
+            }
+        except Exception as e:
             logger.exception("지표 데이터 저장 실패")
-            return False
+            return {
+                "success": False,
+                "message": f"지표 데이터 저장 중 오류가 발생했습니다: {str(e)}",
+                "indicator_id": indicator_id,
+                "company_name": company_name
+            }
 
-    def get_indicator_data(self, indicator_id: str, company_name: str) -> Optional[Dict[str, Any]]:
+    def get_indicator_data(self, indicator_id: str, company_name: str) -> Dict[str, Any]:
         try:
             r = self.report_repository.get_report(indicator_id, company_name)
             if r and getattr(r, "meta", None):
-                return r.meta.get("inputs", {})
-            return None
-        except Exception:
+                inputs = r.meta.get("inputs", {})
+                return {
+                    "success": True,
+                    "message": f"{indicator_id} 지표 데이터를 조회했습니다.",
+                    "data": {
+                        "indicator_id": indicator_id,
+                        "company_name": company_name,
+                        "inputs": inputs,
+                        "retrieved_at": datetime.now().isoformat()
+                    }
+                }
+            return {
+                "success": False,
+                "message": f"{indicator_id} 지표 데이터를 찾을 수 없습니다.",
+                "data": None
+            }
+        except Exception as e:
             logger.exception("지표 데이터 조회 실패")
-            return None
+            return {
+                "success": False,
+                "message": f"지표 데이터 조회 중 오류가 발생했습니다: {str(e)}",
+                "data": None
+            }
 
     # ===== 지표 관리 =====
     def get_all_indicators(self) -> IndicatorListResponse:
