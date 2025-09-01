@@ -54,7 +54,7 @@ def cors_headers_for(request: Request):
     return {}
 
 # 서비스 URL 설정
-ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL", "http://account-service:8001")
+ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL", "http://localhost:8001")
 ASSESSMENT_SERVICE_URL = os.getenv("ASSESSMENT_SERVICE_URL", "http://localhost:8002")
 CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "http://localhost:8003")
 REPORT_SERVICE_URL = os.getenv("REPORT_SERVICE_URL", "https://report-service-production-91aa.up.railway.app")
@@ -184,7 +184,7 @@ async def normal_root(request: Request):
 
 @app.api_route("/api/normal/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def normal_any(path: str, request: Request):
-    return await _proxy(request, NORMAL_SERVICE_URL, f"/normal/{path}")
+    return await _proxy(request, NORMAL_SERVICE_URL, f"/{path}")
 
 # Auth 라우터를 두 경로에 마운트
 app.include_router(auth_router, prefix="/api/auth")  # 프론트엔드 API 요청용
