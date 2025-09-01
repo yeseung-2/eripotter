@@ -1,5 +1,5 @@
 // src/lib/http.ts - 통일된 HTTP 클라이언트
-const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const BASE = process.env.NEXT_PUBLIC_API_URL || "https://gateway-production-5d19.up.railway.app";
 
 export async function http<T>(path: string, init?: RequestInit): Promise<T> {
   try {

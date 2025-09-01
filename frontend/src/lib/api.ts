@@ -12,3 +12,29 @@ import type {
 
 export const getAllIndicators = (): Promise<IndicatorListResponse> =>
   api("/api/report/indicators");
+
+// ===== Assessment API 함수들 =====
+import type { KesgResponse, AssessmentRequest, AssessmentSubmissionResponse } from "@/types/assessment";
+
+// KESG 문항 목록 조회
+export const getKesgItems = (): Promise<KesgResponse> =>
+  api("/api/assessment/kesg");
+
+// 특정 KESG 문항 조회
+export const getKesgItemById = (itemId: number) =>
+  api(`/api/assessment/kesg/${itemId}`);
+
+// 자가진단 응답 제출
+export const submitAssessment = (request: AssessmentRequest): Promise<AssessmentSubmissionResponse[]> =>
+  api("/api/assessment/", {
+    method: "POST",
+    body: JSON.stringify(request),
+  });
+
+// 회사별 자가진단 결과 조회
+export const getCompanyResults = (companyName: string) =>
+  api(`/api/assessment/assessment-results/${companyName}`);
+
+// Assessment 서비스 상태 확인
+export const checkAssessmentHealth = () =>
+  api("/api/assessment/health");
