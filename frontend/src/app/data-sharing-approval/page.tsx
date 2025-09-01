@@ -226,47 +226,77 @@ const DataSharingPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [reviewComment, setReviewComment] = useState("");
   
-  // 동적 회사 정보 설정 (실제로는 로그인 정보나 환경변수에서 가져와야 함)
-const getCompanyInfo = () => {
-  // 임시로 1차사 A로 설정, 실제로는 JWT 토큰이나 API에서 가져옴
-  const companyTier = 1; // 1차, 2차, 3차 등
-  const companyCode = "A"; // A, B, C 등
-  const companyId = `TIER${companyTier}_${companyCode}`;
-  
-  const tierNames = {
-    0: "원청사",
-    1: "1차사", 
-    2: "2차사",
-    3: "3차사",
-    4: "4차사"
-  };
-  
-  const tierIcons = {
-    0: "🏭",
-    1: "🔧", 
-    2: "⚙️",
-    3: "🔩",
-    4: "📦"
-  };
-  
-  return {
-    companyId,
-    companyName: `${tierIcons[companyTier]} ${tierNames[companyTier]} ${companyCode} (우리회사)`,
-    companyTier,
-    companyCode,
-    userId: `USER_${companyId}_001`,
-    userName: `김담당 (${tierNames[companyTier]} ${companyCode} 데이터 관리자)`,
-    upperTier: companyTier - 1,
-    lowerTier: companyTier + 1,
-    hasUpperTier: companyTier > 0,
-    hasLowerTier: companyTier < 4 // 최대 4차까지 가정
-  };
-};
+  // 동적 회사 정보 설정 (클라이언트 사이드만)
+  const [companyInfo, setCompanyInfo] = useState({
+    companyId: "TIER0_A",
+    companyName: "🏭 원청사 A (우리회사)",
+    companyTier: 0,
+    companyCode: "A",
+    userId: "USER_TIER0_A_001",
+    userName: "김담당 (원청사 A 데이터 관리자)",
+    upperTier: -1,
+    lowerTier: 1,
+    hasUpperTier: false,
+    hasLowerTier: true
+  });
 
-const companyInfo = getCompanyInfo();
+  // URL 파라미터 기반 회사 정보 설정 (클라이언트에서만 실행)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const roleParam = urlParams.get('role');
+  
+      let companyTier;
+    if (roleParam === 'prime') {
+      companyTier = 0; // 원청사
+    } else if (roleParam === 'tier1') {
+      companyTier = 1; // 1차사
+    } else if (roleParam === 'tier2') {
+      companyTier = 2; // 2차사
+    } else if (roleParam === 'tier3') {
+      companyTier = 3; // 3차사
+    } else {
+      companyTier = 0; // 기본값: 원청사
+    }
+    
+    const companyCode = "A"; // A, B, C 등
+    const companyId = `TIER${companyTier}_${companyCode}`;
+    
+    const tierNames = {
+      0: "원청사",
+      1: "1차사",
+      2: "2차사",
+      3: "3차사",
+      4: "4차사"
+    };
+    
+    const tierIcons = {
+      0: "🏭",
+      1: "🔧",
+      2: "⚙️",
+      3: "🔩",
+      4: "📦"
+    };
+    
+    setCompanyInfo({
+      companyId,
+      companyName: `${tierIcons[companyTier]} ${tierNames[companyTier]} ${companyCode} (우리회사)`,
+      companyTier,
+      companyCode,
+      userId: `USER_${companyId}_001`,
+      userName: `김담당 (${tierNames[companyTier]} ${companyCode} 데이터 관리자)`,
+      upperTier: companyTier - 1,
+      lowerTier: companyTier + 1,
+      hasUpperTier: companyTier > 0,
+      hasLowerTier: companyTier < 4 // 최대 4차까지 가정
+    });
+  }, []);
 const currentCompanyId = companyInfo.companyId;
 const currentCompanyName = companyInfo.companyName;
 const currentUserId = companyInfo.userId;
+
+// 원청사 접근 권한 체크
+const isOriginalEquipmentManufacturer = companyInfo.companyTier === 0;
+const hasApprovalPageAccess = companyInfo.hasUpperTier; // 상위 tier가 있어야 승인 페이지 사용 가능
 const currentUserName = companyInfo.userName;
 
 // 동적으로 생성된 Mock 데이터
@@ -561,6 +591,46 @@ const MOCK_REQUESTS = generateMockRequests(companyInfo);
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">데이터를 로드하는 중...</p>
         </div>
+      </div>
+    );
+  }
+
+  // 원청사 접근 제한
+  if (!hasApprovalPageAccess) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+        <Card className="max-w-md mx-auto">
+          <CardContent className="p-8 text-center">
+            <div className="mb-6">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Building2 className="w-8 h-8 text-blue-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">원청사 계정</h2>
+              <p className="text-gray-600">
+                원청사는 데이터 승인 페이지에 접근할 수 없습니다.
+              </p>
+            </div>
+            <div className="space-y-4">
+              <p className="text-sm text-gray-500">
+                원청사는 협력사들에게 데이터를 요청하는 역할만 수행합니다.
+              </p>
+              <div className="space-y-2">
+                <Button 
+                  onClick={() => {
+                    // URL 파라미터로 원청사 역할로 접근
+                    window.open('/data-sharing-request?role=prime', '_blank');
+                  }} 
+                  className="w-full"
+                >
+                  데이터 요청 페이지로 이동 (원청사 역할)
+                </Button>
+                <p className="text-xs text-gray-400 text-center">
+                  테스트용: 원청사 관점에서 요청 페이지 체험
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }

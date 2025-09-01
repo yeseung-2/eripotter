@@ -3,7 +3,7 @@ Sharing Repository - 데이터 공유 관련 데이터베이스 작업
 """
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, and_, or_, desc, text
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 import logging
 
@@ -373,3 +373,47 @@ class SharingRepository:
             raise Exception(f"회사 목록 조회 중 오류 발생: {e}")
         finally:
             session.close()
+
+    def get_sharing_statistics_by_company(self, company_name: str) -> Dict[str, Any]:
+        """회사별 데이터 공유 통계 조회"""
+        try:
+            session = self.get_session()
+            
+            # 해당 회사가 provider인 요청들 조회
+            provider_requests = session.query(Sharing).filter(
+                Sharing.child_company_name == company_name
+            ).all()
+            
+            # 통계 계산
+            total_requests = len(provider_requests)
+            approved_requests = len([req for req in provider_requests if req.status == RequestStatus.APPROVED])
+            pending_requests = len([req for req in provider_requests if req.status == RequestStatus.PENDING])
+            rejected_requests = len([req for req in provider_requests if req.status == RequestStatus.REJECTED])
+            
+            # 최근 공유 날짜 찾기
+            approved_requests_with_date = [req for req in provider_requests if req.status == RequestStatus.APPROVED]
+            last_shared = None
+            if approved_requests_with_date:
+                last_shared = max(req.updated_at for req in approved_requests_with_date)
+            
+            session.close()
+            
+            return {
+                "totalRequests": total_requests,
+                "approved": approved_requests,
+                "pending": pending_requests,
+                "rejected": rejected_requests,
+                "lastShared": last_shared.strftime('%Y-%m-%d') if last_shared else datetime.now().strftime('%Y-%m-%d'),
+                "approvalRate": round((approved_requests / total_requests * 100) if total_requests > 0 else 0, 2)
+            }
+            
+        except Exception as e:
+            logger.error(f"데이터 공유 통계 조회 실패 ({company_name}): {e}")
+            return {
+                "totalRequests": 0,
+                "approved": 0,
+                "pending": 0,
+                "rejected": 0,
+                "lastShared": datetime.now().strftime('%Y-%m-%d'),
+                "approvalRate": 0
+            }

@@ -222,3 +222,14 @@ class SharingController:
         except Exception as e:
             logger.error(f"❌ 회사 목록 조회 실패: {e}")
             return ApiResponse(status="error", error=str(e)).dict()
+
+    def get_sharing_statistics(self, company_name: str):
+        """회사별 데이터 공유 통계 조회"""
+        try:
+            statistics = self.service.get_sharing_statistics(company_name)
+            return {
+                "status": "success",
+                "data": statistics
+            }
+        except Exception as e:
+            return {"status": "error", "message": f"통계 조회 실패: {str(e)}"}

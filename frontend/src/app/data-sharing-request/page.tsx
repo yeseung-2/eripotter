@@ -300,46 +300,72 @@ const SupplierRequestPage = () => {
   const [suppliers, setSuppliers] = useState<SupplierData[]>([]);
   const [currentCompany, setCurrentCompany] = useState<{name: string, tier1: string} | null>(null);
   
-  // 동적 회사 정보 설정
-  const getCompanyInfo = () => {
-    const companyTier = 1; // 1차, 2차, 3차 등
-    const companyCode = "A"; // A, B, C 등
+  // 동적 회사 정보 설정 (클라이언트 사이드만)
+  const [companyInfo, setCompanyInfo] = useState({
+    companyId: "TIER4_LG",
+    companyName: "🏭 LG에너지솔루션 (원청사)",
+    companyTier: 4,
+    companyCode: "LG",
+    userId: "USER_TIER4_LG_001",
+    userName: "김담당 (LG에너지솔루션 데이터 관리자)",
+    upperTier: 3,
+    lowerTier: 5,
+    hasUpperTier: true,
+    hasLowerTier: false
+  });
+
+  // URL 파라미터 기반 회사 정보 설정 (클라이언트에서만 실행)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const roleParam = urlParams.get('role');
+    
+    let companyTier;
+    if (roleParam === 'prime') {
+      companyTier = 0; // 원청사
+    } else if (roleParam === 'tier1') {
+      companyTier = 1; // 1차사
+    } else if (roleParam === 'tier2') {
+      companyTier = 2; // 2차사
+    } else if (roleParam === 'tier3') {
+      companyTier = 3; // 3차사
+    } else if (roleParam === 'tier4') {
+      companyTier = 4; // 최하위
+    } else {
+      companyTier = 4; // 기본값: 최하위 (테스트용)
+    }
+    
+    const companyCode = "LG"; // LG에너지솔루션
     const companyId = `TIER${companyTier}_${companyCode}`;
     
-    const tierNames = {
-      0: "원청사",
-      1: "1차사", 
-      2: "2차사",
-      3: "3차사",
-      4: "4차사"
-    };
-    
-    const tierIcons = {
-      0: "🏭",
-      1: "🔧", 
-      2: "⚙️",
-      3: "🔩",
-      4: "📦"
-    };
-    
-    return {
+    setCompanyInfo({
       companyId,
-      companyName: `${tierIcons[companyTier]} ${tierNames[companyTier]} ${companyCode} (우리회사)`,
+      companyName: `🏭 LG에너지솔루션 (원청사)`,
       companyTier,
       companyCode,
       userId: `USER_${companyId}_001`,
-      userName: `김담당 (${tierNames[companyTier]} ${companyCode} 데이터 관리자)`,
+      userName: `김담당 (LG에너지솔루션 데이터 관리자)`,
       upperTier: companyTier - 1,
       lowerTier: companyTier + 1,
       hasUpperTier: companyTier > 0,
       hasLowerTier: companyTier < 4
-    };
-  };
+    });
+  }, []);
 
-  const companyInfo = getCompanyInfo();
+  // 페이지 접근 권한 체크
+  const isBottomTier = !companyInfo.hasLowerTier;
+  const hasRequestPageAccess = companyInfo.hasLowerTier; // 하위 tier가 있어야 요청 페이지 사용 가능
 
-  // 회사 목록을 가져와서 현재 회사 설정
+  // 회사 목록을 가져와서 현재 회사 설정 (접근 권한이 있을 때만)
   useEffect(() => {
+    if (!hasRequestPageAccess) {
+      // 접근 권한이 없으면 API 호출하지 않고 기본값 설정
+      setCurrentCompany({
+        name: "LG에너지솔루션",
+        tier1: "에코프로비엠"
+      });
+      return;
+    }
+
     const fetchCompanies = async () => {
       try {
         const response = await getCompanies();
@@ -363,10 +389,15 @@ const SupplierRequestPage = () => {
     };
 
     fetchCompanies();
-  }, []);
+  }, [hasRequestPageAccess]);
 
   // 핵심 협력사 토글 함수
   const toggleStrategicSupplier = async (supplierId: string) => {
+    if (!hasRequestPageAccess) {
+      alert("접근 권한이 없습니다.");
+      return;
+    }
+
     try {
       // 현재 상태 찾기
       const currentSupplier = suppliers.find(s => s.id === supplierId);
@@ -428,10 +459,10 @@ const SupplierRequestPage = () => {
 
   // 데이터 로드
   useEffect(() => {
-    if (suppliers.length > 0) {
+    if (suppliers.length > 0 && hasRequestPageAccess) {
     loadData();
     }
-  }, [suppliers]);
+  }, [suppliers, hasRequestPageAccess]);
 
   const loadData = async () => {
     try {
@@ -501,6 +532,11 @@ const SupplierRequestPage = () => {
 
   // 새 요청 생성
   const handleCreateRequest = async () => {
+    if (!hasRequestPageAccess) {
+      alert("접근 권한이 없습니다.");
+      return;
+    }
+
     try {
       const requestData = {
         ...requestForm,
@@ -643,6 +679,46 @@ const SupplierRequestPage = () => {
     );
   }
 
+  // 최하위 tier 접근 제한 (하위 협력사가 없는 경우)
+  if (!hasRequestPageAccess) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+        <Card className="max-w-md mx-auto">
+          <CardContent className="p-8 text-center">
+            <div className="mb-6">
+              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Building2 className="w-8 h-8 text-orange-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">최하위 협력사</h2>
+              <p className="text-gray-600">
+                하위 협력사가 없어 데이터 요청 페이지를 사용할 수 없습니다.
+              </p>
+            </div>
+            <div className="space-y-4">
+              <p className="text-sm text-gray-500">
+                최하위 협력사는 상위 협력사의 요청에만 응답합니다.
+              </p>
+              <div className="space-y-2">
+                <Button 
+                  onClick={() => {
+                    // URL 파라미터로 1차사 역할로 접근
+                    window.open('/data-sharing-approval?role=tier1', '_blank');
+                  }} 
+                  className="w-full"
+                >
+                  데이터 승인 페이지로 이동 (1차사 역할)
+                </Button>
+                <p className="text-xs text-gray-400 text-center">
+                  테스트용: 1차사 관점에서 승인 페이지 체험
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200">
       {/* 네비게이션 바 */}
@@ -689,7 +765,7 @@ const SupplierRequestPage = () => {
         <div className="flex items-center justify-between mb-8">
           <div>
                          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-               {activeTab === 'dashboard' && '하위 협력사 데이터 수집'}
+               {activeTab === 'dashboard' && '협력사 데이터 수집 관리'}
                {activeTab === 'all' && '전체 데이터 요청'}
                {activeTab === 'pending' && '데이터 요청 및 공유 승인 대기중'}
                {activeTab === 'approved' && '데이터 공유 승인됨'}
@@ -699,13 +775,13 @@ const SupplierRequestPage = () => {
             <p className="text-gray-600">
               {activeTab === 'dashboard' && (
                 companyInfo.hasLowerTier ?
-                  `상위 ${companyInfo.upperTier === 0 ? '원청사' : '협력사'} 요청 대응을 위해 직속 하위 협력사들로부터 개별 데이터를 수집합니다. 하위 협력사들은 다시 그들의 협력사에게 요청하여 계층적으로 데이터를 취합합니다.` :
+                  `원청사로서 직속 1차 협력사들로부터 필요한 ESG 데이터를 수집합니다. 1차 협력사들은 다시 2차, 3차 협력사에게 요청하여 계층적으로 데이터를 취합합니다.` :
                   '최하위 차수로 요청할 하위 협력사가 없습니다.'
               )}
-              {activeTab === 'all' && '하위 협력사들에게 요청한 모든 데이터 요청 목록입니다.'}
-              {activeTab === 'pending' && '하위 협력사들에게 데이터 요청을 보냈으나 아직 승인 대기중인 목록입니다.'}
-              {activeTab === 'approved' && '하위 협력사들이 승인한 데이터 공유 요청 목록입니다. 데이터 수집이 진행 중입니다.'}
-              {activeTab === 'rejected' && '하위 협력사들이 거부한 데이터 공유 요청 목록입니다. 재요청이나 대안을 검토해보세요.'}
+              {activeTab === 'all' && '협력사들에게 요청한 모든 데이터 요청 목록입니다.'}
+              {activeTab === 'pending' && '협력사들에게 데이터 요청을 보냈으나 아직 승인 대기중인 목록입니다.'}
+              {activeTab === 'approved' && '협력사들이 승인한 데이터 공유 요청 목록입니다. 데이터 수집이 진행 중입니다.'}
+              {activeTab === 'rejected' && '협력사들이 거부한 데이터 공유 요청 목록입니다. 재요청이나 대안을 검토해보세요.'}
               {activeTab === 'completed' && '데이터 수신이 완료된 요청 목록입니다. 수집된 데이터를 확인할 수 있습니다.'}
             </p>
           </div>
@@ -868,10 +944,10 @@ const SupplierRequestPage = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Users className="h-5 w-5" />
-                  직속 하위 협력사 목록
+                  직속 1차 협력사 목록
                 </CardTitle>
                 <CardDescription>
-                  직속 하위 협력사들입니다. 이들은 다시 그들의 하위 협력사에게 요청하여 계층적으로 데이터를 수집합니다.
+                  직속 1차 협력사들입니다. 이들은 다시 2차, 3차 협력사에게 요청하여 계층적으로 데이터를 수집합니다.
                 </CardDescription>
               </CardHeader>
               <CardContent>

@@ -7,6 +7,7 @@ from sqlalchemy.orm import sessionmaker
 import logging
 from typing import List, Dict, Any, Optional
 from datetime import datetime
+from sqlalchemy import text
 
 # Entity import
 from ..entity import NormalEntity
@@ -171,3 +172,49 @@ class NormalRepository:
                 session.close()
             logger.error(f"❌ 회사별 데이터 개수 조회 실패 (company_id: {company_id}): {e}")
             return 0
+
+    def get_all_normalized_data(self) -> List[Dict[str, Any]]:
+        """모든 정규화 데이터 조회"""
+        try:
+            if not self.engine:
+                return []
+            
+            with self.engine.connect() as conn:
+                result = conn.execute(text("SELECT * FROM normal ORDER BY created_at DESC"))
+                return [dict(row) for row in result]
+        except Exception as e:
+            logger.error(f"정규화 데이터 조회 실패: {e}")
+            return []
+
+    def get_normalized_data_by_id(self, data_id: str) -> Optional[Dict[str, Any]]:
+        """특정 정규화 데이터 조회"""
+        try:
+            if not self.engine:
+                return None
+            
+            with self.engine.connect() as conn:
+                result = conn.execute(
+                    text("SELECT * FROM normal WHERE id = :data_id"),
+                    {"data_id": data_id}
+                )
+                row = result.fetchone()
+                return dict(row) if row else None
+        except Exception as e:
+            logger.error(f"정규화 데이터 조회 실패 (ID: {data_id}): {e}")
+            return None
+
+    def get_company_data(self, company_name: str) -> List[Dict[str, Any]]:
+        """회사별 데이터 조회"""
+        try:
+            if not self.engine:
+                return []
+            
+            with self.engine.connect() as conn:
+                result = conn.execute(
+                    text("SELECT * FROM normal WHERE company_name = :company_name ORDER BY created_at DESC"),
+                    {"company_name": company_name}
+                )
+                return [dict(row) for row in result]
+        except Exception as e:
+            logger.error(f"회사 데이터 조회 실패 ({company_name}): {e}")
+            return []

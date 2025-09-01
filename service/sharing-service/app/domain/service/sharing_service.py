@@ -97,6 +97,31 @@ class SharingService(ISharingRequestManagement, ISharingRequestReview, ISharingS
         """응답 시간 메트릭 계산"""
         return self.statistics_service.calculate_response_time_metrics(company_id, days)
 
+    def get_sharing_statistics(self, company_name: str) -> Dict[str, Any]:
+        """회사별 데이터 공유 통계 조회"""
+        try:
+            statistics = self.repository.get_sharing_statistics_by_company(company_name)
+            return {
+                "status": "success",
+                "company_name": company_name,
+                "data": statistics,
+                "last_updated": datetime.now().isoformat()
+            }
+        except Exception as e:
+            logger.error(f"데이터 공유 통계 조회 실패 ({company_name}): {e}")
+            return {
+                "status": "error",
+                "message": f"통계 조회 실패: {str(e)}",
+                "data": {
+                    "totalRequests": 0,
+                    "approved": 0,
+                    "pending": 0,
+                    "rejected": 0,
+                    "lastShared": datetime.now().strftime('%Y-%m-%d'),
+                    "approvalRate": 0
+                }
+            }
+
     # ISharingDataTransfer 인터페이스 구현
     def send_approved_data(self, request_id: str, data_url: str) -> Optional[Dict]:
         """승인된 데이터 전송"""

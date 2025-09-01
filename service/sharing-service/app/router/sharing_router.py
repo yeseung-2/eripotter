@@ -171,3 +171,11 @@ async def get_strategic_suppliers(
 ):
     """핵심 협력사 목록 조회"""
     return controller.get_strategic_suppliers(company_id)
+
+@sharing_router.get("/statistics/{company_name}", summary="회사별 데이터 공유 통계 조회")
+async def get_sharing_statistics(
+    company_name: str,
+    controller: SharingController = Depends(get_sharing_controller)
+):
+    """회사별 데이터 공유 통계 조회"""
+    return controller.get_sharing_statistics(company_name)

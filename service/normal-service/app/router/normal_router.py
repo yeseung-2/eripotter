@@ -178,6 +178,14 @@ async def get_esg_schema(
     """업종별 ESG 데이터 스키마 조회"""
     return controller.get_esg_schema(industry)
 
+@normal_router.get("/environmental/{company_name}", summary="회사별 환경 데이터 조회")
+async def get_environmental_data(
+    company_name: str,
+    controller: NormalController = Depends(get_normal_controller)
+):
+    """회사별 실제 환경 데이터 조회 (DB 기반)"""
+    return controller.get_environmental_data(company_name)
+
 # ===== 물질 매핑 API =====
 
 @normal_router.post("/substance/map", summary="단일 물질 매핑")

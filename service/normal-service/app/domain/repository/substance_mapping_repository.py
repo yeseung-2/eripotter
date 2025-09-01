@@ -278,6 +278,22 @@ class SubstanceMappingRepository:
             logger.error(f"❌ 매핑 통계 조회 실패: {e}")
             return {}
 
+    def get_company_certifications(self, company_name: str) -> List[Dict[str, Any]]:
+        """회사별 인증 데이터 조회"""
+        try:
+            if not self.engine:
+                return []
+            
+            with self.engine.connect() as conn:
+                result = conn.execute(
+                    text("SELECT * FROM certification WHERE company_name = :company_name ORDER BY created_at DESC"),
+                    {"company_name": company_name}
+                )
+                return [dict(row) for row in result]
+        except Exception as e:
+            logger.error(f"회사 인증 데이터 조회 실패 ({company_name}): {e}")
+            return []
+
     def _parse_date(self, date_str: str) -> Optional[datetime]:
         """날짜 문자열을 datetime 객체로 변환"""
         if not date_str:
