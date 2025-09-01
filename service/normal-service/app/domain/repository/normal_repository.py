@@ -9,13 +9,16 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 from sqlalchemy import text
 
+# eripotter_common database import
+from eripotter_common.database import engine
+
 # Entity import
 from ..entity import NormalEntity
 
 logger = logging.getLogger("normal-repository")
 
 class NormalRepository:
-    def __init__(self, engine):
+    def __init__(self):
         self.engine = engine
         self.Session = sessionmaker(bind=engine)
     

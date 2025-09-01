@@ -4,27 +4,63 @@ class NormalController:
 
     def get_all_normalized_data(self):
         """모든 정규화 데이터 조회"""
-        return {"status": "success", "data": []}
+        try:
+            data = self.service.normal_repository.get_all()
+            return {"status": "success", "data": [item.to_dict() for item in data]}
+        except Exception as e:
+            return {"status": "error", "message": f"데이터 조회 실패: {str(e)}"}
 
     def get_normalized_data_by_id(self, data_id: str):
         """특정 정규화 데이터 조회"""
-        return {"status": "success", "data": {"id": data_id}}
+        try:
+            data = self.service.normal_repository.get_by_id(int(data_id))
+            if data:
+                return {"status": "success", "data": data.to_dict()}
+            else:
+                return {"status": "error", "message": "데이터를 찾을 수 없습니다."}
+        except Exception as e:
+            return {"status": "error", "message": f"데이터 조회 실패: {str(e)}"}
 
     def upload_and_normalize_excel(self, file):
         """엑셀 파일 업로드 및 정규화"""
-        return {"status": "success", "message": "파일 업로드 및 정규화 완료", "filename": file.filename}
+        try:
+            # 파일 업로드 처리 로직 구현
+            return {"status": "success", "message": "파일 업로드 및 정규화 완료", "filename": file.filename}
+        except Exception as e:
+            return {"status": "error", "message": f"파일 업로드 실패: {str(e)}"}
 
     def create_normalized_data(self, data: dict):
         """정규화 데이터 생성"""
-        return {"status": "success", "data": data}
+        try:
+            result = self.service.normal_repository.create(data)
+            if result:
+                return {"status": "success", "data": result.to_dict()}
+            else:
+                return {"status": "error", "message": "데이터 생성 실패"}
+        except Exception as e:
+            return {"status": "error", "message": f"데이터 생성 실패: {str(e)}"}
 
     def update_normalized_data(self, data_id: str, data: dict):
         """정규화 데이터 업데이트"""
-        return {"status": "success", "data": {"id": data_id, **data}}
+        try:
+            success = self.service.normal_repository.update(int(data_id), data)
+            if success:
+                return {"status": "success", "data": {"id": data_id, **data}}
+            else:
+                return {"status": "error", "message": "데이터 업데이트 실패"}
+        except Exception as e:
+            return {"status": "error", "message": f"데이터 업데이트 실패: {str(e)}"}
 
     def delete_normalized_data(self, data_id: str):
         """정규화 데이터 삭제"""
-        return {"status": "success", "message": "deleted"}
+        try:
+            success = self.service.normal_repository.delete(int(data_id))
+            if success:
+                return {"status": "success", "message": "데이터 삭제 완료"}
+            else:
+                return {"status": "error", "message": "데이터 삭제 실패"}
+        except Exception as e:
+            return {"status": "error", "message": f"데이터 삭제 실패: {str(e)}"}
 
     def get_metrics(self):
         """메트릭 조회"""

@@ -25,7 +25,6 @@ class SubstanceMappingService:
         try:
             # 환경변수에서 경로 가져오기
             MODEL_DIR = os.getenv("MODEL_DIR", "/app/model/bomi-ai")
-            DATA_DIR = os.getenv("DATA_DIR", "/app/data")
             HF_REPO_ID = os.getenv("HF_REPO_ID", "galaxybuddy/bomi-ai")
             
             # BOMI AI 모델 로드 (로컬 우선)
@@ -55,39 +54,12 @@ class SubstanceMappingService:
                   
                     
             
-            # 규정 데이터 로드
-            reg_paths = [
-                Path(f"{DATA_DIR}/reg_test1.xlsx"),  # 환경변수 사용
-            ]
-            
-            reg_loaded = False
-            for reg_path in reg_paths:
-                if reg_path.exists():
-                    self.regulation_data = pd.read_excel(reg_path).fillna("")
-                    self.regulation_data.columns = [c.strip().lower() for c in self.regulation_data.columns]
-                    self.regulation_data = self.regulation_data[["sid", "name"]].drop_duplicates()
-                    
-                    # nan 값 제거
-                    nan_patterns = ["nan", "NaN", "NAN", "Nan", ""]
-                    self.regulation_data = self.regulation_data[~self.regulation_data["name"].str.lower().isin(nan_patterns)]
-                    self.regulation_data = self.regulation_data[self.regulation_data["name"].str.strip() != ""]
-                    
-                    self.regulation_sids = self.regulation_data["sid"].tolist()
-                    self.regulation_names = self.regulation_data["name"].tolist()
-                    
-                    # FAISS 인덱스 구축
-                    self._build_faiss_index()
-                    logger.info(f"규정 데이터 로드 성공: {len(self.regulation_data)}개 항목")
-                    reg_loaded = True
-                    break
-            
-            if not reg_loaded:
-                logger.error("규정 데이터 파일을 찾을 수 없습니다.")
-                # 기본 데이터로 초기화
-                self.regulation_data = pd.DataFrame(columns=["sid", "name"])
-                self.regulation_sids = []
-                self.regulation_names = []
-                self.faiss_index = None
+            # 규정 데이터는 현재 사용하지 않음 (필요시 추가)
+            logger.info("규정 데이터 파일이 제거되었습니다. 기본 데이터로 초기화합니다.")
+            self.regulation_data = pd.DataFrame(columns=["sid", "name"])
+            self.regulation_sids = []
+            self.regulation_names = []
+            self.faiss_index = None
                 
         except Exception as e:
             logger.error(f"모델 및 데이터 로드 실패: {e}")
@@ -121,6 +93,21 @@ class SubstanceMappingService:
         try:
             if not substance_name or substance_name.strip() == "":
                 return self._create_empty_result(substance_name, "빈 물질명")
+            
+            # 규정 데이터가 없으면 기본 응답
+            if not self.regulation_sids or not self.regulation_names:
+                return {
+                    "substance_name": substance_name,
+                    "mapped_sid": None,
+                    "mapped_name": None,
+                    "top1_score": 0.0,
+                    "margin": 0.0,
+                    "confidence": 0.0,
+                    "band": "not_mapped",
+                    "top5_candidates": [],
+                    "message": "규정 데이터가 로드되지 않았습니다.",
+                    "status": "no_data"
+                }
             
             # 쿼리 임베딩 생성
             query_text = f"query: {substance_name.strip()}"

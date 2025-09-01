@@ -7,16 +7,17 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 import logging
 
+# eripotter_common database import
+from eripotter_common.database import engine
+
 from ..entity.sharing_entity import Sharing, RequestStatus
-import os
 
 logger = logging.getLogger("sharing-repository")
 
 class SharingRepository:
     def __init__(self):
-        # Railway PostgreSQL 연결 정보
-        database_url = os.getenv("DATABASE_URL")
-        self.engine = create_engine(database_url)
+        # eripotter_common engine 사용
+        self.engine = engine
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
     
     def get_session(self):

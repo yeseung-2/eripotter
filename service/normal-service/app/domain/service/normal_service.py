@@ -27,8 +27,8 @@ class NormalService(ISubstanceMapping, IDataNormalization, IESGValidation):
         
         try:
             self.engine = get_db_engine()
-            self.substance_mapping_repository = SubstanceMappingRepository(self.engine)
-            self.normal_repository = NormalRepository(self.engine)
+            self.substance_mapping_repository = SubstanceMappingRepository()
+            self.normal_repository = NormalRepository()
             self.db_available = True
             logger.info("✅ 데이터베이스 연결 성공")
         except Exception as e:

@@ -11,13 +11,16 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 import json
 
+# eripotter_common database import
+from eripotter_common.database import engine
+
 # Entity import
 from ..entity import NormalEntity, CertificationEntity
 
 logger = logging.getLogger("substance-mapping-repository")
 
 class SubstanceMappingRepository:
-    def __init__(self, engine):
+    def __init__(self):
         self.engine = engine
         self.Session = sessionmaker(bind=engine)
     
