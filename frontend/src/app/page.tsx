@@ -21,38 +21,20 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex">
       {/* Left Side - Background Image and Branding */}
-      <div className="hidden lg:flex lg:w-2/3 relative bg-gradient-to-br from-blue-600 to-cyan-500">
+      <div className="hidden lg:flex lg:w-2/3 relative bg-gradient-to-br from-blue-100/30 to-cyan-300/40">
         {/* Background Image */}
         <div className="absolute inset-0">
           <Image
             src="/login_page.jpg"
             alt="Background"
             fill
-            className="object-cover opacity-20"
+            className="object-cover opacity-30"
             priority
           />
         </div>
         
         {/* Overlay with branding content */}
         <div className="relative z-10 flex flex-col justify-between h-full p-12 text-white">
-          {/* Top section with logo */}
-          <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 relative">
-              <Image
-                src="/logo.png"
-                alt="ERI Logo"
-                fill
-                className="object-contain"
-              />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold bg-gradient-to-r from-white to-cyan-200 bg-clip-text text-transparent">
-                ERI
-              </h2>
-              <p className="text-sm text-cyan-100">Environmental Risk Intelligence</p>
-            </div>
-          </div>
-
           {/* Center section with main message */}
           <div className="flex-1 flex flex-col justify-center">
             <h1 className="text-5xl font-bold mb-6 leading-tight">
@@ -70,31 +52,24 @@ export default function LoginPage() {
               ERI와 함께합니다.
             </p>
           </div>
-
-          {/* Bottom section */}
-          <div className="text-sm text-cyan-100">
-            <p>모바일 업무시스템</p>
-            <div className="flex space-x-4 mt-2">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-white/10 rounded-lg flex items-center justify-center mb-1">
-                  <span className="text-xs">Android</span>
-                </div>
-                <span className="text-xs">안드로이드</span>
-              </div>
-              <div className="text-center">
-                <div className="w-16 h-16 bg-white/10 rounded-lg flex items-center justify-center mb-1">
-                  <span className="text-xs">iOS</span>
-                </div>
-                <span className="text-xs">iOS</span>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
       {/* Right Side - Login Form */}
       <div className="w-full lg:w-1/3 flex items-center justify-center p-8 bg-white">
         <div className="w-full max-w-sm">
+          {/* Large Logo */}
+          <div className="flex justify-center mb-8">
+            <div className="w-24 h-24 relative">
+              <Image
+                src="/logo.png"
+                alt="ERI Logo"
+                fill
+                className="object-contain"
+              />
+            </div>
+          </div>
+
           {/* Mobile logo (visible only on mobile) */}
           <div className="lg:hidden flex items-center justify-center mb-8">
             <div className="flex items-center space-x-3">

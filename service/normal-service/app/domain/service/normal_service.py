@@ -734,9 +734,8 @@ class NormalService:
     # ----------------- 내부 AI 유틸 -----------------
 
     def _load_model(self):
-        """SentenceTransformer 모델을 로드(가능하면)"""
+        """SentenceTransformer 모델을 로드(경로 우선 → 오프라인에서도 동작)"""
         try:
-            # 환경으로 모델 완전 비활성화
             if os.getenv("NORMAL_DISABLE_MODEL") == "1":
                 logger.info("NORMAL_DISABLE_MODEL=1 → 모델 비활성화(no_model)")
                 self.model = None
@@ -747,43 +746,48 @@ class NormalService:
                 self.model = None
                 return
 
-            model_dir = Path(os.getenv("MODEL_DIR", "/opt/models/bomi-ai"))
+            # ➊ 경로 우선: MODEL_NAME > MODEL_DIR > 디폴트
+            model_path = os.getenv("MODEL_NAME") or os.getenv("MODEL_DIR") or "/app/model/bomi-ai"
             hf_repo = os.getenv("HF_REPO_ID", "galaxybuddy/bomi-ai")
+            offline = (os.getenv("TRANSFORMERS_OFFLINE","0").lower() in ("1","true","yes")
+                    or os.getenv("HF_HUB_OFFLINE","0").lower() in ("1","true","yes"))
 
-            # 1) 로컬 우선: 디렉터리 존재하면 곧바로 로컬 로드 시도
-            if model_dir.exists():
+            p = Path(model_path)
+            logger.info(f"🧭 모델 경로 확인: {p} (exists={p.exists()}) | offline={offline}")
+
+            # ➋ 로컬 경로가 있으면 무조건 로컬로 로드
+            if p.exists() and p.is_dir():
                 try:
-                    logger.info(f"로컬 모델 로드 시도: {model_dir}")
-                    self.model = SentenceTransformer(str(model_dir), local_files_only=True)
-                    logger.info(f"✅ BOMI AI 모델 로드 성공 (로컬): {model_dir}")
+                    self.model = SentenceTransformer(str(p), device="cpu", local_files_only=True)
+                    logger.info(f"✅ BOMI AI 모델 로드 성공 (local): {p}")
                     return
                 except Exception as e:
                     logger.warning(f"⚠️ 로컬 모델 로드 실패: {e}")
                     try:
-                        # 디버깅을 위해 상위 20개 파일만 출력
-                        sample = [p.as_posix() for p in model_dir.rglob('*')][:20]
+                        sample = [x.as_posix() for x in p.rglob('*')][:20]
                         logger.info(f"로컬 모델 경로 파일 샘플(20개): {sample}")
                     except Exception:
-                        pass  # 무시하고 다음 단계로 진행
+                        pass
 
-            # 2) 오프라인이면 원격 시도 금지
-            if os.getenv("TRANSFORMERS_OFFLINE") == "1" or os.getenv("HF_HUB_OFFLINE") == "1":
+            # ➌ 오프라인이면 여기서 종료
+            if offline:
                 logger.warning("오프라인 모드 → 원격 모델 다운로드 생략(no_model)")
                 self.model = None
                 return
 
-            # 3) 온라인에서 HF 리포 로딩
+            # ➍ 온라인이면 HF에서 이름으로 로드
             try:
-                logger.info(f"Hugging Face에서 모델 다운로드 시도: {hf_repo}")
-                self.model = SentenceTransformer(hf_repo)
-                logger.info(f"✅ BOMI AI 모델 로드 성공 (Hugging Face): {hf_repo}")
+                logger.info(f"🌐 HuggingFace에서 모델 로드 시도: {hf_repo}")
+                self.model = SentenceTransformer(hf_repo, device="cpu")
+                logger.info(f"✅ BOMI AI 모델 로드 성공 (remote): {hf_repo}")
                 return
             except Exception as e:
-                logger.error(f"❌ Hugging Face 모델 로드 실패: {e}")
+                logger.error(f"❌ HF 모델 로드 실패: {e}")
                 self.model = None
         except Exception as e:
             logger.error(f"❌ 모델 로드 실패: {e}")
             self.model = None
+
 
     def _standardize_substance_name(self, input_name: str) -> str:
         """간단한 표준화 규칙"""
