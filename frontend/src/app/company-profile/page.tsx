@@ -60,14 +60,14 @@ export default function CompanyProfilePage() {
       const urlParams = new URLSearchParams(window.location.search);
       const token = urlParams.get('token');
       if (token) {
-        // 토큰을 localStorage에 저장
-        localStorage.setItem('access_token', token);
-        console.log('Token saved:', token);
-        
-        // JWT 토큰에서 oauth_sub 추출하여 저장
+        // JWT 토큰에서 oauth_sub 추출
         const oauth_sub = extractOauthSubFromToken(token);
         if (oauth_sub) {
-          localStorage.setItem('oauth_sub', oauth_sub);
+          // 클라이언트 사이드에서만 localStorage 접근
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('access_token', token);
+            localStorage.setItem('oauth_sub', oauth_sub);
+          }
           setOauthSub(oauth_sub);
           console.log('OAuth sub saved:', oauth_sub);
         }
@@ -84,8 +84,12 @@ export default function CompanyProfilePage() {
     const loadProfile = async () => {
       // user가 없어도 account 테이블에서 데이터를 가져올 수 있도록 수정
       try {
-        // localStorage에서 oauth_sub 가져오기 (Google OAuth 로그인 시 저장됨)
-        const oauth_sub = localStorage.getItem('oauth_sub');
+        // 클라이언트 사이드에서만 localStorage 접근
+        let oauth_sub = '';
+        if (typeof window !== 'undefined') {
+          oauth_sub = localStorage.getItem('oauth_sub') || '';
+        }
+        
         if (!oauth_sub) {
           console.log('OAuth sub가 없습니다. 로그인이 필요합니다.');
           return;
@@ -132,8 +136,12 @@ export default function CompanyProfilePage() {
 
     setLoading(true);
     try {
-      // localStorage에서 oauth_sub 가져오기
-      const oauth_sub = localStorage.getItem('oauth_sub');
+      // 클라이언트 사이드에서만 localStorage 접근
+      let oauth_sub = '';
+      if (typeof window !== 'undefined') {
+        oauth_sub = localStorage.getItem('oauth_sub') || '';
+      }
+      
       if (!oauth_sub) {
         alert('로그인이 필요합니다.');
         return;
