@@ -109,7 +109,7 @@ export default function AssessmentResultPage() {
       // localStorage에서 회사명 가져오기 (실제로는 사용자 정보에서 가져와야 함)
       const companyName = localStorage.getItem('companyName') || '테스트회사';
       const data = await getCompanyResults(companyName);
-      setAssessmentResults(Array.isArray(data) ? data : []);
+      setAssessmentResults(data.assessment_results || []);
     } catch (error) {
       console.error('자가진단 결과 API 호출 오류:', error);
     }
@@ -129,7 +129,7 @@ export default function AssessmentResultPage() {
     try {
       const companyName = localStorage.getItem('companyName') || '테스트회사';
       const data = await getCompanySolutions(companyName);
-      setSolutions(Array.isArray(data) ? data : []);
+      setSolutions(data || []);
     } catch (error) {
       console.error('솔루션 API 호출 오류:', error);
     }
