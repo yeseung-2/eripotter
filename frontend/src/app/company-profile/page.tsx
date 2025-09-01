@@ -22,6 +22,7 @@ export default function CompanyProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [oauthSub, setOauthSub] = useState<string>('');
   const [formData, setFormData] = useState({
     company_name: '',
     company_type: '',
@@ -67,6 +68,7 @@ export default function CompanyProfilePage() {
         const oauth_sub = extractOauthSubFromToken(token);
         if (oauth_sub) {
           localStorage.setItem('oauth_sub', oauth_sub);
+          setOauthSub(oauth_sub);
           console.log('OAuth sub saved:', oauth_sub);
         }
         
@@ -88,6 +90,7 @@ export default function CompanyProfilePage() {
           console.log('OAuth sub가 없습니다. 로그인이 필요합니다.');
           return;
         }
+        setOauthSub(oauth_sub);
 
         const response = await axios.get(`/api/account/accounts/me?oauth_sub=${oauth_sub}`);
         if (response.data) {
@@ -201,7 +204,7 @@ export default function CompanyProfilePage() {
           </Link>
 
           {/* 생산성 자가진단 */}
-          <Link href={`/assessment?oauth_sub=${localStorage.getItem('oauth_sub')}`} className="group">
+          <Link href={`/assessment?oauth_sub=${oauthSub}`} className="group">
             <Card className="hover:shadow-md transition-all cursor-pointer h-full">
               <CardContent className="p-6 flex flex-col items-center text-center">
                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4 group-hover:bg-green-200 transition-colors">
