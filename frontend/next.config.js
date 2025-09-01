@@ -20,11 +20,7 @@ const nextConfig = {
   // 외부 이미지 허용
   images: {
     remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'images.unsplash.com',
-        pathname: '/**',
-      },
+      { protocol: 'https', hostname: 'images.unsplash.com', pathname: '/**' },
     ],
   },
 
@@ -41,13 +37,19 @@ const nextConfig = {
     return config
   },
 
-  // /api/* → 게이트웨이 /api/v1/* 프록시
+  // 💡 게이트웨이에 있는 그대로의 경로로 프록시 (v1 없음)
   async rewrites() {
     return [
-      {
-        source: '/api/:path*',
-        destination: `${gateway}/api/v1/:path*`,
-      },
+      // 우선순위가 필요한 서비스는 명시적으로
+      { source: '/api/normal/:path*',     destination: `${gateway}/api/normal/:path*` },
+      { source: '/api/report/:path*',     destination: `${gateway}/api/report/:path*` },
+      { source: '/api/account/:path*',    destination: `${gateway}/api/account/:path*` },
+      { source: '/api/assessment/:path*', destination: `${gateway}/api/assessment/:path*` },
+      { source: '/api/chatbot/:path*',    destination: `${gateway}/api/chatbot/:path*` },
+      { source: '/sharing/:path*',        destination: `${gateway}/sharing/:path*` }, // 비-API 경로
+
+      // 최종 폴백: /api/* -> 게이트웨이 /api/* (v1 제거)
+      { source: '/api/:path*',            destination: `${gateway}/api/:path*` },
     ]
   },
 
