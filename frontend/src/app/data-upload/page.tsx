@@ -124,105 +124,61 @@ export default function PartnerDataUploadPage() {
      userName: '담당자'
    });
 
-  // 히스토리 mock 데이터 초기화
+  // 히스토리 데이터 로드
   useEffect(() => {
-    const mockUploadHistory: UploadHistoryItem[] = [
-      {
-        id: '1',
-        fileName: 'LG화학_물질데이터_2024_01.xlsx',
-        fileType: 'Excel',
-        fileSize: 2.4,
-        uploadDate: '2024-01-15 14:30:00',
-        uploadedBy: '김철수',
-        status: 'completed',
-        substanceCount: 45,
-        processingTime: '2분 30초',
-        description: 'LG화학 2024년 1분기 물질 데이터'
-      },
-      {
-        id: '2',
-        fileName: 'LG화학_ESG데이터_2024_01.csv',
-        fileType: 'CSV',
-        fileSize: 1.8,
-        uploadDate: '2024-01-14 09:15:00',
-        uploadedBy: '이영희',
-        status: 'completed',
-        substanceCount: 32,
-        processingTime: '1분 45초',
-        description: 'LG화학 ESG 데이터 업로드'
-      },
-      {
-        id: '3',
-        fileName: 'LG화학_물질리스트_2024_01.xlsx',
-        fileType: 'Excel',
-        fileSize: 3.2,
-        uploadDate: '2024-01-13 16:20:00',
-        uploadedBy: '박민수',
-        status: 'processing',
-        substanceCount: 35,
-        processingTime: '매핑확정 필요',
-        description: 'LG화학 물질 리스트 (매핑 검토 대기)'
-      },
-      {
-        id: '4',
-        fileName: '직접입력_NCM양극재_2024_01',
-        fileType: 'Manual',
-        fileSize: 0.1,
-        uploadDate: '2024-01-12 11:45:00',
-        uploadedBy: '최지영',
-        status: 'processing',
-        substanceCount: 1,
-        processingTime: '매핑확정 필요',
-        description: 'NCM 양극재 직접 입력 데이터'
-      }
-    ];
-
-    const mockSubstanceHistory: SubstanceDataHistory[] = [
-      {
-        id: '1',
-        productName: 'NCM 양극재',
-        supplier: 'LG화학',
-        manufacturingDate: '2024-01-15',
-        capacity: '100Ah',
-        recycledMaterial: true,
-        uploadDate: '2024-01-15 14:30:00',
-        source: 'excel'
-      },
-      {
-        id: '2',
-        productName: 'LiPF₆ 전해질',
-        supplier: 'LG화학',
-        manufacturingDate: '2024-01-15',
-        capacity: '50L',
-        recycledMaterial: false,
-        uploadDate: '2024-01-15 14:30:00',
-        source: 'excel'
-      },
-      {
-        id: '3',
-        productName: '흑연 음극재',
-        supplier: '삼성전자',
-        manufacturingDate: '2024-01-14',
-        capacity: '80Ah',
-        recycledMaterial: true,
-        uploadDate: '2024-01-14 09:15:00',
-        source: 'manual'
-      },
-      {
-        id: '4',
-        productName: '구리 호일',
-        supplier: '현대자동차',
-        manufacturingDate: '2024-01-13',
-        capacity: '200m²',
-        recycledMaterial: false,
-        uploadDate: '2024-01-13 16:20:00',
-        source: 'excel'
-      }
-    ];
-
-    setUploadHistory(mockUploadHistory);
-    setSubstanceHistory(mockSubstanceHistory);
+    loadHistoryData();
   }, []);
+
+  const loadHistoryData = async () => {
+    try {
+      // 원본 데이터 조회
+      const originalResponse = await fetch('/api/normal/substance/original-data?limit=20');
+      if (originalResponse.ok) {
+        const originalData = await originalResponse.json();
+        if (originalData.status === 'success') {
+          // 원본 데이터를 히스토리 형식으로 변환
+          const historyItems: UploadHistoryItem[] = originalData.data.map((item: any, index: number) => ({
+            id: item.id.toString(),
+            fileName: item.filename || `직접입력_${item.product_name}_${new Date(item.created_at).toISOString().slice(0, 10)}`,
+            fileType: item.file_type === 'excel' ? 'Excel' : 'Manual',
+            fileSize: item.file_size ? (item.file_size / 1024 / 1024).toFixed(1) : 0.1,
+            uploadDate: new Date(item.created_at).toLocaleString('ko-KR'),
+            uploadedBy: item.uploaded_by || 'Unknown',
+            status: 'completed',
+            substanceCount: item.greenhouse_gas_emissions ? item.greenhouse_gas_emissions.length : 0,
+            processingTime: '처리완료',
+            description: `${item.product_name} - ${item.company_name || 'Unknown'}`
+          }));
+          setUploadHistory(historyItems);
+        }
+      }
+
+      // 매핑 결과 조회
+      const mappingResponse = await fetch('/api/normal/substance/mappings?limit=20');
+      if (mappingResponse.ok) {
+        const mappingData = await mappingResponse.json();
+        if (mappingData.status === 'success') {
+          // 매핑 결과를 물질 히스토리 형식으로 변환
+          const substanceItems: SubstanceDataHistory[] = mappingData.data.map((item: any) => ({
+            id: item.id.toString(),
+            productName: item.original_gas_name,
+            supplier: item.company_name || 'Unknown',
+            manufacturingDate: new Date(item.created_at).toISOString().slice(0, 10),
+            capacity: item.original_amount || 'N/A',
+            recycledMaterial: false,
+            uploadDate: new Date(item.created_at).toLocaleString('ko-KR'),
+            source: 'mapping'
+          }));
+          setSubstanceHistory(substanceItems);
+        }
+      }
+    } catch (error) {
+      console.error('히스토리 데이터 로드 실패:', error);
+      // 실패 시 빈 배열로 설정
+      setUploadHistory([]);
+      setSubstanceHistory([]);
+    }
+  };
 
   // 원재료 관련 함수들
   const handleRawMaterialChange = (material: string, checked: boolean) => {
@@ -667,23 +623,101 @@ export default function PartnerDataUploadPage() {
   };
 
   // 자동 매핑 시작
-  const startAutoMapping = () => {
-    if (uploadMode === 'direct') {
-      if (!substanceData.productName) {
-        alert('최소한 제품명은 입력해주세요.');
-        return;
+  const startAutoMapping = async () => {
+    try {
+      if (uploadMode === 'direct') {
+        if (!substanceData.productName) {
+          alert('최소한 제품명은 입력해주세요.');
+          return;
+        }
+        
+        // 1단계: 데이터 저장
+        const saveResponse = await fetch('/api/normal/substance-data', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ...substanceData,
+            company_id: partnerInfo.id,
+            company_name: partnerInfo.name,
+            uploaded_by: partnerInfo.userName
+          })
+        });
+        
+        if (!saveResponse.ok) {
+          throw new Error('데이터 저장 실패');
+        }
+        
+        const saveResult = await saveResponse.json();
+        console.log('데이터 저장 결과:', saveResult);
+        
+        if (saveResult.status === 'success') {
+          const normalId = saveResult.normal_id;
+          
+          // 2단계: 자동매핑 시작
+          const mappingResponse = await fetch(`/api/normal/auto-mapping/${normalId}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              company_id: partnerInfo.id,
+              company_name: partnerInfo.name
+            })
+          });
+          
+          if (!mappingResponse.ok) {
+            throw new Error('자동매핑 실패');
+          }
+          
+          const mappingResult = await mappingResponse.json();
+          console.log('자동매핑 결과:', mappingResult);
+          
+          if (mappingResult.status === 'success') {
+            alert(`자동매핑 완료! ${mappingResult.mapping_results.length}개 온실가스 매핑 완료. 사용자 검토가 필요합니다.`);
+            setActiveTab('history');
+            // 히스토리 데이터 새로고침
+            loadHistoryData();
+          } else {
+            alert(`자동매핑 실패: ${mappingResult.message}`);
+          }
+        } else {
+          alert(`데이터 저장 실패: ${saveResult.message}`);
+        }
+        
+      } else {
+        if (uploadedFiles.length === 0) {
+          alert('업로드할 파일을 선택해주세요.');
+          return;
+        }
+        
+        // 엑셀 파일 업로드 처리
+        const formData = new FormData();
+        uploadedFiles.forEach(file => {
+          formData.append('files', file);
+        });
+        
+        const uploadResponse = await fetch('/api/normal/upload', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!uploadResponse.ok) {
+          throw new Error('파일 업로드 실패');
+        }
+        
+        const uploadResult = await uploadResponse.json();
+        console.log('파일 업로드 결과:', uploadResult);
+        
+        alert('파일 업로드 완료! 자동매핑을 시작합니다.');
+        setActiveTab('history');
       }
-      console.log('직접 입력 데이터 처리:', substanceData);
-    } else {
-      if (uploadedFiles.length === 0) {
-        alert('업로드할 파일을 선택해주세요.');
-        return;
-      }
-      console.log('엑셀 파일 처리:', uploadedFiles);
+      
+    } catch (error) {
+      console.error('자동매핑 오류:', error);
+      alert(`오류가 발생했습니다: ${error.message}`);
     }
-    
-    alert('데이터 업로드 및 자동 매핑을 시작합니다.');
-    setActiveTab('history');  // 같은 페이지 내에서 히스토리 탭으로 전환
   };
 
   const predefinedMaterials = ['리튬', '니켈', '코발트', '망간', '알루미늄', '흑연', '형석', '기타'];
