@@ -1,10 +1,29 @@
+# ===== Base =====
 FROM python:3.11-slim
+
+# Basic env
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    LANG=C.UTF-8
+
+# Hugging Face caches & model path (build+run 공통)
+ENV HF_HOME=/opt/hf \
+    TRANSFORMERS_CACHE=/opt/hf \
+    SENTENCE_TRANSFORMERS_HOME=/opt/hf \
+    MODEL_DIR=/opt/models/bomi-ai \
+    MODEL_NAME=/opt/models/bomi-ai
+
 WORKDIR /app
 
-# sys deps
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential libgomp1 ca-certificates && rm -rf /var/lib/apt/lists/*
+# ===== System deps =====
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential \
+      libgomp1 \
+      ca-certificates \
+   && rm -rf /var/lib/apt/lists/*
 
-# py deps
+# ===== Python deps =====
 COPY requirements.txt .
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch==2.4.1 && \
@@ -16,41 +35,46 @@ RUN pip install --upgrade pip && \
       "accelerate>=0.28" \
       "huggingface_hub[cli]" \
       hf_transfer && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt && \
+    python - <<'PY'
+import torch, transformers, sentence_transformers
+print("✅ Deps OK:", torch.__version__, transformers.__version__, sentence_transformers.__version__)
+PY
 
-# 경로/캐시 통일
-ENV HF_HOME=/app/.hf \
-    TRANSFORMERS_CACHE=/app/.hf \
-    SENTENCE_TRANSFORMERS_HOME=/app/.hf \
-    MODEL_DIR=/app/model/bomi-ai \
-    MODEL_NAME=/app/model/bomi-ai \
-    PYTHONUNBUFFERED=1
-
-# 앱
-COPY ./app ./app
-COPY app/domain/model/data/reg_test1.xlsx /app/data/
-
-# --- 빌드 시 모델 내려받아 이미지에 굽기 ---
+# ===== Prebake model into the image =====
+# (빌드 시 1회 다운로드; private repo면 --build-arg HF_TOKEN=<token> 전달)
 ARG HF_REPO_ID=galaxybuddy/bomi-ai
 ARG HF_REV=main
 ARG HF_TOKEN
-RUN mkdir -p ${MODEL_DIR} && \
-    huggingface-cli download "$HF_REPO_ID" --revision "$HF_REV" \
-      --local-dir ${MODEL_DIR} --local-dir-use-symlinks False \
-      ${HF_TOKEN:+--token "$HF_TOKEN"} && \
-    test -f ${MODEL_DIR}/config.json && ls -lah ${MODEL_DIR}
+RUN mkdir -p "${MODEL_DIR}" && \
+    echo "⬇️  Download model: ${HF_REPO_ID}@${HF_REV}" && \
+    HF_HUB_OFFLINE=0 TRANSFORMERS_OFFLINE=0 HF_HUB_ENABLE_HF_TRANSFER=1 \
+    huggingface-cli download "${HF_REPO_ID}" --revision "${HF_REV}" \
+      --local-dir "${MODEL_DIR}" --local-dir-use-symlinks False \
+      ${HF_TOKEN:+--token "${HF_TOKEN}"} && \
+    test -f "${MODEL_DIR}/config.json" && \
+    ls -lah "${MODEL_DIR}"
 
-# 스모크 테스트 (실패시 빌드 중단)
+# ===== Build-time smoke test (fail-fast) =====
 RUN python - <<'PY'
 import os
 from sentence_transformers import SentenceTransformer
-p=os.environ["MODEL_DIR"]
-m=SentenceTransformer(p, local_files_only=True, device="cpu")
-print("✅ Model load OK:", p, m.encode(["ping"], normalize_embeddings=True).shape)
+p = os.environ.get("MODEL_DIR", "/opt/models/bomi-ai")
+m = SentenceTransformer(p, local_files_only=True, device="cpu")
+print("✅ Model load OK at:", p, "| test:", m.encode(["ping"], normalize_embeddings=True).shape)
 PY
 
-# 런타임 완전 오프라인
-ENV TRANSFORMERS_OFFLINE=1 HF_HUB_OFFLINE=1 HF_HUB_ENABLE_HF_TRANSFER=1
+# ===== App code =====
+COPY ./app ./app
+# (옵션) 데이터/리소스가 따로 있으면 여기서 COPY
+
+# ===== Slim final image =====
+RUN apt-get purge -y build-essential && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
+
+# ===== Runtime: fully offline =====
+ENV TRANSFORMERS_OFFLINE=1 \
+    HF_HUB_OFFLINE=1 \
+    HF_HUB_ENABLE_HF_TRANSFER=1
 
 EXPOSE 8005
-CMD ["uvicorn","app.main:app","--host","0.0.0.0","--port","8005"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8005"]
