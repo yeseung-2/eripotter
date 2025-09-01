@@ -5,6 +5,7 @@ Assessment Service - Service Layer
 
 import logging
 from typing import List, Dict, Union
+from datetime import datetime
 from ..repository.assessment_repository import AssessmentRepository
 from ..model.assessment_model import KesgItem, KesgResponse, AssessmentSubmissionResponse
 
@@ -123,7 +124,15 @@ class AssessmentService:
             elif question_type == 'five_choice':
                 # 선택형: scoring_json에서 점수 계산
                 scoring_json = kesg_item['scoring_json']
-                if isinstance(scoring_json, list) and isinstance(selected_value, list):
+                if isinstance(scoring_json, dict) and isinstance(selected_value, list):
+                    # 선택 개수에 따른 점수 계산
+                    choice_count = len(selected_value)
+                    choice_count_str = str(choice_count)
+                    if choice_count_str in scoring_json:
+                        return scoring_json[choice_count_str]
+                    return 0
+                elif isinstance(scoring_json, list) and isinstance(selected_value, list):
+                    # 선택된 choice들의 점수 합계
                     total_score = 0
                     for choice_id in selected_value:
                         for choice in scoring_json:
@@ -185,7 +194,16 @@ class AssessmentService:
                         if choice_count_str in scoring_json:
                             submission['score'] = scoring_json[choice_count_str]
                         else:
+                            # 선택 개수가 scoring_json에 없으면 0점
                             submission['score'] = 0
+                    elif isinstance(scoring_json, list) and isinstance(selected_value, list):
+                        # scoring_json이 리스트인 경우 (선택된 choice들의 점수 합계)
+                        total_score = 0
+                        for choice_id in selected_value:
+                            for choice in scoring_json:
+                                if choice.get('id') == choice_id:
+                                    total_score += choice.get('score', 0)
+                        submission['score'] = total_score
                     else:
                         submission['score'] = 0
                         
@@ -251,14 +269,14 @@ class AssessmentService:
             result = []
             for submission in submissions_with_scores:
                 response = AssessmentSubmissionResponse(
-                    id=0,  # Mock에서는 0으로 설정
+                    id=0,  # 실제 DB에서는 저장 후 ID가 자동 생성됨
                     company_name=submission['company_name'],
                     question_id=submission['question_id'],
                     question_type=submission['question_type'],
                     level_no=submission.get('level_no'),
                     choice_ids=submission.get('choice_ids'),
                     score=submission.get('score', 0),
-                    timestamp=None  # Mock에서는 None으로 설정
+                    timestamp=datetime.now().isoformat()  # 현재 시간으로 설정
                 )
                 result.append(response)
             

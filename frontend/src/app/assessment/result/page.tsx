@@ -105,7 +105,9 @@ export default function AssessmentResultPage() {
 
   const fetchAssessmentResults = async () => {
     try {
-              const response = await fetch('https://eripotter-gateway-production.up.railway.app/assessment/assessment-results/테스트회사');
+      // localStorage에서 회사명 가져오기 (실제로는 사용자 정보에서 가져와야 함)
+      const companyName = localStorage.getItem('companyName') || '테스트회사';
+      const response = await fetch(`https://eripotter-gateway-production.up.railway.app/assessment/assessment-results/${encodeURIComponent(companyName)}`);
       if (response.ok) {
         const data = await response.json();
         setAssessmentResults(data.assessment_results || []);
@@ -129,7 +131,8 @@ export default function AssessmentResultPage() {
 
   const fetchSolutions = async () => {
     try {
-      const response = await fetch('http://localhost:8080/solution/테스트회사');
+      const companyName = localStorage.getItem('companyName') || '테스트회사';
+      const response = await fetch(`https://eripotter-gateway-production.up.railway.app/solution/${encodeURIComponent(companyName)}`);
       if (response.ok) {
         const data = await response.json();
         setSolutions(data || []);
@@ -144,7 +147,8 @@ export default function AssessmentResultPage() {
   const generateSolutions = async () => {
     setGeneratingSolutions(true);
     try {
-      const response = await fetch('http://localhost:8080/solution/generate/테스트회사', {
+      const companyName = localStorage.getItem('companyName') || '테스트회사';
+      const response = await fetch(`https://eripotter-gateway-production.up.railway.app/solution/generate/${encodeURIComponent(companyName)}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

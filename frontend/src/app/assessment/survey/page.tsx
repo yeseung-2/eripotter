@@ -197,7 +197,7 @@ export default function AssessmentPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          company_name: '테스트회사',
+          company_name: localStorage.getItem('companyName') || '테스트회사',
           responses: formattedResponses
         }),
       });

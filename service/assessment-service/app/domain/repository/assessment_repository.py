@@ -10,77 +10,11 @@ from datetime import datetime
 from eripotter_common.database import get_session
 from ..entity.assessment_entity import KesgEntity, AssessmentEntity
 
-class KesgEntity(BaseModel):
-    """KESG 테이블 엔티티 - Railway PostgreSQL 구조와 동일"""
-    id: int
-    classification: Optional[str] = None
-    domain: Optional[str] = None
-    category: Optional[str] = None
-    item_name: Optional[str] = None
-    item_desc: Optional[str] = None
-    metric_desc: Optional[str] = None
-    data_source: Optional[str] = None
-    data_period: Optional[str] = None
-    data_method: Optional[str] = None
-    data_detail: Optional[str] = None
-    question_type: Optional[str] = None
-    levels_json: Optional[List[Dict[str, Union[str, int]]]] = None
-    choices_json: Optional[List[Dict[str, Union[str, int]]]] = None
-    scoring_json: Optional[Dict[str, int]] = None
-    weight: Optional[float] = None
-
-    def to_dict(self) -> Dict[str, Union[str, int, float, List[Dict[str, Union[str, int]]], Dict[str, int], None]]:
-        """엔티티를 딕셔너리로 변환"""
-        return {
-            'id': self.id,
-            'classification': self.classification,
-            'domain': self.domain,
-            'category': self.category,
-            'item_name': self.item_name,
-            'item_desc': self.item_desc,
-            'metric_desc': self.metric_desc,
-            'data_source': self.data_source,
-            'data_period': self.data_period,
-            'data_method': self.data_method,
-            'data_detail': self.data_detail,
-            'question_type': self.question_type,
-            'levels_json': self.levels_json,
-            'choices_json': self.choices_json,
-            'scoring_json': self.scoring_json,
-            'weight': self.weight
-        }
 
 
-class AssessmentEntity(BaseModel):
-    """Assessment 테이블 엔티티"""
-    id: int
-    company_name: str
-    question_id: int
-    question_type: str
-    level_no: Optional[int] = None
-    choice_ids: Optional[List[int]] = None
-    score: int
-    timestamp: Optional[datetime] = None
 
-    def to_dict(self) -> Dict[str, Union[str, int, List[int], datetime, None]]:
-        """엔티티를 딕셔너리로 변환"""
-        return {
-            'id': self.id,
-            'company_name': self.company_name,
-            'question_id': self.question_id,
-            'question_type': self.question_type,
-            'level_no': self.level_no,
-            'choice_ids': self.choice_ids,
-            'score': self.score,
-            'timestamp': self.timestamp
-        }
-
-
-# Mock Repository 클래스
+# Database Repository 클래스
 class AssessmentRepository:
-    # 클래스 변수로 변경하여 인스턴스 간에도 데이터 유지
-    _storage: List[Dict[str, Union[str, int, List[int], None]]] = []
-    
     def __init__(self):
         """Repository 초기화 시 데이터베이스 연결 테스트"""
         try:
