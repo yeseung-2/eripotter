@@ -328,55 +328,6 @@ async def get_substance_mapping_status(service: NormalService = Depends(get_norm
         )
 
 
-@normal_router.post("/substance/save-and-map", summary="데이터 저장 및 자동매핑 시작")
-async def save_and_map_substance(
-    substance_data: dict,
-    company_id: Optional[str] = None,
-    company_name: Optional[str] = None,
-    uploaded_by: Optional[str] = None,
-    service: NormalService = Depends(get_normal_service),
-):
-    try:
-        if not substance_data:
-            raise HTTPException(
-                status_code=400,
-                detail={
-                    "status": "error",
-                    "message": "물질 데이터가 제공되지 않았습니다.",
-                    "timestamp": datetime.now().isoformat(),
-                    "error_type": "invalid_request",
-                },
-            )
-
-        result = service.save_substance_data_and_map_gases(
-            substance_data=substance_data,
-            company_id=company_id,
-            company_name=company_name,
-            uploaded_by=uploaded_by,
-        )
-        
-        return {
-            "status": result.get("status", "success"),
-            "normal_id": result.get("normal_id"),
-            "message": result.get("message", "데이터 저장 및 자동매핑이 완료되었습니다."),
-            "timestamp": datetime.now().isoformat(),
-            "data": result,
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"데이터 저장 및 자동매핑 실패: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "status": "error",
-                "message": f"데이터 저장 및 자동매핑을 수행할 수 없습니다: {str(e)}",
-                "timestamp": datetime.now().isoformat(),
-                "error_type": "save_and_map_failed",
-            },
-        )
-
-
 @normal_router.get("/substance/mappings", summary="저장된 매핑 결과 조회")
 async def get_saved_mappings(
     company_id: Optional[str] = None,
@@ -500,6 +451,54 @@ async def correct_substance_mapping(
 
 
 # ---------- 프론트엔드 연동용 새로운 엔드포인트들 ----------
+
+@normal_router.post("/substance/save-and-map", summary="데이터 저장 및 자동매핑 시작")
+async def save_and_map_substance(
+    substance_data: dict,
+    company_id: Optional[str] = None,
+    company_name: Optional[str] = None,
+    uploaded_by: Optional[str] = None,
+    service: NormalService = Depends(get_normal_service),
+):
+    try:
+        if not substance_data:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "status": "error",
+                    "message": "물질 데이터가 제공되지 않았습니다.",
+                    "timestamp": datetime.now().isoformat(),
+                    "error_type": "invalid_request",
+                },
+            )
+
+        result = service.save_substance_data_and_map_gases(
+            substance_data=substance_data,
+            company_id=company_id,
+            company_name=company_name,
+            uploaded_by=uploaded_by,
+        )
+        
+        return {
+            "status": result.get("status", "success"),
+            "normal_id": result.get("normal_id"),
+            "message": result.get("message", "데이터 저장 및 자동매핑이 완료되었습니다."),
+            "timestamp": datetime.now().isoformat(),
+            "data": result,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"데이터 저장 및 자동매핑 실패: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "status": "error",
+                "message": f"데이터 저장 및 자동매핑을 수행할 수 없습니다: {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+                "error_type": "save_and_map_failed",
+            },
+        )
 
 
 @normal_router.get("/substance/{normal_id}", summary="특정 normal 데이터 조회")
