@@ -51,10 +51,10 @@ class NormalService(ISubstanceMapping, IDataNormalization, IESGValidation):
 
     # ===== 프론트엔드 데이터 처리 메서드들 =====
     
-    def save_substance_data_and_map_gases(self, substance_data: Dict[str, Any], company_id: str = None, company_name: str = None, uploaded_by: str = None) -> Dict[str, Any]:
-        """프론트엔드에서 받은 물질 데이터 저장 + 온실가스 AI 매핑"""
+    def save_substance_data_only(self, substance_data: Dict[str, Any], company_id: str = None, company_name: str = None, uploaded_by: str = None) -> Dict[str, Any]:
+        """프론트엔드에서 받은 물질 데이터만 저장 (AI 매핑은 별도)"""
         try:
-            logger.info(f"📝 물질 데이터 처리 시작: {substance_data.get('productName', 'Unknown')}")
+            logger.info(f"📝 물질 데이터 저장 시작: {substance_data.get('productName', 'Unknown')}")
             
             if not self.db_available:
                 return {
@@ -62,7 +62,7 @@ class NormalService(ISubstanceMapping, IDataNormalization, IESGValidation):
                     "message": "데이터베이스 연결이 불가능합니다."
                 }
             
-            # 1단계: Normal 테이블에 전체 데이터 저장
+            # Normal 테이블에 데이터 저장
             normal_id = self.normal_repository.save_substance_data(
                 substance_data=substance_data,
                 company_id=company_id,
@@ -77,77 +77,125 @@ class NormalService(ISubstanceMapping, IDataNormalization, IESGValidation):
                     "message": "물질 데이터 저장에 실패했습니다."
                 }
             
-            # 2단계: 온실가스 배출량 추출 및 AI 매핑
-            greenhouse_gases = substance_data.get('greenhouseGasEmissions', [])
-            mapping_results = []
-            
-            if greenhouse_gases:
-                logger.info(f"🤖 온실가스 AI 매핑 시작: {len(greenhouse_gases)}개")
-                
-                for gas_data in greenhouse_gases:
-                    gas_name = gas_data.get('materialName', '')
-                    gas_amount = gas_data.get('amount', '')
-                    
-                    if gas_name:
-                        # AI 매핑 수행
-                        ai_result = self.map_substance(gas_name)
-                        
-                        # Certification 테이블에 저장
-                        if ai_result.get('status') == 'success':
-                            success = self.normal_repository.save_ai_mapping_result(
-                                normal_id=normal_id,
-                                gas_name=gas_name,
-                                gas_amount=gas_amount,
-                                mapping_result=ai_result,
-                                company_id=company_id,
-                                company_name=company_name
-                            )
-                            
-                            if success:
-                                # 신뢰도에 따른 정확한 status 반환
-                                confidence = ai_result.get('confidence', 0.0)
-                                if confidence >= 0.7:
-                                    status = 'auto_mapped'
-                                elif confidence >= 0.4:
-                                    status = 'needs_review'
-                                else:
-                                    status = 'not_mapped'
-                                
-                                mapping_results.append({
-                                    'original_gas_name': gas_name,
-                                    'original_amount': gas_amount,
-                                    'ai_mapped_name': ai_result.get('mapped_name'),
-                                    'ai_confidence': ai_result.get('confidence'),
-                                    'status': status
-                                })
-                            else:
-                                mapping_results.append({
-                                    'original_gas_name': gas_name,
-                                    'status': 'save_failed'
-                                })
-                        else:
-                            mapping_results.append({
-                                'original_gas_name': gas_name,
-                                'status': 'mapping_failed',
-                                'error': ai_result.get('error')
-                            })
-            
-            logger.info(f"✅ 물질 데이터 처리 완료: Normal ID {normal_id}, 매핑 {len(mapping_results)}개")
+            logger.info(f"✅ 물질 데이터 저장 완료: Normal ID {normal_id}")
             
             return {
                 "status": "success",
                 "normal_id": normal_id,
                 "product_name": substance_data.get('productName'),
-                "mapping_results": mapping_results,
-                "message": f"데이터 저장 및 {len(mapping_results)}개 온실가스 매핑 완료"
+                "message": "물질 데이터 저장 완료. 자동매핑을 시작하세요."
             }
             
         except Exception as e:
-            logger.error(f"❌ 물질 데이터 처리 실패: {e}")
+            logger.error(f"❌ 물질 데이터 저장 실패: {e}")
             return {
                 "status": "error",
                 "error": str(e),
-                "message": "물질 데이터 처리 중 오류가 발생했습니다."
+                "message": "물질 데이터 저장 중 오류가 발생했습니다."
+            }
+
+    def start_auto_mapping(self, normal_id: int, company_id: str = None, company_name: str = None) -> Dict[str, Any]:
+        """자동매핑 시작 - 저장된 데이터의 온실가스 배출량을 AI로 매핑"""
+        try:
+            logger.info(f"🤖 자동매핑 시작: Normal ID {normal_id}")
+            
+            if not self.db_available:
+                return {
+                    "status": "error",
+                    "message": "데이터베이스 연결이 불가능합니다."
+                }
+            
+            # Normal 테이블에서 데이터 조회
+            normal_data = self.normal_repository.get_by_id(normal_id)
+            if not normal_data:
+                return {
+                    "status": "error",
+                    "message": f"Normal ID {normal_id}를 찾을 수 없습니다."
+                }
+            
+            # 온실가스 배출량 데이터 추출
+            greenhouse_gases = normal_data.greenhouse_gas_emissions or []
+            if not greenhouse_gases:
+                return {
+                    "status": "error",
+                    "message": "온실가스 배출량 데이터가 없습니다."
+                }
+            
+            mapping_results = []
+            certification_ids = []
+            
+            logger.info(f"🤖 온실가스 AI 매핑 시작: {len(greenhouse_gases)}개")
+            
+            for gas_data in greenhouse_gases:
+                gas_name = gas_data.get('materialName', '')
+                gas_amount = gas_data.get('amount', '')
+                
+                if gas_name:
+                    # AI 매핑 수행
+                    ai_result = self.map_substance(gas_name)
+                    
+                    # Certification 테이블에 저장
+                    if ai_result.get('status') == 'success':
+                        success = self.normal_repository.save_ai_mapping_result(
+                            normal_id=normal_id,
+                            gas_name=gas_name,
+                            gas_amount=gas_amount,
+                            mapping_result=ai_result,
+                            company_id=company_id,
+                            company_name=company_name
+                        )
+                        
+                        if success:
+                            # 신뢰도에 따른 상태 결정
+                            confidence = ai_result.get('confidence', 0.0)
+                            if confidence >= 0.7:
+                                status = 'auto_mapped'
+                            elif confidence >= 0.4:
+                                status = 'needs_review'
+                            else:
+                                status = 'needs_review'  # 낮은 신뢰도도 검토 필요
+                            
+                            mapping_results.append({
+                                'original_gas_name': gas_name,
+                                'original_amount': gas_amount,
+                                'ai_mapped_name': ai_result.get('mapped_name'),
+                                'ai_confidence': ai_result.get('confidence'),
+                                'status': status,
+                                'certification_id': None  # 나중에 조회해서 채워넣기
+                            })
+                        else:
+                            mapping_results.append({
+                                'original_gas_name': gas_name,
+                                'status': 'save_failed'
+                            })
+                    else:
+                        mapping_results.append({
+                            'original_gas_name': gas_name,
+                            'status': 'mapping_failed',
+                            'error': ai_result.get('error')
+                        })
+            
+            # 생성된 certification ID들 조회
+            saved_mappings = self.normal_repository.get_saved_mappings(company_id, limit=len(mapping_results))
+            for i, mapping in enumerate(mapping_results):
+                if i < len(saved_mappings):
+                    mapping['certification_id'] = saved_mappings[i]['id']
+            
+            logger.info(f"✅ 자동매핑 완료: {len(mapping_results)}개 매핑")
+            
+            return {
+                "status": "success",
+                "normal_id": normal_id,
+                "mapping_results": mapping_results,
+                "message": f"자동매핑 완료: {len(mapping_results)}개 온실가스 매핑. 사용자 검토가 필요합니다."
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ 자동매핑 실패: {e}")
+            return {
+                "status": "error",
+                "error": str(e),
+                "message": "자동매핑 중 오류가 발생했습니다."
             }
 
     def get_substance_mapping_statistics(self) -> Dict[str, Any]:
@@ -157,10 +205,10 @@ class NormalService(ISubstanceMapping, IDataNormalization, IESGValidation):
                 return {"error": "데이터베이스 연결 불가"}
             
             # Repository에서 통계 조회
-            stats = self.substance_mapping_repository.get_mapping_statistics()
+            stats = self.normal_repository.get_mapping_statistics()
             
             # AI 서비스 통계 추가
-            ai_stats = self.substance_mapping_service.get_mapping_statistics()
+            ai_stats = self.get_substance_mapping_statistics()
             
             return {
                 "database_stats": stats,
@@ -177,14 +225,14 @@ class NormalService(ISubstanceMapping, IDataNormalization, IESGValidation):
         if not self.db_available:
             return []
         
-        return self.substance_mapping_repository.get_saved_mappings(company_id, limit)
+        return self.normal_repository.get_saved_mappings(company_id, limit)
 
     def get_original_data(self, company_id: str = None, limit: int = 10) -> List[Dict[str, Any]]:
         """원본 데이터 조회"""
         if not self.db_available:
             return []
         
-        return self.substance_mapping_repository.get_original_data(company_id, limit)
+        return self.normal_repository.get_original_data(company_id, limit)
 
     def get_corrections(self, company_id: str = None, limit: int = 10) -> List[Dict[str, Any]]:
         """사용자 수정 데이터 조회"""
@@ -205,7 +253,7 @@ class NormalService(ISubstanceMapping, IDataNormalization, IESGValidation):
         if not self.db_available:
             return False
         
-        return self.substance_mapping_repository.update_user_mapping_correction(
+        return self.normal_repository.update_user_mapping_correction(
             certification_id=certification_id,
             correction_data=correction_data,
             reviewed_by=correction_data.get('reviewed_by', 'user')
@@ -580,7 +628,7 @@ class NormalService(ISubstanceMapping, IDataNormalization, IESGValidation):
             normal_data = self.normal_repository.get_company_data(company_name)
             
             # 2. certification 테이블에서 온실가스 매핑 결과 조회
-            certification_data = self.substance_mapping_repository.get_company_certifications(company_name)
+            certification_data = self.normal_repository.get_company_certifications(company_name)
             
             # 3. 환경 데이터 계산
             environmental_data = self._calculate_environmental_data(normal_data, certification_data)
@@ -673,10 +721,11 @@ class NormalService(ISubstanceMapping, IDataNormalization, IESGValidation):
         except Exception as e:
             logger.error(f"탄소배출량 계산 실패: {e}")
             return {
-                "total": 538,
-                "trend": "down",
+                "total": 0,
+                "trend": "no_data",
                 "lastUpdate": datetime.now().strftime('%Y-%m-%d'),
-                "breakdown": {"scope1": 150, "scope2": 200, "scope3": 188}
+                "breakdown": {"scope1": 0, "scope2": 0, "scope3": 0},
+                "message": "탄소배출량 데이터를 계산할 수 없습니다."
             }
 
     def _calculate_energy_usage(self, normal_data: List[Dict]) -> Dict[str, Any]:
@@ -702,10 +751,10 @@ class NormalService(ISubstanceMapping, IDataNormalization, IESGValidation):
                     except:
                         pass
             
-            # 기본값 보장
+            # 실제 데이터가 없으면 0 반환 (샘플데이터 제거)
             if total_energy == 0:
-                total_energy = 4105
-                renewable_energy = 1200
+                total_energy = 0
+                renewable_energy = 0
             
             return {
                 "total": round(total_energy, 2),
@@ -717,10 +766,11 @@ class NormalService(ISubstanceMapping, IDataNormalization, IESGValidation):
         except Exception as e:
             logger.error(f"에너지사용량 계산 실패: {e}")
             return {
-                "total": 4105,
-                "renewable": 1200,
-                "trend": "up",
-                "lastUpdate": datetime.now().strftime('%Y-%m-%d')
+                "total": 0,
+                "renewable": 0,
+                "trend": "no_data",
+                "lastUpdate": datetime.now().strftime('%Y-%m-%d'),
+                "message": "에너지 사용량 데이터를 계산할 수 없습니다."
             }
 
     def _calculate_water_usage(self, normal_data: List[Dict]) -> Dict[str, Any]:
@@ -742,10 +792,10 @@ class NormalService(ISubstanceMapping, IDataNormalization, IESGValidation):
                     if data.get('recycled_material'):
                         recycled_water += material_count * water_per_material * 0.3
             
-            # 기본값 보장
+            # 실제 데이터가 없으면 0 반환 (샘플데이터 제거)
             if total_water == 0:
-                total_water = 9363
-                recycled_water = 2800
+                total_water = 0
+                recycled_water = 0
             
             return {
                 "total": round(total_water, 2),
@@ -757,10 +807,11 @@ class NormalService(ISubstanceMapping, IDataNormalization, IESGValidation):
         except Exception as e:
             logger.error(f"물사용량 계산 실패: {e}")
             return {
-                "total": 9363,
-                "recycled": 2800,
-                "trend": "stable",
-                "lastUpdate": datetime.now().strftime('%Y-%m-%d')
+                "total": 0,
+                "recycled": 0,
+                "trend": "no_data",
+                "lastUpdate": datetime.now().strftime('%Y-%m-%d'),
+                "message": "물 사용량 데이터를 계산할 수 없습니다."
             }
 
     def _calculate_waste_management(self, normal_data: List[Dict]) -> Dict[str, Any]:
@@ -786,11 +837,11 @@ class NormalService(ISubstanceMapping, IDataNormalization, IESGValidation):
                 else:
                     landfill_waste += base_waste
             
-            # 기본값 보장
+            # 실제 데이터가 없으면 0 반환 (샘플데이터 제거)
             if total_waste == 0:
-                total_waste = 483
-                recycled_waste = 350
-                landfill_waste = 133
+                total_waste = 0
+                recycled_waste = 0
+                landfill_waste = 0
             
             return {
                 "total": round(total_waste, 2),
@@ -803,11 +854,12 @@ class NormalService(ISubstanceMapping, IDataNormalization, IESGValidation):
         except Exception as e:
             logger.error(f"폐기물 관리 계산 실패: {e}")
             return {
-                "total": 483,
-                "recycled": 350,
-                "landfill": 133,
-                "trend": "up",
-                "lastUpdate": datetime.now().strftime('%Y-%m-%d')
+                "total": 0,
+                "recycled": 0,
+                "landfill": 0,
+                "trend": "no_data",
+                "lastUpdate": datetime.now().strftime('%Y-%m-%d'),
+                "message": "폐기물 관리 데이터를 계산할 수 없습니다."
             }
 
     def _extract_certifications(self, normal_data: List[Dict]) -> List[str]:
@@ -830,45 +882,50 @@ class NormalService(ISubstanceMapping, IDataNormalization, IESGValidation):
             # 중복 제거
             certifications = list(set(certifications))
             
-            # 기본값 보장
+            # 실제 인증 데이터가 없으면 빈 리스트 반환 (샘플데이터 제거)
             if not certifications:
-                certifications = ['ISO 14001', 'ISO 50001']
+                certifications = []
             
             return certifications
             
         except Exception as e:
             logger.error(f"인증 정보 추출 실패: {e}")
-            return ['ISO 14001', 'ISO 50001']
+            return []
 
     def _get_default_environmental_data(self, company_name: str) -> Dict[str, Any]:
-        """기본 환경 데이터 (API 실패 시 사용)"""
+        """기본 환경 데이터 (DB에 데이터가 없을 때 사용)"""
         return {
             "carbonFootprint": {
-                "total": 538,
-                "trend": "down",
+                "total": 0,
+                "trend": "no_data",
                 "lastUpdate": datetime.now().strftime('%Y-%m-%d'),
-                "breakdown": {"scope1": 150, "scope2": 200, "scope3": 188}
+                "breakdown": {"scope1": 0, "scope2": 0, "scope3": 0},
+                "message": f"{company_name}의 온실가스 배출량 데이터가 없습니다."
             },
             "energyUsage": {
-                "total": 4105,
-                "renewable": 1200,
-                "trend": "up",
-                "lastUpdate": datetime.now().strftime('%Y-%m-%d')
+                "total": 0,
+                "renewable": 0,
+                "trend": "no_data",
+                "lastUpdate": datetime.now().strftime('%Y-%m-%d'),
+                "message": f"{company_name}의 에너지 사용량 데이터가 없습니다."
             },
             "waterUsage": {
-                "total": 9363,
-                "recycled": 2800,
-                "trend": "stable",
-                "lastUpdate": datetime.now().strftime('%Y-%m-%d')
+                "total": 0,
+                "recycled": 0,
+                "trend": "no_data",
+                "lastUpdate": datetime.now().strftime('%Y-%m-%d'),
+                "message": f"{company_name}의 물 사용량 데이터가 없습니다."
             },
             "wasteManagement": {
-                "total": 483,
-                "recycled": 350,
-                "landfill": 133,
-                "trend": "up",
-                "lastUpdate": datetime.now().strftime('%Y-%m-%d')
+                "total": 0,
+                "recycled": 0,
+                "landfill": 0,
+                "trend": "no_data",
+                "lastUpdate": datetime.now().strftime('%Y-%m-%d'),
+                "message": f"{company_name}의 폐기물 관리 데이터가 없습니다."
             },
-            "certifications": ['ISO 14001', 'ISO 50001']
+            "certifications": [],
+            "message": f"{company_name}의 환경 데이터를 찾을 수 없습니다. 데이터를 입력해주세요."
         }
 
     # ===== Substance Mapping 관련 메서드들 =====
@@ -905,20 +962,92 @@ class NormalService(ISubstanceMapping, IDataNormalization, IESGValidation):
                     logger.error(f"Hugging Face 모델 로드 실패: {e}")
                     raise Exception(f"BOMI AI 모델을 로드할 수 없습니다. 로컬: {MODEL_DIR}, Hugging Face: {HF_REPO_ID}")
                     
-            # 규정 데이터는 현재 사용하지 않음 (필요시 추가)
-            logger.info("규정 데이터 파일이 제거되었습니다. 기본 데이터로 초기화합니다.")
-            self.regulation_data = pd.DataFrame(columns=["sid", "name"])
-            self.regulation_sids = []
-            self.regulation_names = []
-            self.faiss_index = None
+            # 규정 데이터 로드 (온실가스 배출량 표준 데이터)
+            self._load_regulation_data()
                 
         except Exception as e:
             logger.error(f"모델 및 데이터 로드 실패: {e}")
             raise
     
+    def _load_regulation_data(self):
+        """온실가스 배출량 표준 규정 데이터를 로드합니다."""
+        try:
+            # 온실가스 배출량 표준 데이터 (IPCC, K-ETS 기준)
+            regulation_data = [
+                {"sid": "CO2_DIRECT", "name": "이산화탄소 직접배출 (Scope 1)"},
+                {"sid": "CO2_INDIRECT", "name": "이산화탄소 간접배출 (Scope 2)"},
+                {"sid": "CO2_OTHER", "name": "이산화탄소 기타배출 (Scope 3)"},
+                {"sid": "CH4_DIRECT", "name": "메탄 직접배출 (Scope 1)"},
+                {"sid": "CH4_INDIRECT", "name": "메탄 간접배출 (Scope 2)"},
+                {"sid": "CH4_OTHER", "name": "메탄 기타배출 (Scope 3)"},
+                {"sid": "N2O_DIRECT", "name": "아산화질소 직접배출 (Scope 1)"},
+                {"sid": "N2O_INDIRECT", "name": "아산화질소 간접배출 (Scope 2)"},
+                {"sid": "N2O_OTHER", "name": "아산화질소 기타배출 (Scope 3)"},
+                {"sid": "HFC_DIRECT", "name": "수소불화탄소 직접배출 (Scope 1)"},
+                {"sid": "HFC_INDIRECT", "name": "수소불화탄소 간접배출 (Scope 2)"},
+                {"sid": "PFC_DIRECT", "name": "과불화탄소 직접배출 (Scope 1)"},
+                {"sid": "PFC_INDIRECT", "name": "과불화탄소 간접배출 (Scope 2)"},
+                {"sid": "SF6_DIRECT", "name": "육불화황 직접배출 (Scope 1)"},
+                {"sid": "SF6_INDIRECT", "name": "육불화황 간접배출 (Scope 2)"},
+                {"sid": "NF3_DIRECT", "name": "삼불화질소 직접배출 (Scope 1)"},
+                {"sid": "NF3_INDIRECT", "name": "삼불화질소 간접배출 (Scope 2)"},
+                {"sid": "CO2_TOTAL", "name": "이산화탄소 총배출량"},
+                {"sid": "CH4_TOTAL", "name": "메탄 총배출량"},
+                {"sid": "N2O_TOTAL", "name": "아산화질소 총배출량"},
+                {"sid": "GHG_TOTAL", "name": "온실가스 총배출량 (CO2eq)"},
+                {"sid": "CO2_ENERGY", "name": "에너지 사용으로 인한 이산화탄소 배출"},
+                {"sid": "CO2_TRANSPORT", "name": "운송으로 인한 이산화탄소 배출"},
+                {"sid": "CO2_PROCESS", "name": "공정으로 인한 이산화탄소 배출"},
+                {"sid": "CO2_WASTE", "name": "폐기물 처리로 인한 이산화탄소 배출"},
+                {"sid": "CO2_AGRICULTURE", "name": "농업으로 인한 이산화탄소 배출"},
+                {"sid": "CO2_FORESTRY", "name": "산림으로 인한 이산화탄소 배출"},
+                {"sid": "CO2_INDUSTRIAL", "name": "산업공정으로 인한 이산화탄소 배출"},
+                {"sid": "CO2_BUILDING", "name": "건물 에너지 사용으로 인한 이산화탄소 배출"},
+                {"sid": "CO2_ELECTRICITY", "name": "전력 사용으로 인한 이산화탄소 배출"},
+                {"sid": "CO2_HEATING", "name": "난방으로 인한 이산화탄소 배출"},
+                {"sid": "CO2_COOLING", "name": "냉방으로 인한 이산화탄소 배출"},
+                {"sid": "CO2_MANUFACTURING", "name": "제조업으로 인한 이산화탄소 배출"},
+                {"sid": "CO2_MINING", "name": "채굴업으로 인한 이산화탄소 배출"},
+                {"sid": "CO2_CHEMICAL", "name": "화학공업으로 인한 이산화탄소 배출"},
+                {"sid": "CO2_METAL", "name": "금속공업으로 인한 이산화탄소 배출"},
+                {"sid": "CO2_PAPER", "name": "제지공업으로 인한 이산화탄소 배출"},
+                {"sid": "CO2_FOOD", "name": "식품공업으로 인한 이산화탄소 배출"},
+                {"sid": "CO2_TEXTILE", "name": "섬유공업으로 인한 이산화탄소 배출"},
+                {"sid": "CO2_CONSTRUCTION", "name": "건설업으로 인한 이산화탄소 배출"},
+                {"sid": "CO2_SERVICE", "name": "서비스업으로 인한 이산화탄소 배출"},
+                {"sid": "CO2_COMMERCIAL", "name": "상업용으로 인한 이산화탄소 배출"},
+                {"sid": "CO2_RESIDENTIAL", "name": "주거용으로 인한 이산화탄소 배출"},
+                {"sid": "CO2_PUBLIC", "name": "공공용으로 인한 이산화탄소 배출"},
+                {"sid": "CO2_OTHER_SCOPE1", "name": "기타 Scope 1 이산화탄소 배출"},
+                {"sid": "CO2_OTHER_SCOPE2", "name": "기타 Scope 2 이산화탄소 배출"},
+                {"sid": "CO2_OTHER_SCOPE3", "name": "기타 Scope 3 이산화탄소 배출"},
+            ]
+            
+            # DataFrame으로 변환
+            self.regulation_data = pd.DataFrame(regulation_data)
+            self.regulation_sids = self.regulation_data['sid'].tolist()
+            self.regulation_names = self.regulation_data['name'].tolist()
+            
+            logger.info(f"✅ 규정 데이터 로드 완료: {len(self.regulation_data)}개 항목")
+            
+            # FAISS 인덱스 구축
+            self._build_faiss_index()
+            
+        except Exception as e:
+            logger.error(f"❌ 규정 데이터 로드 실패: {e}")
+            # 기본 데이터로 초기화
+            self.regulation_data = pd.DataFrame(columns=["sid", "name"])
+            self.regulation_sids = []
+            self.regulation_names = []
+            self.faiss_index = None
+
     def _build_faiss_index(self):
         """FAISS 인덱스를 구축합니다."""
         try:
+            if not self.regulation_names or not self.model:
+                logger.warning("규정 데이터 또는 모델이 없어 FAISS 인덱스를 구축할 수 없습니다.")
+                return
+                
             # 규정 데이터 임베딩 생성
             passage_texts = [f"passage: {name}" for name in self.regulation_names]
             embeddings = self.model.encode(
@@ -933,11 +1062,11 @@ class NormalService(ISubstanceMapping, IDataNormalization, IESGValidation):
             self.faiss_index = faiss.IndexFlatIP(dimension)
             self.faiss_index.add(embeddings)
             
-            logger.info(f"FAISS 인덱스 구축 완료 (차원: {dimension})")
+            logger.info(f"✅ FAISS 인덱스 구축 완료 (차원: {dimension}, 항목: {len(self.regulation_names)}개)")
             
         except Exception as e:
-            logger.error(f"FAISS 인덱스 구축 실패: {e}")
-            raise
+            logger.error(f"❌ FAISS 인덱스 구축 실패: {e}")
+            self.faiss_index = None
     
     def _create_empty_result(self, substance_name: str, error_message: str) -> Dict:
         """에러 발생 시 빈 결과를 생성합니다."""

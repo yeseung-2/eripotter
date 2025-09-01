@@ -76,17 +76,17 @@ async def upload_excel_file(
         logger.error(f"파일 업로드 실패: {e}")
         raise HTTPException(status_code=500, detail=f"파일 업로드 중 오류가 발생했습니다: {str(e)}")
 
-@normal_router.post("/substance-data", summary="프론트엔드 물질 데이터 처리")
-async def process_substance_data(
+@normal_router.post("/substance-data", summary="프론트엔드 물질 데이터 저장")
+async def save_substance_data(
     substance_data: dict,
     company_id: str = None,
     company_name: str = None,
     uploaded_by: str = None,
     service: NormalService = Depends(get_normal_service)
 ):
-    """프론트엔드에서 받은 물질 데이터 저장 및 온실가스 AI 매핑"""
+    """프론트엔드에서 받은 물질 데이터 저장 (AI 매핑은 별도)"""
     try:
-        result = service.save_substance_data_and_map_gases(
+        result = service.save_substance_data_only(
             substance_data=substance_data,
             company_id=company_id,
             company_name=company_name,
@@ -94,14 +94,39 @@ async def process_substance_data(
         )
         
         if result.get('status') == 'error':
-            raise HTTPException(status_code=500, detail=result.get('message', '처리 실패'))
+            raise HTTPException(status_code=500, detail=result.get('message', '저장 실패'))
         
         return result
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"물질 데이터 처리 실패: {e}")
-        raise HTTPException(status_code=500, detail=f"물질 데이터 처리 중 오류가 발생했습니다: {str(e)}")
+        logger.error(f"물질 데이터 저장 실패: {e}")
+        raise HTTPException(status_code=500, detail=f"물질 데이터 저장 중 오류가 발생했습니다: {str(e)}")
+
+@normal_router.post("/auto-mapping/{normal_id}", summary="자동매핑 시작")
+async def start_auto_mapping(
+    normal_id: int,
+    company_id: str = None,
+    company_name: str = None,
+    service: NormalService = Depends(get_normal_service)
+):
+    """저장된 데이터의 온실가스 배출량을 AI로 자동 매핑"""
+    try:
+        result = service.start_auto_mapping(
+            normal_id=normal_id,
+            company_id=company_id,
+            company_name=company_name
+        )
+        
+        if result.get('status') == 'error':
+            raise HTTPException(status_code=500, detail=result.get('message', '자동매핑 실패'))
+        
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"자동매핑 실패: {e}")
+        raise HTTPException(status_code=500, detail=f"자동매핑 중 오류가 발생했습니다: {str(e)}")
 
 @normal_router.post("/", summary="새로운 정규화 데이터 생성")
 async def create_normalized_data(
