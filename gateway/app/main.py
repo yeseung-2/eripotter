@@ -184,7 +184,7 @@ async def normal_root(request: Request):
 
 @app.api_route("/api/normal/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def normal_any(path: str, request: Request):
-    return await _proxy(request, NORMAL_SERVICE_URL, f"/{path}")
+    return await _proxy(request, NORMAL_SERVICE_URL, f"/normal/{path}")
 
 # Auth 라우터를 두 경로에 마운트
 app.include_router(auth_router, prefix="/api/auth")  # 프론트엔드 API 요청용
