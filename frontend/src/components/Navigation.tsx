@@ -10,16 +10,16 @@ interface NavigationProps {
 }
 
 const supplierMenuItems = [
-  { href: '/assessment', label: 'Assessment' },
-  { href: '/chat', label: 'Chat' },
-  { href: '/data-sharing-approval', label: 'Data Sharing Approval' },
-  { href: '/data-upload', label: 'Data Upload' },
-  { href: '/report', label: 'Report' },
+  { href: '/assessment', label: '공급망 자가진단 실시' },
+  { href: '/chat', label: 'ESG 학습 챗봇' },
+  { href: '/data-sharing-approval', label: '데이터 공유(승인)' },
+  { href: '/data-upload', label: '데이터 업로드' },
+  { href: '/report', label: '지속가능경영 보고서 작성' },
 ];
 
 const customerMenuItems = [
-  { href: '/data-sharing-request', label: 'Data Sharing Request' },
-  { href: '/monitoring', label: 'Monitoring' },
+  { href: '/data-sharing-request', label: '데이터 공유(요청)' },
+  { href: '/monitoring', label: '공급망 모니터링' },
 ];
 
 export default function Navigation({ userType }: NavigationProps) {

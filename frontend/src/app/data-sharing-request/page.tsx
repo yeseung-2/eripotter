@@ -679,46 +679,6 @@ const SupplierRequestPage = () => {
     );
   }
 
-  // 최하위 tier 접근 제한 (하위 협력사가 없는 경우)
-  if (!hasRequestPageAccess) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
-        <Card className="max-w-md mx-auto">
-          <CardContent className="p-8 text-center">
-            <div className="mb-6">
-              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Building2 className="w-8 h-8 text-orange-600" />
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">최하위 협력사</h2>
-              <p className="text-gray-600">
-                하위 협력사가 없어 데이터 요청 페이지를 사용할 수 없습니다.
-              </p>
-            </div>
-            <div className="space-y-4">
-              <p className="text-sm text-gray-500">
-                최하위 협력사는 상위 협력사의 요청에만 응답합니다.
-              </p>
-              <div className="space-y-2">
-                <Button 
-                  onClick={() => {
-                    // URL 파라미터로 1차사 역할로 접근
-                    window.open('/data-sharing-approval?role=tier1', '_blank');
-                  }} 
-                  className="w-full"
-                >
-                  데이터 승인 페이지로 이동 (1차사 역할)
-                </Button>
-                <p className="text-xs text-gray-400 text-center">
-                  테스트용: 1차사 관점에서 승인 페이지 체험
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200">
       {/* 네비게이션 바 */}

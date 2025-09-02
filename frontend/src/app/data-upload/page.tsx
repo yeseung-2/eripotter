@@ -287,9 +287,9 @@ export default function DataUploadPage() {
                   >
                     <option value="">납품처를 선택하세요</option>
                     <option value="원청">원청</option>
-                    {[...Array(10)].map((_, i) => (
-                      <option key={i} value={`${i + 1}차`}>{i + 1}차</option>
-                    ))}
+                    <option value="에코프로">에코프로</option>
+                    <option value="LG에너지솔루션">LG에너지솔루션</option>
+                    <option value="포스코퓨처엠">포스코퓨처엠</option>
                   </select>
                 </div>
                 <div>
@@ -407,7 +407,7 @@ export default function DataUploadPage() {
                     value={substanceData.productionPlant}
                     onChange={(e) => setSubstanceData(prev => ({ ...prev, productionPlant: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="생산공장 위치를 입력하세요"
+                    placeholder="생산공장 명칭과 위치를 입력하세요"
                   />
                 </div>
                   </div>
@@ -547,7 +547,7 @@ export default function DataUploadPage() {
                         {/* 온실가스 배출량 섹션 */}
             <div className="border rounded-lg p-6 bg-gray-50">
               <h4 className="text-md font-semibold text-gray-800 mb-4 border-b border-gray-300 pb-2">
-                온실가스 배출량
+                귀사에서 관리되는 온실가스를 입력하세요.
               </h4>
               <div className="space-y-4">
                 <p className="text-sm text-gray-600">
