@@ -350,23 +350,6 @@ export default function MyPage() {
                       </div>
                       
                       <div className="space-y-2">
-                        <Label htmlFor="company_type">기업 구분</Label>
-                        <Select 
-                          disabled={!isEditing}
-                          value={formData.company_type}
-                          onValueChange={(value) => handleInputChange('company_type', value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="기업 구분을 선택하세요" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="협력사">협력사</SelectItem>
-                            <SelectItem value="고객사">고객사</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div className="space-y-2">
                         <Label htmlFor="industry">업종</Label>
                         <Input 
                           id="industry" 
