@@ -865,15 +865,6 @@ export default function AssessmentResultPage() {
                     </div>
                   </div>
                   
-                  <p style={{
-                    fontSize: '14px',
-                    color: '#6c757d',
-                    lineHeight: '1.6',
-                    marginBottom: '12px'
-                  }}>
-                    {solution.item_desc}
-                  </p>
-                  
                   <div style={{
                     backgroundColor: '#e8f5e8',
                     border: '1px solid #c3e6c3',

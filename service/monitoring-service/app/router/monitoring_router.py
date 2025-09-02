@@ -1,7 +1,7 @@
 """
 Monitoring Router - API 엔드포인트 정의
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import logging
@@ -30,6 +30,23 @@ def get_monitoring_controller(service: MonitoringService = Depends(get_monitorin
     """Monitoring Controller 인스턴스 생성"""
     return MonitoringController(service)
 
+# 사용자 인증 정보 추출 (임시 - 실제로는 JWT 토큰 검증 필요)
+async def get_current_user_company(authorization: Optional[str] = Header(None)) -> str:
+    """현재 로그인한 사용자의 회사명 추출"""
+    # TODO: 실제 JWT 토큰 검증 및 사용자 회사 정보 추출
+    # 현재는 임시로 헤더에서 회사명을 받음
+    if not authorization:
+        raise HTTPException(status_code=401, detail="인증 정보가 필요합니다")
+    
+    # 임시: Authorization 헤더에서 회사명 추출
+    # 실제로는 JWT 토큰을 디코딩하여 사용자 정보 추출
+    company_name = authorization.replace("Bearer ", "").strip()
+    if not company_name:
+        raise HTTPException(status_code=401, detail="유효하지 않은 인증 정보입니다")
+    
+    logger.info(f"🔐 인증된 사용자 회사: {company_name}")
+    return company_name
+
 # ===== 데이터베이스 연동 엔드포인트들 =====
 
 @monitoring_router.get("/companies", summary="회사 목록 조회")
@@ -47,12 +64,13 @@ async def get_company_list(
 
 @monitoring_router.get("/vulnerabilities", summary="회사별 취약부문 조회")
 async def get_company_vulnerabilities(
-    controller: MonitoringController = Depends(get_monitoring_controller)
+    controller: MonitoringController = Depends(get_monitoring_controller),
+    company_name: str = Depends(get_current_user_company)
 ):
-    """회사별 취약부문 조회"""
+    """로그인한 사용자 회사의 취약부문 조회"""
     try:
-        result = controller.get_company_vulnerabilities()
-        logger.info(f"✅ 취약부문 조회 성공: {len(result.vulnerabilities)}개 취약부문")
+        result = controller.get_company_vulnerabilities(company_name)
+        logger.info(f"✅ 취약부문 조회 성공: {company_name} - {len(result.vulnerabilities)}개 취약부문")
         return result
     except Exception as e:
         logger.error(f"❌ 취약부문 조회 API 오류: {e}")
@@ -60,12 +78,13 @@ async def get_company_vulnerabilities(
 
 @monitoring_router.get("/supply-chain/vulnerabilities", summary="공급망 취약부문 조회")
 async def get_supply_chain_vulnerabilities(
-    controller: MonitoringController = Depends(get_monitoring_controller)
+    controller: MonitoringController = Depends(get_monitoring_controller),
+    company_name: str = Depends(get_current_user_company)
 ):
-    """공급망 취약부문 조회"""
+    """로그인한 사용자 회사의 공급망 취약부문 조회"""
     try:
-        result = controller.get_supply_chain_vulnerabilities()
-        logger.info(f"✅ 공급망 취약부문 조회 성공: root_company={result.root_company}")
+        result = controller.get_supply_chain_vulnerabilities(company_name)
+        logger.info(f"✅ 공급망 취약부문 조회 성공: {company_name} - root_company={result.root_company}")
         return result
     except Exception as e:
         logger.error(f"❌ 공급망 취약부문 조회 API 오류: {e}")
@@ -73,12 +92,13 @@ async def get_supply_chain_vulnerabilities(
 
 @monitoring_router.get("/assessments", summary="Assessment 결과 조회")
 async def get_assessments(
-    controller: MonitoringController = Depends(get_monitoring_controller)
+    controller: MonitoringController = Depends(get_monitoring_controller),
+    company_name: str = Depends(get_current_user_company)
 ):
-    """Assessment 결과 조회"""
+    """로그인한 사용자 회사의 Assessment 결과 조회"""
     try:
-        result = controller.get_company_assessment()
-        logger.info(f"✅ Assessment 결과 조회 성공: {len(result.assessments)}개 결과")
+        result = controller.get_company_assessment(company_name)
+        logger.info(f"✅ Assessment 결과 조회 성공: {company_name} - {len(result.assessments)}개 결과")
         return result
     except Exception as e:
         logger.error(f"❌ Assessment 결과 조회 API 오류: {e}")
@@ -86,12 +106,13 @@ async def get_assessments(
 
 @monitoring_router.get("/solutions", summary="솔루션 조회")
 async def get_solutions(
-    controller: MonitoringController = Depends(get_monitoring_controller)
+    controller: MonitoringController = Depends(get_monitoring_controller),
+    company_name: str = Depends(get_current_user_company)
 ):
-    """솔루션 조회"""
+    """로그인한 사용자 회사의 솔루션 조회"""
     try:
-        result = controller.get_company_solutions()
-        logger.info(f"✅ 솔루션 조회 성공: {len(result.solutions)}개 솔루션")
+        result = controller.get_company_solutions(company_name)
+        logger.info(f"✅ 솔루션 조회 성공: {company_name} - {len(result.solutions)}개 솔루션")
         return result
     except Exception as e:
         logger.error(f"❌ 솔루션 조회 API 오류: {e}")
