@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Navigation from '@/components/Navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,34 @@ import { Card, CardContent } from '@/components/ui/card';
 
 export default function MainPage() {
   const [userType, setUserType] = useState<'supplier' | 'customer'>('supplier');
+
+  // URL에서 토큰 처리
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const token = urlParams.get('token');
+      
+      if (token) {
+        // JWT 토큰에서 oauth_sub 추출
+        try {
+          const payload = token.split('.')[1];
+          const decodedPayload = JSON.parse(atob(payload));
+          const oauth_sub = decodedPayload.oauth_sub;
+          
+          if (oauth_sub) {
+            localStorage.setItem('access_token', token);
+            localStorage.setItem('oauth_sub', oauth_sub);
+            console.log('OAuth sub saved:', oauth_sub);
+            
+            // URL에서 토큰 파라미터 제거
+            window.history.replaceState({}, document.title, '/main');
+          }
+        } catch (error) {
+          console.error('JWT 토큰 파싱 실패:', error);
+        }
+      }
+    }
+  }, []);
 
   const supplierContent = {
     title: "협력사 메인 페이지",
