@@ -31,7 +31,7 @@ def get_substance_mapping_service() -> NormalService:
     return NormalService()
 
 # 라우터 생성
-normal_router = APIRouter(prefix="/normal", tags=["normal"])
+normal_router = APIRouter(prefix="/api/normal", tags=["normal"])
 
 @normal_router.get("/health", summary="서비스 상태 확인")
 async def health_check():
