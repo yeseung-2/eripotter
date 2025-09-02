@@ -19,10 +19,10 @@ import {
   Download,
   Eye,
   ArrowLeft,
-  TrendingUp
+  TrendingUp,
+  RotateCcw
 } from "lucide-react";
 import { api } from "@/lib/api";
-import Navigation from "@/components/Navigation"; // Added Navigation import
 
 // 동적 Mock 데이터 생성 함수
 const generateMockRequests = (companyInfo: any): SharingRequest[] => {
@@ -724,7 +724,7 @@ const MOCK_REQUESTS = generateMockRequests(companyInfo);
               size="default"
               className="border-gray-300 hover:bg-gray-50 px-4 py-2"
             >
-              <ArrowLeft className="h-5 w-5 mr-2" />
+              <RotateCcw className="h-5 w-5 mr-2" />
               새로고침
             </Button>
           </div>
