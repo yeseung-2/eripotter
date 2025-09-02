@@ -18,9 +18,9 @@ function CallbackHandler() {
           return;
         }
 
-        // 토큰 처리 없이 바로 company-profile 페이지로 이동
-        console.log('Login successful, redirecting to company profile...');
-        router.replace('/company-profile');
+        // 토큰 처리 없이 바로 main 페이지로 이동
+        console.log('Login successful, redirecting to main page...');
+        router.replace('/main');
         
       } catch (error) {
         console.error('Callback handling error:', error);
