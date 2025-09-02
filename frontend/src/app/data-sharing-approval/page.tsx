@@ -33,7 +33,7 @@ const generateMockRequests = (companyInfo: any): SharingRequest[] => {
   
   const upperTierInfo = {
     id: `TIER${companyInfo.upperTier}_MAIN`,
-    name: `${companyInfo.upperTier === 0 ? "원청사" : `${companyInfo.upperTier}차사`} (메인)`
+    name: `${companyInfo.upperTier === 0 ? "🏭 원청사" : `${["", "🔧", "⚙️", "🔩", "📦"][companyInfo.upperTier]} ${companyInfo.upperTier}차사`} (메인)`
   };
   
   return [
@@ -591,6 +591,46 @@ const MOCK_REQUESTS = generateMockRequests(companyInfo);
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">데이터를 로드하는 중...</p>
         </div>
+      </div>
+    );
+  }
+
+  // 원청사 접근 제한
+  if (!hasApprovalPageAccess) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+        <Card className="max-w-md mx-auto">
+          <CardContent className="p-8 text-center">
+            <div className="mb-6">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Building2 className="w-8 h-8 text-blue-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">원청사 계정</h2>
+              <p className="text-gray-600">
+                원청사는 데이터 승인 페이지에 접근할 수 없습니다.
+              </p>
+            </div>
+            <div className="space-y-4">
+              <p className="text-sm text-gray-500">
+                원청사는 협력사들에게 데이터를 요청하는 역할만 수행합니다.
+              </p>
+              <div className="space-y-2">
+                <Button 
+                  onClick={() => {
+                    // URL 파라미터로 원청사 역할로 접근
+                    window.open('/data-sharing-request?role=prime', '_blank');
+                  }} 
+                  className="w-full"
+                >
+                  데이터 요청 페이지로 이동 (원청사 역할)
+                </Button>
+                <p className="text-xs text-gray-400 text-center">
+                  테스트용: 원청사 관점에서 요청 페이지 체험
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }

@@ -107,7 +107,7 @@ const generateMockMyRequests = (companyInfo: any): SharingRequest[] => {
       requester_company_id: companyInfo.companyId,
       requester_company_name: companyInfo.companyName, 
       provider_company_id: `TIER${companyInfo.lowerTier}_L2MAN`,
-      provider_company_name: `L2 MAN (${companyInfo.lowerTier}차 협력사)`,
+      provider_company_name: `⚙️ L2 MAN (${companyInfo.lowerTier}차 협력사)`,
       data_type: "sustainability",
       data_category: "온실가스 배출량 데이터",
       data_description: "18650 배터리 셀 제조공정에서 발생하는 온실가스 배출량 (Scope 1,2,3 포함) - 제조단계별 세부 배출량 및 원재료별 탄소발자국",
@@ -123,7 +123,7 @@ const generateMockMyRequests = (companyInfo: any): SharingRequest[] => {
       requester_company_id: companyInfo.companyId, 
       requester_company_name: companyInfo.companyName,
       provider_company_id: `TIER${companyInfo.lowerTier}_CONVERTER`,
-      provider_company_name: `컨버터 (${companyInfo.lowerTier}차 협력사)`,
+      provider_company_name: `🔄 컨버터 (${companyInfo.lowerTier}차 협력사)`,
       data_type: "sustainability",
       data_category: "제품 안전정보 및 재활용 데이터",
       data_description: "리튬이온 배터리 18650 셀의 UN38.3 안전성 시험성적서, MSDS, 재활용 소재 함량비율 및 폐배터리 처리방법 가이드라인",
@@ -143,7 +143,7 @@ const generateMockMyRequests = (companyInfo: any): SharingRequest[] => {
       requester_company_id: companyInfo.companyId,
       requester_company_name: companyInfo.companyName,
       provider_company_id: `TIER${companyInfo.lowerTier}_ACTIVATED_CARBON`, 
-      provider_company_name: `활성탄 (${companyInfo.lowerTier}차 협력사)`,
+      provider_company_name: `🌿 활성탄 (${companyInfo.lowerTier}차 협력사)`,
       data_type: "sustainability",
       data_category: "원재료 공급원 추적 데이터",
       data_description: "배터리 양극재 및 음극재에 사용되는 리튬, 니켈, 코발트, 흑연의 원산지 추적정보 - 광산별 채굴 조건 및 ESG 인증현황 포함",
@@ -166,7 +166,7 @@ const generateMockMyRequests = (companyInfo: any): SharingRequest[] => {
       requester_company_id: companyInfo.companyId,
       requester_company_name: companyInfo.companyName,
       provider_company_id: `TIER${companyInfo.lowerTier}_REJECTED_TEST`,
-      provider_company_name: `전극코팅업체 (${companyInfo.lowerTier}차 협력사)`,
+      provider_company_name: `🔧 전극코팅업체 (${companyInfo.lowerTier}차 협력사)`,
       data_type: "sustainability",
       data_category: "화학물질 구성 데이터",
       data_description: "배터리 전극 활물질 및 바인더의 화학적 조성 정보 - 납, 카드뮴, 수은 등 유해물질 함량 및 REACH 규제 준수현황",
@@ -194,8 +194,8 @@ const generateMockSubSuppliers = (companyInfo: any) => {
         // 핵심 협력사
     { 
       id: `TIER${companyInfo.lowerTier}_L2MAN`, 
-      name: `L2 MAN (${companyInfo.lowerTier}차 협력사)`, 
-      icon: "",
+      name: `⚙️ L2 MAN (${companyInfo.lowerTier}차 협력사)`, 
+      icon: "⚙️",
       level: companyInfo.lowerTier, 
       relationship: "핵심공정",
       priority: "high" as const,
@@ -206,8 +206,8 @@ const generateMockSubSuppliers = (companyInfo: any) => {
     },
     { 
       id: `TIER${companyInfo.lowerTier}_CONVERTER`, 
-      name: `컨버터 (${companyInfo.lowerTier}차 협력사)`, 
-      icon: "",
+      name: `🔄 컨버터 (${companyInfo.lowerTier}차 협력사)`, 
+      icon: "🔄",
       level: companyInfo.lowerTier, 
       relationship: "변환공정",
       priority: "high" as const,
@@ -218,8 +218,8 @@ const generateMockSubSuppliers = (companyInfo: any) => {
     },
     { 
       id: `TIER${companyInfo.lowerTier}_ACTIVATED_CARBON`, 
-      name: `활성탄 (${companyInfo.lowerTier}차 협력사)`, 
-      icon: "",
+      name: `🌿 활성탄 (${companyInfo.lowerTier}차 협력사)`, 
+      icon: "🌿",
       level: companyInfo.lowerTier, 
       relationship: "핵심소재",
       priority: "high" as const,
@@ -233,7 +233,7 @@ const generateMockSubSuppliers = (companyInfo: any) => {
     { 
       id: `TIER${companyInfo.lowerTier}_COATING`, 
       name: "전극코팅업체", 
-      icon: "",
+      icon: "🎨",
       level: companyInfo.lowerTier, 
       relationship: "전극코팅",
       priority: "normal" as const,
@@ -245,7 +245,7 @@ const generateMockSubSuppliers = (companyInfo: any) => {
     { 
       id: `TIER${companyInfo.lowerTier}_MATERIAL_SUPPLIER`, 
       name: "니켈공급사", 
-      icon: "",
+      icon: "📦",
       level: companyInfo.lowerTier, 
       relationship: "원자재",
       priority: "normal" as const,
@@ -257,7 +257,7 @@ const generateMockSubSuppliers = (companyInfo: any) => {
     { 
       id: `TIER${companyInfo.lowerTier}_LOGISTICS`, 
       name: "배터리운송업체", 
-      icon: "",
+      icon: "🚛",
       level: companyInfo.lowerTier, 
       relationship: "운송",
       priority: "normal" as const,
@@ -675,6 +675,46 @@ const SupplierRequestPage = () => {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">데이터를 로드하는 중...</p>
         </div>
+      </div>
+    );
+  }
+
+  // 최하위 tier 접근 제한 (하위 협력사가 없는 경우)
+  if (!hasRequestPageAccess) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+        <Card className="max-w-md mx-auto">
+          <CardContent className="p-8 text-center">
+            <div className="mb-6">
+              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Building2 className="w-8 h-8 text-orange-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">최하위 협력사</h2>
+              <p className="text-gray-600">
+                하위 협력사가 없어 데이터 요청 페이지를 사용할 수 없습니다.
+              </p>
+            </div>
+            <div className="space-y-4">
+              <p className="text-sm text-gray-500">
+                최하위 협력사는 상위 협력사의 요청에만 응답합니다.
+              </p>
+              <div className="space-y-2">
+                <Button 
+                  onClick={() => {
+                    // URL 파라미터로 1차사 역할로 접근
+                    window.open('/data-sharing-approval?role=tier1', '_blank');
+                  }} 
+                  className="w-full"
+                >
+                  데이터 승인 페이지로 이동 (1차사 역할)
+                </Button>
+                <p className="text-xs text-gray-400 text-center">
+                  테스트용: 1차사 관점에서 승인 페이지 체험
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
