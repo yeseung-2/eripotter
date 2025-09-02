@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import logging, sys, traceback, os
 from datetime import datetime
+from fastapi.responses import JSONResponse
 
 # ---------- Logging ----------
 logging.basicConfig(
@@ -71,6 +72,34 @@ async def health_check():
             "service": "monitoring-service",
             "message": f"Health check failed: {str(e)}"
         }
+
+# ---------- Main Monitoring Endpoint ----------
+@app.get("/monitoring", summary="Monitoring Service Root")
+async def monitoring_root():
+    """Monitoring Service 루트 엔드포인트"""
+    try:
+        return {
+            "service": "monitoring-service",
+            "status": "running",
+            "timestamp": datetime.now().isoformat(),
+            "endpoints": [
+                "/monitoring/companies",
+                "/monitoring/vulnerabilities", 
+                "/monitoring/supply-chain/vulnerabilities",
+                "/monitoring/assessments",
+                "/monitoring/solutions"
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Monitoring root 오류: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Monitoring service error",
+                "detail": str(e),
+                "timestamp": datetime.now().isoformat()
+            }
+        )
 
 # ---------- Middleware ----------
 @app.middleware("http")

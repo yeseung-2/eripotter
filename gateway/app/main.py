@@ -170,11 +170,31 @@ async def solution_any(path: str, request: Request):
 # ---- monitoring-service 프록시 ----
 @app.api_route("/api/monitoring", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def monitoring_root(request: Request):
-    return await _proxy(request, MONITORING_SERVICE_URL, "/monitoring")
+    logger.info(f"🔍 monitoring-service 프록시 요청: {request.method} /api/monitoring")
+    try:
+        response = await _proxy(request, MONITORING_SERVICE_URL, "/monitoring")
+        logger.info(f"✅ monitoring-service 프록시 성공: {response.status_code}")
+        return response
+    except Exception as e:
+        logger.error(f"❌ monitoring-service 프록시 실패: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Monitoring service proxy failed", "detail": str(e)}
+        )
 
 @app.api_route("/api/monitoring/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def monitoring_any(path: str, request: Request):
-    return await _proxy(request, MONITORING_SERVICE_URL, f"/monitoring/{path}")
+    logger.info(f"🔍 monitoring-service 프록시 요청: {request.method} /api/monitoring/{path}")
+    try:
+        response = await _proxy(request, MONITORING_SERVICE_URL, f"/monitoring/{path}")
+        logger.info(f"✅ monitoring-service 프록시 성공: {path} - {response.status_code}")
+        return response
+    except Exception as e:
+        logger.error(f"❌ monitoring-service 프록시 실패: {path} - {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Monitoring service proxy failed", "detail": str(e)}
+        )
 
 # Sharing service 라우팅
 @app.api_route("/sharing", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
