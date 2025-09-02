@@ -167,8 +167,11 @@ export default function AssessmentResultPage() {
       maxScore += 100 * weight;
     });
     
-    setTotalScore(Math.round(total * 100) / 100); // 소수점 2자리까지 반올림
-    setMaxPossibleScore(Math.round(maxScore * 100) / 100);
+    // 100점 만점으로 환산
+    const normalizedScore = maxScore > 0 ? (total / maxScore) * 100 : 0;
+    
+    setTotalScore(Math.round(normalizedScore * 100) / 100); // 소수점 2자리까지 반올림
+    setMaxPossibleScore(100); // 항상 100점으로 표시
   };
 
   const handleRetakeAssessment = () => {
