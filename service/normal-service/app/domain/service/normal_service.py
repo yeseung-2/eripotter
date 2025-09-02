@@ -755,3 +755,95 @@ class NormalService(ISubstanceMapping, IDataNormalization, IESGValidation):
             },
             "certifications": ['ISO 14001', 'ISO 50001']
         }
+
+    # ===== AI 모델 Health Check 메서드들 =====
+
+    def check_ai_model_status(self) -> Dict[str, Any]:
+        """AI 모델 상태 확인"""
+        try:
+            # SubstanceMappingService의 상태 확인
+            model_status = self.substance_mapping_service.check_model_status()
+            
+            return {
+                "status": "healthy" if model_status["model_loaded"] else "unhealthy",
+                "model_name": "BOMI AI (Fine-tuned BGE-M3)",
+                "model_loaded": model_status["model_loaded"],
+                "regulation_data_loaded": model_status["regulation_data_loaded"],
+                "faiss_index_ready": model_status["faiss_index_ready"],
+                "model_path": model_status.get("model_path", "unknown"),
+                "data_path": model_status.get("data_path", "unknown"),
+                "total_regulations": model_status.get("total_regulations", 0),
+                "last_updated": datetime.now().isoformat()
+            }
+        except Exception as e:
+            logger.error(f"AI 모델 상태 확인 실패: {e}")
+            return {
+                "status": "error",
+                "model_name": "BOMI AI (Fine-tuned BGE-M3)",
+                "model_loaded": False,
+                "regulation_data_loaded": False,
+                "faiss_index_ready": False,
+                "error": str(e),
+                "last_updated": datetime.now().isoformat()
+            }
+
+    def get_ai_model_info(self) -> Dict[str, Any]:
+        """AI 모델 상세 정보 조회"""
+        try:
+            model_info = self.substance_mapping_service.get_model_info()
+            
+            return {
+                "model_name": "BOMI AI (Fine-tuned BGE-M3)",
+                "base_model": "BAAI/bge-m3",
+                "fine_tuning": {
+                    "approach": "TripletLoss + MultipleNegativesRankingLoss",
+                    "epochs": 3,
+                    "learning_rate": "2e-5",
+                    "margin": 0.2
+                },
+                "performance": {
+                    "recall_at_1": "92.7%",
+                    "recall_at_5": "94.1%",
+                    "base_model_recall_at_1": "88.0%",
+                    "base_model_recall_at_5": "96.2%"
+                },
+                "capabilities": [
+                    "화학 물질명 표준화 매핑",
+                    "노이즈 데이터 처리",
+                    "신뢰도 기반 자동/수동 분류",
+                    "FAISS 기반 벡터 검색"
+                ],
+                "current_status": model_info,
+                "last_updated": datetime.now().isoformat()
+            }
+        except Exception as e:
+            logger.error(f"AI 모델 정보 조회 실패: {e}")
+            return {
+                "model_name": "BOMI AI (Fine-tuned BGE-M3)",
+                "error": f"정보 조회 실패: {str(e)}",
+                "last_updated": datetime.now().isoformat()
+            }
+
+    def test_ai_mapping(self, substance_name: str) -> Dict[str, Any]:
+        """AI 모델 매핑 기능 테스트"""
+        try:
+            # 실제 매핑 테스트 수행
+            mapping_result = self.substance_mapping_service.map_substance(substance_name)
+            
+            return {
+                "test_substance": substance_name,
+                "mapping_result": mapping_result,
+                "test_status": "success",
+                "confidence_score": mapping_result.get("confidence_score", 0.0),
+                "mapped_sid": mapping_result.get("mapped_sid", "unknown"),
+                "mapped_name": mapping_result.get("mapped_name", "unknown"),
+                "test_timestamp": datetime.now().isoformat()
+            }
+        except Exception as e:
+            logger.error(f"AI 모델 매핑 테스트 실패: {e}")
+            return {
+                "test_substance": substance_name,
+                "test_status": "failed",
+                "error": str(e),
+                "test_timestamp": datetime.now().isoformat()
+            }

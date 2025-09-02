@@ -66,6 +66,26 @@ async def health():
     logger.info("Health check requested")
     return {"status": "healthy", "service": "gateway"}
 
+@app.get("/")
+async def root():
+    """Gateway 루트 경로"""
+    return {
+        "status": "ok",
+        "service": "MSA API Gateway",
+        "description": "EriPotter MSA 아키텍처 API Gateway",
+        "version": "1.0.0",
+        "endpoints": {
+            "health": "/health",
+            "auth": "/auth, /api/auth",
+            "account": "/api/account",
+            "assessment": "/api/assessment",
+            "chatbot": "/api/chatbot",
+            "report": "/api/report, /report",
+            "sharing": "/sharing"
+        },
+        "documentation": "/docs"
+    }
+
 @app.options("/{path:path}")
 async def options_handler(path: str, request: Request):
     return Response(status_code=204, headers=cors_headers_for(request))

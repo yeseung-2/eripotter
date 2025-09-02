@@ -182,6 +182,24 @@ services:
     networks:
       - msa_network
 
+  monitoring-train:
+    build: ./service/monitoring-train
+    ports:
+      - "8010:8010"
+    volumes:
+      - ./service/monitoring-train:/app
+      - ./service/monitoring-train/app:/app/app
+      - ./service/monitoring-train/requirements.txt:/app/requirements.txt
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATABASE_URL=${DATABASE_URL}
+      - MODEL_DIR=/app/model/bomi-ai
+      - DATA_DIR=/app/data
+      - HF_REPO_ID=galaxybuddy/bomi-ai
+      - HF_REV=main
+    networks:
+      - msa_network
+
   postgres:
     image: postgres:15-alpine
     container_name: postgres

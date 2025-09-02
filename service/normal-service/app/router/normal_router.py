@@ -43,6 +43,32 @@ async def health_check():
         "message": "Normal service is running"
     }
 
+@normal_router.get("/ai/health", summary="AI 모델 상태 확인")
+async def ai_model_health_check(
+    controller: NormalController = Depends(get_normal_controller)
+):
+    """AI 모델 (BOMI AI) 상태 확인 엔드포인트"""
+    return controller.check_ai_model_health()
+
+@normal_router.get("/ai/model-info", summary="AI 모델 정보 조회")
+async def get_ai_model_info(
+    controller: NormalController = Depends(get_normal_controller)
+):
+    """AI 모델 상세 정보 조회"""
+    return controller.get_ai_model_info()
+
+@normal_router.post("/ai/test-mapping", summary="AI 모델 매핑 테스트")
+async def test_ai_mapping(
+    request: dict,
+    controller: NormalController = Depends(get_normal_controller)
+):
+    """AI 모델 매핑 기능 테스트"""
+    substance_name = request.get("substance_name")
+    if not substance_name:
+        raise HTTPException(status_code=400, detail="substance_name is required")
+    
+    return controller.test_ai_mapping(substance_name)
+
 @normal_router.get("/", summary="모든 정규화 데이터 조회")
 async def get_all_normalized_data(
     controller: NormalController = Depends(get_normal_controller)

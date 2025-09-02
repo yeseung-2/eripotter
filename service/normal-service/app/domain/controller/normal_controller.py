@@ -1,3 +1,5 @@
+from datetime import datetime
+
 class NormalController:
     def __init__(self, service):
         self.service = service
@@ -29,6 +31,66 @@ class NormalController:
     def get_metrics(self):
         """메트릭 조회"""
         return {"status": "success", "metrics": {}}
+
+    # ===== AI 모델 Health Check 메서드들 =====
+
+    def check_ai_model_health(self):
+        """AI 모델 상태 확인"""
+        try:
+            # AI 모델 상태 확인
+            model_status = self.service.check_ai_model_status()
+            return {
+                "status": "success",
+                "ai_model": {
+                    "status": model_status.get("status", "unknown"),
+                    "model_name": model_status.get("model_name", "BOMI AI"),
+                    "model_loaded": model_status.get("model_loaded", False),
+                    "regulation_data_loaded": model_status.get("regulation_data_loaded", False),
+                    "faiss_index_ready": model_status.get("faiss_index_ready", False),
+                    "last_check": datetime.now().isoformat()
+                }
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"AI 모델 상태 확인 실패: {str(e)}",
+                "ai_model": {
+                    "status": "error",
+                    "model_name": "BOMI AI",
+                    "model_loaded": False,
+                    "regulation_data_loaded": False,
+                    "faiss_index_ready": False,
+                    "last_check": datetime.now().isoformat()
+                }
+            }
+
+    def get_ai_model_info(self):
+        """AI 모델 상세 정보 조회"""
+        try:
+            model_info = self.service.get_ai_model_info()
+            return {
+                "status": "success",
+                "model_info": model_info
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"AI 모델 정보 조회 실패: {str(e)}"
+            }
+
+    def test_ai_mapping(self, substance_name: str):
+        """AI 모델 매핑 기능 테스트"""
+        try:
+            test_result = self.service.test_ai_mapping(substance_name)
+            return {
+                "status": "success",
+                "test_result": test_result
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"AI 모델 매핑 테스트 실패: {str(e)}"
+            }
 
     # ===== 협력사 ESG 데이터 관련 메서드 =====
 
