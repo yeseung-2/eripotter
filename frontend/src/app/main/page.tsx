@@ -163,13 +163,6 @@ export default function MainPage() {
                       </div>
                     ))}
                   </div>
-
-                  {/* Welcome Message */}
-                  <div className="mt-8 text-center animate-fade-in" style={{ animationDelay: '600ms' }}>
-                    <p className="text-gray-600 transform transition-all duration-300 hover:text-gray-800">
-                      좌측 네비게이션을 통해 원하는 서비스에 접근하세요.
-                    </p>
-                  </div>
                 </CardContent>
               </Card>
             </div>

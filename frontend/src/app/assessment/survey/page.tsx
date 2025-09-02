@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Info } from 'lucide-react';
 import { Drawer } from '@/components/Drawer';
 import { getKesgItems, submitAssessment } from '@/lib/api';
 import type { KesgItem, KesgResponse, AssessmentSubmissionRequest, AssessmentSubmissionResponse, AssessmentRequest, LevelData, ChoiceData } from '@/types/assessment';
@@ -278,7 +279,7 @@ export default function AssessmentPage() {
                       e.currentTarget.style.backgroundColor = 'transparent';
                     }}
                   >
-                    <span style={{ fontSize: '20px', color: '#007bff' }}>ℹ️</span>
+                    <Info size={20} color="#007bff" />
                   </button>
                 </div>
               </div>
