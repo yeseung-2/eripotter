@@ -55,13 +55,21 @@ class AccountController:
             """기업 프로필 정보 생성/저장"""
             try:
                 logger.info(f"📝 Creating profile for oauth_sub: {oauth_sub}")
+                logger.info(f"📝 Profile data received: {profile_data.dict()}")
                 result = self.service.create_company_profile(oauth_sub, profile_data)
+                logger.info("✅ Profile created successfully")
                 return result
             except ValueError as e:
                 logger.warning(f"❌ Error creating profile: {str(e)}")
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=str(e)
+                )
+            except Exception as e:
+                logger.error(f"❌ Unexpected error in create_company_profile: {str(e)}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Internal server error"
                 )
 
         @self.router.put("/profile", response_model=AccountResponse)
@@ -72,11 +80,19 @@ class AccountController:
             """기업 프로필 정보 업데이트"""
             try:
                 logger.info(f"📝 Updating profile for oauth_sub: {oauth_sub}")
+                logger.info(f"📝 Profile data received: {profile_data.dict()}")
                 result = self.service.update_company_profile(oauth_sub, profile_data)
+                logger.info("✅ Profile updated successfully")
                 return result
             except ValueError as e:
                 logger.warning(f"❌ Error updating profile: {str(e)}")
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=str(e)
+                )
+            except Exception as e:
+                logger.error(f"❌ Unexpected error in update_company_profile: {str(e)}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Internal server error"
                 )

@@ -551,11 +551,11 @@ async def get_substance_by_id(
         return {
             "status": "success",
             "data": {
-                "id": normal_data.id,
-                "product_name": normal_data.product_name,
-                "supplier": normal_data.supplier,
-                "manufacturing_date": normal_data.manufacturing_date,
-                "greenhouse_gas_emissions": normal_data.greenhouse_gas_emissions or [],
+                "id": normal_data['id'],
+                "product_name": normal_data['product_name'],
+                "supplier": normal_data['supplier'],
+                "manufacturing_date": normal_data['manufacturing_date'],
+                "greenhouse_gas_emissions": normal_data['greenhouse_gas_emissions'] or [],
             },
             "timestamp": datetime.now().isoformat(),
             "message": f"Normal ID {normal_id} 데이터 조회 완료",
@@ -606,9 +606,10 @@ async def get_mapping_results(
             )
 
         # 해당 normal_id의 매핑 결과 조회
-        with service.normal_repository.Session() as session:
-            from ..domain.entity import CertificationEntity
-            
+        from ..domain.entity import CertificationEntity
+        from ..domain.repository.normal_repository import get_session
+        
+        with get_session() as session:
             certifications = session.query(CertificationEntity).filter(
                 CertificationEntity.normal_id == normal_id
             ).all()

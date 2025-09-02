@@ -90,7 +90,10 @@ class AccountService:
             if not account:
                 raise ValueError("Account not found")
 
-            updated_account = self.repository.update_company_profile(oauth_sub, profile_data)
+            # 빈 문자열을 None으로 변환
+            cleaned_data = self._clean_profile_data(profile_data)
+
+            updated_account = self.repository.update_company_profile(oauth_sub, cleaned_data)
             if not updated_account:
                 raise ValueError("Failed to update company profile")
             logger.info("✅ company profile updated")
@@ -106,12 +109,15 @@ class AccountService:
             if not account:
                 raise ValueError("Account not found")
 
+            # 빈 문자열을 None으로 변환
+            cleaned_data = self._clean_profile_data(profile_data)
+
             # 이미 존재하면 업데이트로 전환
             if account.get("company_name"):
                 logger.info("⚠️ Profile exists, updating instead")
-                return self.update_company_profile(oauth_sub, profile_data)
+                return self.update_company_profile(oauth_sub, cleaned_data)
 
-            created_account = self.repository.create_company_profile(oauth_sub, profile_data)
+            created_account = self.repository.create_company_profile(oauth_sub, cleaned_data)
             if not created_account:
                 raise ValueError("Failed to create company profile")
             logger.info("✅ company profile created")
@@ -119,3 +125,13 @@ class AccountService:
         except Exception as e:
             logger.error(f"❌ create_company_profile error: {e}")
             raise
+
+    def _clean_profile_data(self, profile_data: CompanyProfile) -> CompanyProfile:
+        """프로필 데이터에서 빈 문자열을 None으로 변환"""
+        cleaned_data = {}
+        for field, value in profile_data.dict().items():
+            if isinstance(value, str) and value.strip() == "":
+                cleaned_data[field] = None
+            else:
+                cleaned_data[field] = value
+        return CompanyProfile(**cleaned_data)

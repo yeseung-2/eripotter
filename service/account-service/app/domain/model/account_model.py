@@ -42,7 +42,7 @@ class CompanyProfile(BaseModel):
     production_items: Optional[str] = None
     department: Optional[str] = None
     phone_number: Optional[str] = None
-    
+
 
 class AccountResponse(BaseModel):
     """계정 정보 응답"""

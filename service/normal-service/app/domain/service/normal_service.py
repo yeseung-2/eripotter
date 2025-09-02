@@ -128,7 +128,8 @@ class NormalService:
                 logger.error(f"❌ Normal ID {normal_id}를 찾을 수 없습니다.")
                 return {"status": "error", "message": f"Normal ID {normal_id}를 찾을 수 없습니다."}
 
-            greenhouse_gases = normal_data.greenhouse_gas_emissions or []
+            # normal_data는 이제 딕셔너리이므로 키로 접근
+            greenhouse_gases = normal_data.get('greenhouse_gas_emissions') or []
             if not greenhouse_gases:
                 logger.warning(f"⚠️ Normal ID {normal_id}에 온실가스 배출량 데이터가 없습니다.")
                 return {"status": "error", "message": "온실가스 배출량 데이터가 없습니다."}

@@ -45,20 +45,51 @@ class NormalRepository:
             logger.error("❌ Normal 데이터 생성 실패: %s", e)
             return None
 
-    def get_by_id(self, normal_id: int) -> Optional[NormalEntity]:
-        """ID로 Normal 데이터 조회"""
+    def _entity_to_dict(self, entity: NormalEntity) -> Dict[str, Any]:
+        """NormalEntity를 딕셔너리로 변환하는 헬퍼 메서드"""
+        return {
+            'id': entity.id,
+            'company_id': entity.company_id,
+            'company_name': entity.company_name,
+            'uploaded_by': entity.uploaded_by,
+            'uploaded_by_email': entity.uploaded_by_email,
+            'filename': entity.filename,
+            'file_size': entity.file_size,
+            'file_type': entity.file_type,
+            'product_name': entity.product_name,
+            'supplier': entity.supplier,
+            'manufacturing_date': entity.manufacturing_date,
+            'manufacturing_number': entity.manufacturing_number,
+            'safety_information': entity.safety_information,
+            'recycled_material': entity.recycled_material,
+            'capacity': entity.capacity,
+            'energy_density': entity.energy_density,
+            'manufacturing_country': entity.manufacturing_country,
+            'production_plant': entity.production_plant,
+            'greenhouse_gas_emissions': entity.greenhouse_gas_emissions,
+            'created_at': entity.created_at,
+            'updated_at': entity.updated_at
+        }
+
+    def get_by_id(self, normal_id: int) -> Optional[Dict[str, Any]]:
+        """ID로 Normal 데이터 조회 (딕셔너리로 반환하여 세션 바인딩 문제 방지)"""
         try:
             with get_session() as db:
-                return db.query(NormalEntity).filter_by(id=normal_id).first()
+                entity = db.query(NormalEntity).filter_by(id=normal_id).first()
+                if not entity:
+                    return None
+                
+                # 엔티티를 딕셔너리로 변환하여 세션 바인딩 문제 방지
+                return self._entity_to_dict(entity)
         except SQLAlchemyError as e:
             logger.error("❌ Normal 데이터 조회 실패 (ID: %s): %s", normal_id, e)
             return None
 
-    def get_by_company(self, company_id: str, limit: int = 10, offset: int = 0) -> List[NormalEntity]:
-        """회사별 Normal 데이터 조회"""
+    def get_by_company(self, company_id: str, limit: int = 10, offset: int = 0) -> List[Dict[str, Any]]:
+        """회사별 Normal 데이터 조회 (딕셔너리로 반환하여 세션 바인딩 문제 방지)"""
         try:
             with get_session() as db:
-                return (
+                entities = (
                     db.query(NormalEntity)
                     .filter_by(company_id=company_id)
                     .order_by(NormalEntity.created_at.desc())
@@ -66,21 +97,35 @@ class NormalRepository:
                     .offset(offset)
                     .all()
                 )
+                
+                # 엔티티들을 딕셔너리로 변환
+                result = []
+                for entity in entities:
+                    result.append(self._entity_to_dict(entity))
+                
+                return result
         except SQLAlchemyError as e:
             logger.error("❌ 회사별 Normal 데이터 조회 실패 (company_id: %s): %s", company_id, e)
             return []
 
-    def get_all(self, limit: int = 50, offset: int = 0) -> List[NormalEntity]:
-        """모든 Normal 데이터 조회"""
+    def get_all(self, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+        """모든 Normal 데이터 조회 (딕셔너리로 반환하여 세션 바인딩 문제 방지)"""
         try:
             with get_session() as db:
-                return (
+                entities = (
                     db.query(NormalEntity)
                     .order_by(NormalEntity.created_at.desc())
                     .limit(limit)
                     .offset(offset)
                     .all()
                 )
+                
+                # 엔티티들을 딕셔너리로 변환
+                result = []
+                for entity in entities:
+                    result.append(self._entity_to_dict(entity))
+                
+                return result
         except SQLAlchemyError as e:
             logger.error("❌ 전체 Normal 데이터 조회 실패: %s", e)
             return []
@@ -376,7 +421,7 @@ class NormalRepository:
                     query = query.filter(NormalEntity.company_id == company_id)
 
                 results = query.order_by(NormalEntity.created_at.desc()).limit(limit).all()
-                data = [normal.to_dict() for normal in results]
+                data = [self._entity_to_dict(normal) for normal in results]
                 logger.info("✅ 원본 데이터 조회 완료: %s개 (회사: %s)", len(data), company_id or "전체")
                 return data
         except SQLAlchemyError as e:

@@ -90,6 +90,10 @@ class AccountRepository:
 
             for field, value in payload.items():
                 if value is not None:
+                    # 빈 문자열을 None으로 변환
+                    if isinstance(value, str) and value.strip() == "":
+                        continue
+                    
                     if field == "company_type" and isinstance(value, str):
                         try:
                             value = CompanyType(value)
@@ -115,6 +119,10 @@ class AccountRepository:
 
             for field, value in payload.items():
                 if value is not None:
+                    # 빈 문자열을 None으로 변환
+                    if isinstance(value, str) and value.strip() == "":
+                        continue
+                        
                     if field == "company_type" and isinstance(value, str):
                         try:
                             value = CompanyType(value)

@@ -46,8 +46,8 @@ RUN mkdir -p ${MODEL_DIR} && \
     echo "config.json 내용:" && \
     cat ${MODEL_DIR}/config.json
 
-# 데이터 파일 복사
-COPY app/domain/model/data/reg_test1.xlsx /app/data/
+# 데이터 파일 복사 (파일이 존재하지 않으므로 주석 처리)
+# COPY app/domain/model/data/reg_test1.xlsx /app/data/
 
 # 빌드 확인용 (나중에 제거 가능)
 RUN ls -lah /app/model/bomi-ai
