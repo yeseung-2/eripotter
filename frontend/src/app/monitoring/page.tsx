@@ -210,32 +210,32 @@ export default function MonitoringPage() {
                       <div className="space-y-3">
                         {company.vulnerable_sections.map((section) => (
                           <div key={section.id} className="border border-red-200 bg-red-50 rounded-lg p-3">
-                            <div className="mb-2">
+                            <div className="flex justify-between items-start mb-2">
                               <h4 className="font-semibold text-red-800 text-sm">
                                 {section.item_name || `문항 ${section.question_id}`}
                               </h4>
+                              <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                점수: {section.score}
+                              </span>
                             </div>
-                            <div className="text-xs text-gray-600 space-y-1 mb-3">
+                            <div className="text-xs text-gray-600 space-y-1">
                               <div>
                                 <span className="font-medium">분류:</span> {section.classification || '-'}
                               </div>
                               <div>
                                 <span className="font-medium">도메인:</span> {section.domain || '-'}
                               </div>
-                            </div>
-                            
-                            {/* 응답결과 표시 */}
-                            <div className="text-xs text-gray-600 space-y-1">
-                              <span className="font-medium">응답결과:</span>
-                              <div className="text-gray-500 mt-1 bg-gray-100 p-2 rounded border">
-                                {section.question_type === 'five_level' || section.question_type === 'three_level' ? (
-                                  section.level_no ? `${section.level_no}단계` : '미응답'
-                                ) : section.question_type === 'five_choice' ? (
-                                  section.choice_ids && section.choice_ids.length > 0 ? 
-                                  `${section.choice_ids.length}개 선택` : '미응답'
-                                ) : (
-                                  '미응답'
-                                )}
+                              {/* 회사 응답결과 추가 */}
+                              <div className="mt-2 p-2 bg-gray-50 rounded border">
+                                <span className="font-medium text-gray-700">응답결과:</span>
+                                <div className="text-gray-600 mt-1">
+                                  {section.question_type === 'five_level' || section.question_type === 'three_level' ? (
+                                    section.level_no ? `${section.level_no}단계` : '미응답'
+                                  ) : section.question_type === 'five_choice' ? (
+                                    section.choice_ids && section.choice_ids.length > 0 ? 
+                                    `${section.choice_ids.length}개 선택` : '미응답'
+                                  ) : '미응답'}
+                                </div>
                               </div>
                             </div>
                           </div>

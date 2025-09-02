@@ -167,11 +167,11 @@ export default function AssessmentResultPage() {
       maxScore += 100 * weight;
     });
     
-    // 100점 만점으로 환산
+    // 총 점수를 100점으로 환산
     const normalizedScore = maxScore > 0 ? (total / maxScore) * 100 : 0;
     
     setTotalScore(Math.round(normalizedScore * 100) / 100); // 소수점 2자리까지 반올림
-    setMaxPossibleScore(100); // 항상 100점으로 표시
+    setMaxPossibleScore(100); // 항상 100점
   };
 
   const handleRetakeAssessment = () => {
@@ -494,14 +494,15 @@ export default function AssessmentResultPage() {
                       </div>
                     </div>
                     
-                    <p style={{
+                    <div style={{
                       fontSize: '14px',
                       color: '#6c757d',
                       lineHeight: '1.6',
-                      marginBottom: '12px'
+                      marginBottom: '12px',
+                      whiteSpace: 'pre-line'
                     }}>
-                      {result.item_desc}
-                    </p>
+                      {result.item_desc?.replace(/• /g, '\n• ')}
+                    </div>
                     
                     <div style={{
                       display: 'flex',
@@ -732,35 +733,7 @@ export default function AssessmentResultPage() {
                     </div>
                   </div>
                   
-                  <p style={{
-                    fontSize: '14px',
-                    color: '#6c757d',
-                    lineHeight: '1.6',
-                    marginBottom: '12px'
-                  }}>
-                    {section.item_desc}
-                  </p>
-                  
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}>
-                    <span style={{
-                      fontSize: '14px',
-                      color: '#dc3545',
-                      fontWeight: '600'
-                    }}>
-                      점수:
-                    </span>
-                    <span style={{
-                      fontSize: '16px',
-                      color: '#dc3545',
-                      fontWeight: '700'
-                    }}>
-                      {section.score}점
-                    </span>
-                  </div>
+
                 </div>
               ))}
             </div>
@@ -867,6 +840,8 @@ export default function AssessmentResultPage() {
                       </span>
                     </div>
                   </div>
+                  
+
                   
                   <div style={{
                     backgroundColor: '#e8f5e8',

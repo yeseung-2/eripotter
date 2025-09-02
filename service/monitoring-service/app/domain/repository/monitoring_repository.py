@@ -194,4 +194,4 @@ class MonitoringRepository:
                 
         except Exception as e:
             logger.error(f"❌ 솔루션 조회 중 오류: {e}")
-            return []
+        return []

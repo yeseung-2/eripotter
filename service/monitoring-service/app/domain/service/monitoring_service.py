@@ -39,6 +39,8 @@ logger = logging.getLogger("monitoring-service")
 class MonitoringService:
     def __init__(self, repository: MonitoringRepository):
         self.repository = repository
+        # 하드코딩된 root company
+        self.root_company = "LG에너지솔루션"
     
     # ===== Company Management =====
     
@@ -67,13 +69,13 @@ class MonitoringService:
     
     # ===== Vulnerability Analysis =====
     
-    def get_company_vulnerabilities(self, company_name: str) -> CompanyVulnerabilityResponse:
+    def get_company_vulnerabilities(self) -> CompanyVulnerabilityResponse:
         """특정 회사의 취약부문(score=0) 조회"""
         try:
-            logger.info(f"📝 회사 취약부문 조회 요청: company_name={company_name}")
+            logger.info(f"📝 회사 취약부문 조회 요청: company_name={self.root_company}")
             
             # Assessment Service에서 취약부문 조회
-            vulnerable_sections_data = self.repository.get_company_vulnerable_sections(company_name)
+            vulnerable_sections_data = self.repository.get_company_vulnerable_sections(self.root_company)
             
             # Pydantic 모델로 변환
             vulnerable_sections = []
@@ -86,7 +88,7 @@ class MonitoringService:
                     continue
             
             response = CompanyVulnerabilityResponse(
-                company_name=company_name,
+                company_name=self.root_company,
                 vulnerable_sections=vulnerable_sections,
                 total_count=len(vulnerable_sections)
             )
@@ -98,14 +100,14 @@ class MonitoringService:
             logger.error(f"❌ 회사 취약부문 조회 중 예상치 못한 오류: {e}")
             return CompanyVulnerabilityResponse(
                 status="error",
-                company_name=company_name,
+                company_name=self.root_company,
                 message=f"회사 취약부문 조회 실패: {str(e)}"
             )
     
-    def get_supply_chain_vulnerabilities(self, company_name: str) -> SupplyChainVulnerabilityResponse:
+    def get_supply_chain_vulnerabilities(self) -> SupplyChainVulnerabilityResponse:
         """공급망 전체 취약부문 재귀 탐색"""
         try:
-            logger.info(f"📝 공급망 취약부문 조회 요청: root_company={company_name}")
+            logger.info(f"📝 공급망 취약부문 조회 요청: root_company={self.root_company}")
             
             # 데이터베이스 연결 테스트
             try:
@@ -116,18 +118,18 @@ class MonitoringService:
                 logger.error(f"❌ 데이터베이스 연결 실패: {db_error}")
                 return SupplyChainVulnerabilityResponse(
                     status="error",
-                    root_company=company_name,
+                    root_company=self.root_company,
                     message=f"데이터베이스 연결 실패: {str(db_error)}"
                 )
             
             # 재귀적으로 공급망 트리 구축
-            supply_chain_tree = self._build_supply_chain_vulnerability_tree(company_name)
+            supply_chain_tree = self._build_supply_chain_vulnerability_tree()
             
             # 전체 통계 계산
             total_companies, total_vulnerabilities = self._calculate_supply_chain_stats(supply_chain_tree)
             
             response = SupplyChainVulnerabilityResponse(
-                root_company=company_name,
+                root_company=self.root_company,
                 supply_chain_tree=supply_chain_tree,
                 total_companies=total_companies,
                 total_vulnerabilities=total_vulnerabilities
@@ -144,7 +146,7 @@ class MonitoringService:
             
             return SupplyChainVulnerabilityResponse(
                 status="error",
-                root_company=company_name,
+                root_company=self.root_company,
                 message=f"공급망 취약부문 조회 실패: {str(e)}"
             )
     
@@ -155,15 +157,8 @@ class MonitoringService:
             if company_name is None:
                 company_name = self.root_company
                 
-            logger.info(f"📝 공급망 트리 구축 중: company={company_name}")
-            
             # 현재 회사의 취약부문 조회
-            try:
-                vulnerable_sections_data = self.repository.get_company_vulnerable_sections(company_name)
-                logger.info(f"📝 취약부문 데이터 조회: {company_name} - {len(vulnerable_sections_data)}개")
-            except Exception as e:
-                logger.error(f"❌ 취약부문 데이터 조회 실패 (company={company_name}): {e}")
-                vulnerable_sections_data = []
+            vulnerable_sections_data = self.repository.get_company_vulnerable_sections(company_name)
             vulnerable_sections = []
             
             for section_data in vulnerable_sections_data:
@@ -175,28 +170,16 @@ class MonitoringService:
                     continue
             
             # 현재 회사의 tier1 협력사들 조회
-            try:
-                tier1_companies = self.repository.get_tier1_companies(company_name)
-                logger.info(f"📝 Tier1 협력사 조회: {company_name} - {len(tier1_companies)}개")
-            except Exception as e:
-                logger.error(f"❌ Tier1 협력사 조회 실패 (company={company_name}): {e}")
-                tier1_companies = []
+            tier1_companies = self.repository.get_tier1_companies(company_name)
             
             # 재귀적으로 하위 노드들 구축
             children = []
             for tier1_company in tier1_companies:
-                try:
-                    child_node = self._build_supply_chain_vulnerability_tree(tier1_company)
-                    children.append(child_node)
-                except Exception as e:
-                    logger.error(f"❌ 하위 노드 구축 실패 (company={tier1_company}): {e}")
-                    # 오류가 발생해도 계속 진행
-                    continue
+                child_node = self._build_supply_chain_vulnerability_tree(tier1_company)
+                children.append(child_node)
             
             # 취약부문 개수 계산
             vulnerability_count = len(vulnerable_sections)
-            
-            logger.info(f"✅ 노드 구축 완료: {company_name} - 취약부문 {vulnerability_count}개, 하위 노드 {len(children)}개")
             
             return SupplyChainVulnerabilityNode(
                 company_name=company_name,
@@ -208,9 +191,6 @@ class MonitoringService:
             
         except Exception as e:
             logger.error(f"❌ 공급망 트리 구축 중 오류 (company={company_name}): {e}")
-            logger.error(f"❌ 오류 상세: {str(e)}")
-            import traceback
-            logger.error(f"❌ 스택 트레이스: {traceback.format_exc()}")
             return SupplyChainVulnerabilityNode(
                 company_name=company_name,
                 tier1s=[],
