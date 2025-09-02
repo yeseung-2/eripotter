@@ -110,3 +110,28 @@ export const getStrategicSuppliers = (companyId: string): Promise<any> =>
 // ===== 회사 관리 API 함수들 =====
 export const getCompanies = (): Promise<any> =>
   api(`/sharing/companies`);
+
+// ===== Monitoring API 함수들 =====
+// 공급망 취약부문 조회
+export const getSupplyChainVulnerabilities = (): Promise<any> =>
+  api("/api/monitoring/supply-chain/vulnerabilities");
+
+// 회사별 취약부문 조회
+export const getCompanyVulnerabilities = (): Promise<any> =>
+  api("/api/monitoring/vulnerabilities");
+
+// 회사별 Assessment 결과 조회
+export const getCompanyAssessment = (): Promise<any> =>
+  api("/api/monitoring/assessments");
+
+// 공급망 Assessment 결과 조회
+export const getSupplyChainAssessment = (): Promise<any> =>
+  api("/api/monitoring/supply-chain/assessments");
+
+// 회사별 솔루션 조회
+export const getCompanySolutionsFromMonitoring = (): Promise<any> =>
+  api("/api/monitoring/solutions");
+
+// 회사 목록 조회
+export const getCompanyList = (): Promise<any> =>
+  api("/api/monitoring/companies");

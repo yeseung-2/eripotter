@@ -9,8 +9,8 @@ const withPWA = require('next-pwa')({
   disable: isDev,
 })
 
-// 게이트웨이 (없으면 로컬 게이트웨이로 프록시)
-const raw = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+// 게이트웨이 (없으면 Railway 게이트웨이로 프록시)
+const raw = process.env.NEXT_PUBLIC_API_URL || 'https://gateway-production-5d19.up.railway.app';
 const gateway = raw.replace(/\/+$/, ''); // 끝 슬래시 제거
 
 const nextConfig = {

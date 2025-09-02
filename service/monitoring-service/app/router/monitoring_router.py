@@ -37,16 +37,6 @@ def get_monitoring_controller(service: MonitoringService = Depends(get_monitorin
 # 라우터 생성
 monitoring_router = APIRouter(prefix="/monitoring", tags=["monitoring"])
 
-@monitoring_router.get("/health", summary="서비스 상태 확인")
-async def health_check():
-    """서비스 상태 확인 엔드포인트"""
-    return {
-        "status": "healthy",
-        "service": "monitoring-service",
-        "timestamp": datetime.now().isoformat(),
-        "message": "Monitoring service is running"
-    }
-
 @monitoring_router.get("/companies", summary="회사 목록 조회", response_model=CompanyListResponse)
 async def get_company_list(
     controller: MonitoringController = Depends(get_monitoring_controller)

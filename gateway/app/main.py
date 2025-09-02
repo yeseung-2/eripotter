@@ -167,6 +167,15 @@ async def report_any(path: str, request: Request):
 async def solution_any(path: str, request: Request):
     return await _proxy(request, SOLUTION_SERVICE_URL, f"/solution/{path}")
 
+# ---- monitoring-service 프록시 ----
+@app.api_route("/api/monitoring", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+async def monitoring_root(request: Request):
+    return await _proxy(request, MONITORING_SERVICE_URL, "/monitoring")
+
+@app.api_route("/api/monitoring/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+async def monitoring_any(path: str, request: Request):
+    return await _proxy(request, MONITORING_SERVICE_URL, f"/monitoring/{path}")
+
 # Sharing service 라우팅
 @app.api_route("/sharing", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def sharing_root(request: Request):

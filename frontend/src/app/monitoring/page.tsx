@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { getSupplyChainVulnerabilities } from '@/lib/api';
 
 // ===== Supply Chain Vulnerability Interfaces =====
 
@@ -86,9 +87,13 @@ export default function MonitoringPage() {
 
   // API 호출 함수
   const fetchSupplyChainVulnerabilities = async (): Promise<SupplyChainVulnerabilityResponse> => {
-    const response = await fetch(`http://localhost:8004/monitoring/supply-chain/vulnerabilities`);
-    if (!response.ok) throw new Error('공급망 취약부문 조회 실패');
-    return response.json();
+    try {
+      const data = await getSupplyChainVulnerabilities();
+      return data;
+    } catch (error) {
+      console.error('API 호출 오류:', error);
+      throw new Error('공급망 취약부문 조회 실패');
+    }
   };
 
   // 페이지 로드 시 자동으로 데이터 조회

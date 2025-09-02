@@ -1,5 +1,5 @@
 """
-Solution Service - Entity Models
+Monitoring Service - Entity Models
 """
 
 from sqlalchemy import (
@@ -12,11 +12,10 @@ from sqlalchemy import (
     TIMESTAMP,
     ARRAY
 )
-from sqlalchemy.ext.declarative import declarative_base
+
+from eripotter_common.database import Base
 from sqlalchemy.sql import func
 from typing import Dict
-
-Base = declarative_base()
 
 class KesgEntity(Base):
     """KESG 테이블 엔티티 - Railway PostgreSQL 구조와 동일"""

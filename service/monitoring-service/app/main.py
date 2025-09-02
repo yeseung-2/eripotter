@@ -6,6 +6,7 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import logging, sys, traceback, os
+from datetime import datetime
 
 # ---------- Logging ----------
 logging.basicConfig(
@@ -50,6 +51,26 @@ def root():
         "service": "monitoring-service", 
         "endpoints": ["/monitoring", "/health", "/metrics"]
     }
+
+# ---------- Health Check Route ----------
+@app.get("/health", summary="Health Check")
+async def health_check():
+    """서비스 상태 확인 엔드포인트"""
+    try:
+        return {
+            "status": "healthy",
+            "service": "monitoring-service",
+            "timestamp": datetime.now().isoformat(),
+            "message": "Monitoring service is running",
+            "version": "1.0.0"
+        }
+    except Exception as e:
+        logger.error(f"Health check 오류: {e}")
+        return {
+            "status": "unhealthy",
+            "service": "monitoring-service",
+            "message": f"Health check failed: {str(e)}"
+        }
 
 # ---------- Middleware ----------
 @app.middleware("http")
