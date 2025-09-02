@@ -17,7 +17,7 @@ from eripotter_common.database import Base
 from sqlalchemy.sql import func
 from typing import Dict
 
-class KesgEntity(Base):
+class KesgDB(Base):
     """KESG 테이블 엔티티 - Railway PostgreSQL 구조와 동일"""
     __tablename__ = "kesg"
 
@@ -50,7 +50,7 @@ class KesgEntity(Base):
     weight = Column(Float, nullable=True, comment="가중치")
 
     def __repr__(self):
-        return f"<KesgEntity(id={self.id}, item_name='{self.item_name}', question_type='{self.question_type}')>"
+        return f"<KesgDB(id={self.id}, item_name='{self.item_name}', question_type='{self.question_type}')>"
 
     def to_dict(self) -> Dict[str, object]:
         """엔티티를 딕셔너리로 변환"""
@@ -74,7 +74,7 @@ class KesgEntity(Base):
         }
 
 
-class AssessmentEntity(Base):
+class AssessmentDB(Base):
     """Assessment 테이블 엔티티"""
     __tablename__ = "assessment"
 
@@ -95,7 +95,7 @@ class AssessmentEntity(Base):
     timestamp = Column(TIMESTAMP, nullable=True, server_default=func.now(), comment="제출 시간 (기본값 now())")
 
     def __repr__(self):
-        return f"<AssessmentEntity(id={self.id}, company_name='{self.company_name}', question_id={self.question_id}, score={self.score})>"
+        return f"<AssessmentDB(id={self.id}, company_name='{self.company_name}', question_id={self.question_id}, score={self.score})>"
 
     def to_dict(self) -> Dict[str, object]:
         """엔티티를 딕셔너리로 변환"""
@@ -111,7 +111,7 @@ class AssessmentEntity(Base):
         }
 
 
-class SolutionEntity(Base):
+class SolutionDB(Base):
     """Solution 테이블 엔티티"""
     __tablename__ = "solution"
 
@@ -129,7 +129,7 @@ class SolutionEntity(Base):
     timestamp = Column(TIMESTAMP, nullable=True, server_default=func.now(), comment="생성 시간 (기본값 now())")
 
     def __repr__(self):
-        return f"<SolutionEntity(id={self.id}, company_name='{self.company_name}', question_id={self.question_id})>"
+        return f"<SolutionDB(id={self.id}, company_name='{self.company_name}', question_id={self.question_id})>"
 
     def to_dict(self) -> Dict[str, object]:
         """엔티티를 딕셔너리로 변환"""
@@ -142,7 +142,7 @@ class SolutionEntity(Base):
         }
 
 
-class CompanyEntity(Base):
+class CompanyDB(Base):
     """Company 테이블 엔티티 - 회사 및 Tier 1 협력사 정보"""
     __tablename__ = "company"
 
@@ -154,7 +154,7 @@ class CompanyEntity(Base):
     tier1 = Column(Text, nullable=True, comment="Tier 1 협력사/관련 회사명")
 
     def __repr__(self):
-        return f"<CompanyEntity(id={self.id}, company_name='{self.company_name}', tier1='{self.tier1}')>"
+        return f"<CompanyDB(id={self.id}, company_name='{self.company_name}', tier1='{self.tier1}')>"
 
     def to_dict(self) -> Dict[str, object]:
         """엔티티를 딕셔너리로 변환"""

@@ -109,6 +109,19 @@ class MonitoringService:
         try:
             logger.info(f"📝 공급망 취약부문 조회 요청: root_company={self.root_company}")
             
+            # 데이터베이스 연결 테스트
+            try:
+                # 간단한 연결 테스트
+                test_companies = self.repository.get_all_companies()
+                logger.info(f"✅ 데이터베이스 연결 확인: {len(test_companies)}개 회사 데이터")
+            except Exception as db_error:
+                logger.error(f"❌ 데이터베이스 연결 실패: {db_error}")
+                return SupplyChainVulnerabilityResponse(
+                    status="error",
+                    root_company=self.root_company,
+                    message=f"데이터베이스 연결 실패: {str(db_error)}"
+                )
+            
             # 재귀적으로 공급망 트리 구축
             supply_chain_tree = self._build_supply_chain_vulnerability_tree()
             
@@ -127,6 +140,10 @@ class MonitoringService:
             
         except Exception as e:
             logger.error(f"❌ 공급망 취약부문 조회 중 예상치 못한 오류: {e}")
+            logger.error(f"❌ 오류 상세: {str(e)}")
+            import traceback
+            logger.error(f"❌ 스택 트레이스: {traceback.format_exc()}")
+            
             return SupplyChainVulnerabilityResponse(
                 status="error",
                 root_company=self.root_company,

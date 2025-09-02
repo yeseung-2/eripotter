@@ -56,6 +56,14 @@ class MonitoringRepository:
         """assessment와 kesg 테이블을 조인하여 특정 회사의 취약부문(score=0) 조회"""
         try:
             with get_session() as db:
+                # 테이블 존재 여부 확인
+                try:
+                    db.execute(text("SELECT 1 FROM assessment LIMIT 1"))
+                    db.execute(text("SELECT 1 FROM kesg LIMIT 1"))
+                except Exception as table_error:
+                    logger.error(f"❌ assessment 또는 kesg 테이블이 존재하지 않습니다: {table_error}")
+                    return []
+                
                 # assessment와 kesg 테이블 조인하여 score=0인 항목 조회
                 query = text("""
                     SELECT 
