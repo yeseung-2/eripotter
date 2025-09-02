@@ -8,7 +8,7 @@ from sqlalchemy import text
 from typing import List, Optional, Dict, Union
 from datetime import datetime
 from eripotter_common.database import get_session
-from ..entity.monitoring_entity import KesgEntity, AssessmentEntity, SolutionEntity, CompanyEntity
+from ..entity.monitoring_entity import KesgDB, AssessmentDB, SolutionDB, CompanyDB
 
 logger = logging.getLogger("monitoring-repository")
 
@@ -30,7 +30,7 @@ class MonitoringRepository:
         """company 테이블에서 모든 회사 조회"""
         try:
             with get_session() as db:
-                companies = db.query(CompanyEntity).all()
+                companies = db.query(CompanyDB).all()
                 result = [company.to_dict() for company in companies]
                 logger.info(f"✅ 회사 목록 조회 성공: {len(result)}개 회사")
                 return result
@@ -42,8 +42,8 @@ class MonitoringRepository:
         """company 테이블에서 특정 회사의 tier1 협력사 조회"""
         try:
             with get_session() as db:
-                companies = db.query(CompanyEntity).filter(
-                    CompanyEntity.company_name == company_name
+                companies = db.query(CompanyDB).filter(
+                    CompanyDB.company_name == company_name
                 ).all()
                 tier1_list = [company.tier1 for company in companies if company.tier1]
                 logger.info(f"✅ Tier1 협력사 조회 성공: {company_name} - {len(tier1_list)}개")

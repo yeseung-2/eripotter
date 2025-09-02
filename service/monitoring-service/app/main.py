@@ -1,8 +1,7 @@
 """
-Monitoring Service - MSA 프랙탈 구조
+Monitoring Service - FastAPI Application
 """
-from dotenv import load_dotenv, find_dotenv
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import logging, sys, traceback, os
@@ -12,46 +11,31 @@ from fastapi.responses import JSONResponse
 # ---------- Logging ----------
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-    force=True,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
 )
+
 logger = logging.getLogger("monitoring-service")
 
-# ---------- .env ----------
-if os.getenv("RAILWAY_ENVIRONMENT") != "true":
-    load_dotenv(find_dotenv())
+# ---------- FastAPI App ----------
+app = FastAPI(
+    title="Monitoring Service",
+    description="공급망 모니터링 서비스",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
 
-# ---------- FastAPI ----------
-app = FastAPI(title="Monitoring Service API", description="Monitoring 서비스", version="1.0.0")
-
+# ---------- CORS 설정 ----------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://eripotter.com",
-        "https://www.eripotter.com",
-        # 개발용 필요 시 주석 해제
-        "http://localhost:3000", "http://localhost:8080",
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# ---------- Import Routers ----------
-from .router.monitoring_router import monitoring_router
-
-# ---------- Include Routers ----------
-app.include_router(monitoring_router)
-
-# ---------- Root Route ----------
-@app.get("/", summary="Root")
-def root():
-    return {
-        "status": "ok", 
-        "service": "monitoring-service", 
-        "endpoints": ["/monitoring", "/health", "/metrics"]
-    }
 
 # ---------- Health Check Route ----------
 @app.get("/health", summary="Health Check")
@@ -104,18 +88,62 @@ async def monitoring_root():
 # ---------- Middleware ----------
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    logger.info(f"📥 요청: {request.method} {request.url.path} (클라이언트: {request.client.host if request.client else '-'})")
+    """요청/응답 로깅 미들웨어"""
+    start_time = datetime.now()
+    
+    # 요청 로깅
+    logger.info(f"📥 요청: {request.method} {request.url}")
+    
     try:
         response = await call_next(request)
-        logger.info(f"📤 응답: {response.status_code}")
+        
+        # 응답 로깅
+        process_time = (datetime.now() - start_time).total_seconds()
+        logger.info(f"📤 응답: {request.method} {request.url} - {response.status_code} ({process_time:.3f}s)")
+        
         return response
+        
     except Exception as e:
-        logger.error(f"❌ 요청 처리 중 오류: {e}")
-        logger.error(traceback.format_exc())
-        raise
+        # 오류 로깅
+        process_time = (datetime.now() - start_time).total_seconds()
+        logger.error(f"❌ 오류: {request.method} {request.url} - {str(e)} ({process_time:.3f}s)")
+        logger.error(f"❌ 스택 트레이스: {traceback.format_exc()}")
+        
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Internal server error",
+                "detail": str(e),
+                "timestamp": datetime.now().isoformat()
+            }
+        )
 
-# ---------- Entrypoint ----------
+# ---------- Router 등록 ----------
+@app.on_event("startup")
+async def startup_event():
+    """서비스 시작 시 실행"""
+    logger.info("🚀 Monitoring Service 시작")
+    
+    # 라우터 등록
+    try:
+        from .router.monitoring_router import monitoring_router
+        app.include_router(monitoring_router)
+        logger.info("✅ Monitoring Router 등록 완료")
+    except Exception as e:
+        logger.error(f"❌ Monitoring Router 등록 실패: {e}")
+        logger.error(f"❌ 스택 트레이스: {traceback.format_exc()}")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """서비스 종료 시 실행"""
+    logger.info("🛑 Monitoring Service 종료")
+
+# ---------- Main ----------
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", "8004"))
-    logger.info(f"💻 서비스 시작 - 포트: {port}")
-    uvicorn.run("app.main:app", host="0.0.0.0", port=port, log_level="info", access_log=True)
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=8004,
+        reload=True,
+        log_level="info"
+    )

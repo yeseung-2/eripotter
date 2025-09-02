@@ -101,7 +101,7 @@ class MonitoringService:
             return CompanyVulnerabilityResponse(
                 status="error",
                 company_name=self.root_company,
-                message=f"취약부문 조회 실패: {str(e)}"
+                message=f"회사 취약부문 조회 실패: {str(e)}"
             )
     
     def get_supply_chain_vulnerabilities(self) -> SupplyChainVulnerabilityResponse:
