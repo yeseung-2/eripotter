@@ -155,8 +155,15 @@ class MonitoringService:
             if company_name is None:
                 company_name = self.root_company
                 
+            logger.info(f"📝 공급망 트리 구축 중: company={company_name}")
+            
             # 현재 회사의 취약부문 조회
-            vulnerable_sections_data = self.repository.get_company_vulnerable_sections(company_name)
+            try:
+                vulnerable_sections_data = self.repository.get_company_vulnerable_sections(company_name)
+                logger.info(f"📝 취약부문 데이터 조회: {company_name} - {len(vulnerable_sections_data)}개")
+            except Exception as e:
+                logger.error(f"❌ 취약부문 데이터 조회 실패 (company={company_name}): {e}")
+                vulnerable_sections_data = []
             vulnerable_sections = []
             
             for section_data in vulnerable_sections_data:
@@ -168,16 +175,28 @@ class MonitoringService:
                     continue
             
             # 현재 회사의 tier1 협력사들 조회
-            tier1_companies = self.repository.get_tier1_companies(company_name)
+            try:
+                tier1_companies = self.repository.get_tier1_companies(company_name)
+                logger.info(f"📝 Tier1 협력사 조회: {company_name} - {len(tier1_companies)}개")
+            except Exception as e:
+                logger.error(f"❌ Tier1 협력사 조회 실패 (company={company_name}): {e}")
+                tier1_companies = []
             
             # 재귀적으로 하위 노드들 구축
             children = []
             for tier1_company in tier1_companies:
-                child_node = self._build_supply_chain_vulnerability_tree(tier1_company)
-                children.append(child_node)
+                try:
+                    child_node = self._build_supply_chain_vulnerability_tree(tier1_company)
+                    children.append(child_node)
+                except Exception as e:
+                    logger.error(f"❌ 하위 노드 구축 실패 (company={tier1_company}): {e}")
+                    # 오류가 발생해도 계속 진행
+                    continue
             
             # 취약부문 개수 계산
             vulnerability_count = len(vulnerable_sections)
+            
+            logger.info(f"✅ 노드 구축 완료: {company_name} - 취약부문 {vulnerability_count}개, 하위 노드 {len(children)}개")
             
             return SupplyChainVulnerabilityNode(
                 company_name=company_name,
@@ -189,6 +208,9 @@ class MonitoringService:
             
         except Exception as e:
             logger.error(f"❌ 공급망 트리 구축 중 오류 (company={company_name}): {e}")
+            logger.error(f"❌ 오류 상세: {str(e)}")
+            import traceback
+            logger.error(f"❌ 스택 트레이스: {traceback.format_exc()}")
             return SupplyChainVulnerabilityNode(
                 company_name=company_name,
                 tier1s=[],
