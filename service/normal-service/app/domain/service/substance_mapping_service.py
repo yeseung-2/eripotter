@@ -139,12 +139,12 @@ class SubstanceMappingService:
                 show_progress_bar=False
             ).astype("float32")
             
-            # FAISS 인덱스 생성
+            # FAISS 인덱스 생성 (L2 거리 사용)
             dimension = embeddings.shape[1]
-            self.faiss_index = faiss.IndexFlatIP(dimension)
+            self.faiss_index = faiss.IndexFlatL2(dimension)
             self.faiss_index.add(embeddings)
             
-            logger.info(f"FAISS 인덱스 구축 완료 (차원: {dimension})")
+            logger.info(f"FAISS 인덱스 구축 완료 (차원: {dimension}, L2 거리)")
             
         except Exception as e:
             logger.error(f"FAISS 인덱스 구축 실패: {e}")
@@ -173,10 +173,12 @@ class SubstanceMappingService:
                 
                 # 가장 유사한 규정 찾기
                 best_match_idx = I[0][0]
-                best_match_score = D[0][0]
+                best_match_distance = D[0][0]
                 
-                # 유사도 점수를 신뢰도로 변환 (0-1 범위)
-                confidence_score = max(0.0, min(1.0, 1.0 - best_match_score))
+                # L2 거리를 유사도 점수로 변환 (0-1 범위, 거리가 가까울수록 높은 점수)
+                # L2 거리는 0에 가까울수록 유사함, 1에 가까울수록 유사하지 않음
+                max_distance = 2.0  # 정규화된 임베딩의 최대 L2 거리
+                confidence_score = max(0.0, min(1.0, 1.0 - (best_match_distance / max_distance)))
                 
                 # 매핑 결과 반환
                 mapped_sid = self.regulation_sids[best_match_idx]
@@ -192,7 +194,7 @@ class SubstanceMappingService:
                         {
                             "sid": self.regulation_sids[i],
                             "name": self.regulation_names[i],
-                            "similarity": 1.0 - d
+                            "similarity": max(0.0, min(1.0, 1.0 - (d / max_distance)))
                         }
                         for i, d in zip(I[0], D[0])
                     ]
