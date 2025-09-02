@@ -5,6 +5,7 @@ import Navigation from '@/components/Navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 export default function MainPage() {
   const [userType, setUserType] = useState<'supplier' | 'customer'>('supplier');
@@ -78,24 +79,38 @@ export default function MainPage() {
             
             {/* User Type Toggle */}
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">사용자 유형:</span>
-              <div className="flex bg-gray-100 rounded-lg p-1">
-                <Button
-                  variant={userType === 'supplier' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setUserType('supplier')}
-                  className={userType === 'supplier' ? 'bg-blue-600 text-white' : 'text-gray-600'}
-                >
-                  협력사
-                </Button>
-                <Button
-                  variant={userType === 'customer' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setUserType('customer')}
-                  className={userType === 'customer' ? 'bg-blue-600 text-white' : 'text-gray-600'}
-                >
-                  고객사
-                </Button>
+              <span className="text-sm font-medium text-gray-700">사용자 유형</span>
+              <div className="relative bg-gray-100 rounded-xl p-1 shadow-inner">
+                <div 
+                  className={cn(
+                    "absolute top-1 left-1 w-20 h-8 bg-white rounded-lg shadow-sm transition-all duration-300 ease-in-out",
+                    userType === 'supplier' ? 'translate-x-0' : 'translate-x-20'
+                  )}
+                />
+                <div className="relative flex">
+                  <button
+                    onClick={() => setUserType('supplier')}
+                    className={cn(
+                      "relative z-10 w-20 h-8 rounded-lg text-sm font-medium transition-colors duration-200",
+                      userType === 'supplier' 
+                        ? 'text-blue-600' 
+                        : 'text-gray-500 hover:text-gray-700'
+                    )}
+                  >
+                    협력사
+                  </button>
+                  <button
+                    onClick={() => setUserType('customer')}
+                    className={cn(
+                      "relative z-10 w-20 h-8 rounded-lg text-sm font-medium transition-colors duration-200",
+                      userType === 'customer' 
+                        ? 'text-blue-600' 
+                        : 'text-gray-500 hover:text-gray-700'
+                    )}
+                  >
+                    고객사
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -119,16 +134,16 @@ export default function MainPage() {
 
             {/* Content Overlay */}
             <div className="relative z-10 h-full flex items-center justify-center">
-              <Card className="w-full max-w-4xl bg-white/95 backdrop-blur-sm border-0 shadow-2xl">
+              <Card className="w-full max-w-4xl bg-white/95 backdrop-blur-sm border-0 shadow-2xl transform transition-all duration-500 hover:scale-105">
                 <CardContent className="p-8">
-                  <div className="text-center mb-8">
-                    <h2 className="text-4xl font-bold text-gray-900 mb-4">
+                  <div className="text-center mb-8 animate-fade-in">
+                    <h2 className="text-4xl font-bold text-gray-900 mb-4 animate-slide-up">
                       {currentContent.title}
                     </h2>
-                    <p className="text-xl text-blue-600 font-semibold mb-2">
+                    <p className="text-xl text-blue-600 font-semibold mb-2 animate-slide-up animation-delay-100">
                       {currentContent.subtitle}
                     </p>
-                    <p className="text-gray-600 text-lg">
+                    <p className="text-gray-600 text-lg animate-slide-up animation-delay-200">
                       {currentContent.description}
                     </p>
                   </div>
@@ -138,9 +153,10 @@ export default function MainPage() {
                     {currentContent.features.map((feature, index) => (
                       <div
                         key={index}
-                        className="flex items-center space-x-3 p-4 bg-blue-50 rounded-lg border border-blue-200"
+                        className="flex items-center space-x-3 p-4 bg-blue-50 rounded-lg border border-blue-200 transform transition-all duration-300 hover:scale-105 hover:shadow-lg hover:bg-blue-100 animate-slide-up"
+                        style={{ animationDelay: `${(index + 3) * 100}ms` }}
                       >
-                        <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                        <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center transform transition-transform duration-300 hover:rotate-12">
                           <span className="text-white text-sm font-bold">{index + 1}</span>
                         </div>
                         <span className="text-gray-700 font-medium">{feature}</span>
@@ -149,8 +165,8 @@ export default function MainPage() {
                   </div>
 
                   {/* Welcome Message */}
-                  <div className="mt-8 text-center">
-                    <p className="text-gray-600">
+                  <div className="mt-8 text-center animate-fade-in" style={{ animationDelay: '600ms' }}>
+                    <p className="text-gray-600 transform transition-all duration-300 hover:text-gray-800">
                       좌측 네비게이션을 통해 원하는 서비스에 접근하세요.
                     </p>
                   </div>

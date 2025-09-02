@@ -25,7 +25,7 @@ export default function LoginPage() {
         {/* Background Image */}
         <div className="absolute inset-0">
           <Image
-            src="/login_page.jpg"
+            src="/background.jpg"
             alt="Background"
             fill
             className="object-cover opacity-30"

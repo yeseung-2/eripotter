@@ -10,18 +10,18 @@ interface NavigationProps {
 }
 
 const supplierMenuItems = [
-  { href: '/assessment', label: 'Assessment', icon: '📊' },
-  { href: '/chat', label: 'Chat', icon: '💬' },
-  { href: '/data-sharing-approval', label: 'Data Sharing Approval', icon: '✅' },
-  { href: '/data-upload', label: 'Data Upload', icon: '📤' },
-  { href: '/mypage', label: 'My Page', icon: '👤' },
-  { href: '/report', label: 'Report', icon: '📋' },
+  { href: '/assessment', label: 'Assessment' },
+  { href: '/chat', label: 'Chat' },
+  { href: '/data-sharing-approval', label: 'Data Sharing Approval' },
+  { href: '/data-upload', label: 'Data Upload' },
+  { href: '/mypage', label: 'My Page' },
+  { href: '/report', label: 'Report' },
 ];
 
 const customerMenuItems = [
-  { href: '/data-sharing-request', label: 'Data Sharing Request', icon: '📥' },
-  { href: '/mypage', label: 'My Page', icon: '👤' },
-  { href: '/monitoring', label: 'Monitoring', icon: '📊' },
+  { href: '/data-sharing-request', label: 'Data Sharing Request' },
+  { href: '/mypage', label: 'My Page' },
+  { href: '/monitoring', label: 'Monitoring' },
 ];
 
 export default function Navigation({ userType }: NavigationProps) {
@@ -32,18 +32,14 @@ export default function Navigation({ userType }: NavigationProps) {
     <div className="w-64 h-screen bg-white border-r border-gray-200 flex flex-col shadow-lg">
       {/* Logo Section */}
       <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 relative">
+        <div className="flex justify-center">
+          <div className="w-16 h-16 relative">
             <Image
               src="/logo.png"
               alt="ERI Logo"
               fill
               className="object-contain"
             />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">ERI</h1>
-            <p className="text-xs text-gray-600">Environmental Risk Intelligence</p>
           </div>
         </div>
       </div>
@@ -56,12 +52,11 @@ export default function Navigation({ userType }: NavigationProps) {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors duration-200",
-                pathname === item.href && "bg-blue-100 text-blue-700 border-r-2 border-blue-500"
+                "flex items-center px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all duration-200 border-l-4 border-transparent",
+                pathname === item.href && "bg-gray-50 text-gray-900 border-l-blue-600 font-medium"
               )}
             >
-              <span className="text-lg">{item.icon}</span>
-              <span className="font-medium">{item.label}</span>
+              <span className="font-medium text-sm">{item.label}</span>
             </Link>
           ))}
         </div>
