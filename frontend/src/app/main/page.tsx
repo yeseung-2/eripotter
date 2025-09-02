@@ -6,6 +6,8 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
+import { Users } from 'lucide-react';
 
 export default function MainPage() {
   const [userType, setUserType] = useState<'supplier' | 'customer'>('supplier');
@@ -72,45 +74,32 @@ export default function MainPage() {
       
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
-        {/* Header with Toggle */}
+        {/* Header with User Actions */}
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-gray-900">ERI Dashboard</h1>
             
-            {/* User Type Toggle */}
+            {/* User Actions */}
             <div className="flex items-center space-x-4">
-              <span className="text-sm font-medium text-gray-700">사용자 유형</span>
-              <div className="relative bg-gray-100 rounded-xl p-1 shadow-inner">
-                <div 
-                  className={cn(
-                    "absolute top-1 left-1 w-20 h-8 bg-white rounded-lg shadow-sm transition-all duration-300 ease-in-out",
-                    userType === 'supplier' ? 'translate-x-0' : 'translate-x-20'
-                  )}
-                />
-                <div className="relative flex">
-                  <button
-                    onClick={() => setUserType('supplier')}
-                    className={cn(
-                      "relative z-10 w-20 h-8 rounded-lg text-sm font-medium transition-colors duration-200",
-                      userType === 'supplier' 
-                        ? 'text-blue-600' 
-                        : 'text-gray-500 hover:text-gray-700'
-                    )}
-                  >
-                    협력사
-                  </button>
-                  <button
-                    onClick={() => setUserType('customer')}
-                    className={cn(
-                      "relative z-10 w-20 h-8 rounded-lg text-sm font-medium transition-colors duration-200",
-                      userType === 'customer' 
-                        ? 'text-blue-600' 
-                        : 'text-gray-500 hover:text-gray-700'
-                    )}
-                  >
-                    고객사
-                  </button>
-                </div>
+              {/* Chat */}
+              <Link href="/chat">
+                <Button variant="outline" className="flex items-center space-x-2">
+                  <span>💬</span>
+                  <span>챗봇</span>
+                </Button>
+              </Link>
+              
+              {/* My Page */}
+              <Link href="/mypage">
+                <Button variant="outline" className="flex items-center space-x-2">
+                  <Users className="w-4 h-4" />
+                  <span>마이페이지</span>
+                </Button>
+              </Link>
+              
+              {/* Profile Image */}
+              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+                <Users className="w-5 h-5 text-white" />
               </div>
             </div>
           </div>
@@ -146,6 +135,45 @@ export default function MainPage() {
                     <p className="text-gray-600 text-lg animate-slide-up animation-delay-200">
                       {currentContent.description}
                     </p>
+                  </div>
+
+                  {/* User Type Toggle */}
+                  <div className="flex justify-center mb-8">
+                    <div className="flex items-center space-x-4">
+                      <span className="text-sm font-medium text-gray-700">사용자 유형</span>
+                      <div className="relative bg-gray-100 rounded-xl p-1 shadow-inner">
+                        <div 
+                          className={cn(
+                            "absolute top-1 left-1 w-20 h-8 bg-white rounded-lg shadow-sm transition-all duration-300 ease-in-out",
+                            userType === 'supplier' ? 'translate-x-0' : 'translate-x-20'
+                          )}
+                        />
+                        <div className="relative flex">
+                          <button
+                            onClick={() => setUserType('supplier')}
+                            className={cn(
+                              "relative z-10 w-20 h-8 rounded-lg text-sm font-medium transition-colors duration-200",
+                              userType === 'supplier' 
+                                ? 'text-blue-600' 
+                                : 'text-gray-500 hover:text-gray-700'
+                            )}
+                          >
+                            협력사
+                          </button>
+                          <button
+                            onClick={() => setUserType('customer')}
+                            className={cn(
+                              "relative z-10 w-20 h-8 rounded-lg text-sm font-medium transition-colors duration-200",
+                              userType === 'customer' 
+                                ? 'text-blue-600' 
+                                : 'text-gray-500 hover:text-gray-700'
+                            )}
+                          >
+                            고객사
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Features Grid */}

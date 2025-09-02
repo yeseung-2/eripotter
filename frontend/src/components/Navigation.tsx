@@ -14,13 +14,11 @@ const supplierMenuItems = [
   { href: '/chat', label: 'Chat' },
   { href: '/data-sharing-approval', label: 'Data Sharing Approval' },
   { href: '/data-upload', label: 'Data Upload' },
-  { href: '/mypage', label: 'My Page' },
   { href: '/report', label: 'Report' },
 ];
 
 const customerMenuItems = [
   { href: '/data-sharing-request', label: 'Data Sharing Request' },
-  { href: '/mypage', label: 'My Page' },
   { href: '/monitoring', label: 'Monitoring' },
 ];
 

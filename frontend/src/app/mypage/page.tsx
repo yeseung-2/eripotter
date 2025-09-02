@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Building2, Users, TrendingUp, BarChart3, Settings, User } from 'lucide-react';
+import { Building2, Users, TrendingUp, BarChart3, Cog, User } from 'lucide-react';
 import Link from 'next/link';
 import SupplyChainVisualizationPage from '@/components/SupplyChainVisualizationPage';
 import { Input } from '@/components/ui/input';
@@ -130,21 +130,28 @@ export default function MyPage() {
         return;
       }
 
+      // 빈 문자열을 null로 변환하는 함수
+      const cleanValue = (value: string) => {
+        if (value === undefined || value === null || value.trim() === '') {
+          return null;
+        }
+        return value.trim();
+      };
+
       const profileData = {
-        ...formData,
+        company_name: cleanValue(formData.company_name),
+        company_type: cleanValue(formData.company_type),
+        industry: cleanValue(formData.industry),
+        business_number: cleanValue(formData.business_number),
+        establishment_date: cleanValue(formData.establishment_date),
         employee_count: formData.employee_count ? parseInt(formData.employee_count) : null,
+        annual_revenue: cleanValue(formData.annual_revenue),
+        business_area: cleanValue(formData.business_area),
         factory_count: formData.factory_count ? parseInt(formData.factory_count) : null,
-        company_name: formData.company_name || null,
-        company_type: formData.company_type || null,
-        industry: formData.industry || null,
-        business_number: formData.business_number || null,
-        establishment_date: formData.establishment_date || null,
-        annual_revenue: formData.annual_revenue || null,
-        business_area: formData.business_area || null,
-        factory_address: formData.factory_address || null,
-        production_items: formData.production_items || null,
-        department: formData.department || null,
-        phone_number: formData.phone_number || null
+        factory_address: cleanValue(formData.factory_address),
+        production_items: cleanValue(formData.production_items),
+        department: cleanValue(formData.department),
+        phone_number: cleanValue(formData.phone_number)
       };
 
       console.log('저장할 프로필 데이터:', profileData);
@@ -559,7 +566,7 @@ export default function MyPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Settings className="w-5 h-5" />
+                  <Cog className="w-5 h-5" />
                   설정
                 </CardTitle>
                 <CardDescription>
