@@ -59,6 +59,7 @@ ASSESSMENT_SERVICE_URL = os.getenv("ASSESSMENT_SERVICE_URL", "http://localhost:8
 CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "http://localhost:8003")
 SOLUTION_SERVICE_URL = os.getenv("SOLUTION_SERVICE_URL", "http://localhost:8009")
 NORMAL_SERVICE_URL = os.getenv("NORMAL_SERVICE_URL", "http://localhost:8005")
+MONITORING_SERVICE_URL = os.getenv("MONITORING_SERVICE_URL", "http://localhost:8004")
 TIMEOUT = float(os.getenv("UPSTREAM_TIMEOUT", "60"))
 SHARING_SERVICE_URL = os.getenv("SHARING_SERVICE_URL", "http://localhost:8008")
 REPORT_SERVICE_URL = os.getenv("REPORT_SERVICE_URL", "http://localhost:8007")
