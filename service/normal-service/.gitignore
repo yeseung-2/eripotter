@@ -51,7 +51,6 @@ Thumbs.db
 *.safetensors
 
 # AI 모델 관련
-model/
 models/
 checkpoints/
 embeddings/
