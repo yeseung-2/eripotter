@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Building2, Users, TrendingUp, BarChart, Settings, UserCheck } from 'lucide-react';
+import { Building2, Users, TrendingUp, BarChart, Settings, UserCheck, Plus, XCircle, Pencil, Search, FileText, CheckCircle, AlertCircle, Calendar, Target } from 'lucide-react';
 import Link from 'next/link';
 import SupplyChainVisualizationPage from '@/components/SupplyChainVisualizationPage';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,14 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import axios from '@/lib/axios';
+import { useStore } from "@/store/useStore";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+
+interface Partner {
+  id: number;
+  company_name: string;
+  tier1: string;
+}
 
 export default function MyPage() {
   const router = useRouter();
@@ -43,9 +51,14 @@ export default function MyPage() {
     department: '',
     phone_number: ''
   });
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [newPartnerName, setNewPartnerName] = useState("");
+  const [isAddingPartner, setIsAddingPartner] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
 
   // 사용자 정보 (실제로는 API에서 가져와야 함)
-  const userInfo = {
+  const mockUserInfo = {
     name: "LG에너지솔루션",
     tier: "원청사",
     role: "플랫폼 관리자",
@@ -109,6 +122,76 @@ export default function MyPage() {
 
     loadProfile();
   }, []);
+
+  // 협력사 목록 조회
+  const fetchPartners = async () => {
+    try {
+      const response = await axios.get(`/api/partners?company_name=${encodeURIComponent(mockUserInfo.name)}`);
+      setPartners(response.data);
+    } catch (error) {
+      console.error("협력사 목록 조회 실패:", error);
+    }
+  };
+
+  // 협력사 추가
+  const addPartner = async () => {
+    if (!newPartnerName.trim()) return;
+    
+    setIsAddingPartner(true);
+    try {
+      const response = await axios.post("/api/partners", {
+        company_name: mockUserInfo.name,
+        tier1: newPartnerName.trim()
+      });
+      
+      setPartners([...partners, response.data]);
+      setNewPartnerName("");
+      setIsAddingPartner(false);
+    } catch (error) {
+      console.error("협력사 추가 실패:", error);
+      setIsAddingPartner(false);
+    }
+  };
+
+  // 협력사 삭제
+  const deletePartner = async (partnerId: number) => {
+    try {
+      await axios.delete(`/api/partners/${partnerId}`);
+      setPartners(partners.filter(p => p.id !== partnerId));
+    } catch (error) {
+      console.error("협력사 삭제 실패:", error);
+    }
+  };
+
+  // 협력사 수정
+  const updatePartner = async () => {
+    if (!editingPartner || !editingPartner.tier1.trim()) return;
+    
+    try {
+      const response = await axios.put(`/api/partners/${editingPartner.id}`, {
+        company_name: mockUserInfo.name,
+        tier1: editingPartner.tier1.trim()
+      });
+      
+      setPartners(partners.map(p => 
+        p.id === editingPartner.id ? response.data : p
+      ));
+      setEditingPartner(null);
+    } catch (error) {
+      console.error("협력사 수정 실패:", error);
+    }
+  };
+
+  // 필터링된 협력사 목록
+  const filteredPartners = partners.filter(partner =>
+    partner.tier1.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  useEffect(() => {
+    if (mockUserInfo.name) {
+      fetchPartners();
+    }
+  }, [mockUserInfo.name]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -192,7 +275,7 @@ export default function MyPage() {
           {/* Chat */}
           <Link href="/chat">
             <Button variant="outline" className="flex items-center space-x-2">
-              <span>💬</span>
+              <FileText className="w-4 h-4" />
               <span>챗봇</span>
             </Button>
           </Link>
@@ -223,10 +306,10 @@ export default function MyPage() {
               <Building2 className="w-8 h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">{userInfo.name}</h1>
+              <h1 className="text-3xl font-bold text-gray-900">{mockUserInfo.name}</h1>
               <div className="flex items-center gap-2 mt-1">
-                <Badge variant="outline">{userInfo.tier}</Badge>
-                <Badge variant="secondary">{userInfo.role}</Badge>
+                <Badge variant="outline">{mockUserInfo.tier}</Badge>
+                <Badge variant="secondary">{mockUserInfo.role}</Badge>
               </div>
             </div>
           </div>
@@ -239,7 +322,7 @@ export default function MyPage() {
                   <Users className="w-8 h-8 text-blue-600" />
                   <div>
                     <p className="text-sm text-gray-600">총 협력사 수</p>
-                    <p className="text-2xl font-bold">{userInfo.totalSuppliers}</p>
+                    <p className="text-2xl font-bold">{mockUserInfo.totalSuppliers}</p>
                   </div>
                 </div>
               </CardContent>
@@ -251,7 +334,7 @@ export default function MyPage() {
                   <BarChart className="w-8 h-8 text-green-600" />
                   <div>
                     <p className="text-sm text-gray-600">활성 요청</p>
-                    <p className="text-2xl font-bold">{userInfo.activeRequests}</p>
+                    <p className="text-2xl font-bold">{mockUserInfo.activeRequests}</p>
                   </div>
                 </div>
               </CardContent>
@@ -263,7 +346,7 @@ export default function MyPage() {
                   <TrendingUp className="w-8 h-8 text-orange-600" />
                   <div>
                     <p className="text-sm text-gray-600">승인 대기</p>
-                    <p className="text-2xl font-bold">{userInfo.pendingApprovals}</p>
+                    <p className="text-2xl font-bold">{mockUserInfo.pendingApprovals}</p>
                   </div>
                 </div>
               </CardContent>
@@ -292,15 +375,15 @@ export default function MyPage() {
                 <CardContent>
                   <div className="space-y-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <CheckCircle className="w-4 h-4 text-green-500" />
                       <span className="text-sm">신규 데이터 요청 5건 승인</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                      <Users className="w-4 h-4 text-blue-500" />
                       <span className="text-sm">협력사 3곳 새로 등록</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                      <BarChart className="w-4 h-4 text-orange-500" />
                       <span className="text-sm">환경 데이터 8건 업데이트</span>
                     </div>
                   </div>
@@ -316,14 +399,14 @@ export default function MyPage() {
                   <div className="grid grid-cols-2 gap-3">
                                          <Link href="/data-sharing-request">
                        <div className="p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
-                         <BarChart className="w-6 h-6 text-blue-600 mb-2" />
+                         <FileText className="w-6 h-6 text-blue-600 mb-2" />
                          <p className="text-sm font-medium">데이터 요청</p>
                        </div>
                      </Link>
                     
                     <Link href="/data-sharing-approval">
                       <div className="p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
-                        <Users className="w-6 h-6 text-green-600 mb-2" />
+                        <CheckCircle className="w-6 h-6 text-green-600 mb-2" />
                         <p className="text-sm font-medium">승인 관리</p>
                       </div>
                     </Link>
@@ -332,7 +415,7 @@ export default function MyPage() {
                       className="p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
                       onClick={() => setActiveTab('company-management')}
                     >
-                      <Building2 className="w-6 h-6 text-orange-600 mb-2" />
+                      <Users className="w-6 h-6 text-orange-600 mb-2" />
                       <p className="text-sm font-medium">협력사 관리</p>
                     </div>
                     
@@ -340,7 +423,7 @@ export default function MyPage() {
                       className="p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
                       onClick={() => setActiveTab('supply-chain')}
                     >
-                      <TrendingUp className="w-6 h-6 text-purple-600 mb-2" />
+                      <Target className="w-6 h-6 text-purple-600 mb-2" />
                       <p className="text-sm font-medium">공급망 도식화</p>
                     </div>
                   </div>
@@ -365,9 +448,7 @@ export default function MyPage() {
                 {showSuccessMessage && (
                   <div className="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
                     <div className="flex items-center">
-                      <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
+                      <CheckCircle className="w-5 h-5 mr-2" />
                       <span>프로필이 성공적으로 저장되었습니다!</span>
                     </div>
                   </div>
@@ -377,9 +458,7 @@ export default function MyPage() {
                   {/* 기업 기본 정보 */}
                   <div className="space-y-4">
                     <h2 className="text-xl font-semibold flex items-center gap-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                      </svg>
+                      <Building2 className="h-5 w-5 text-blue-500" />
                       기업 기본 정보
                     </h2>
                     
@@ -439,9 +518,7 @@ export default function MyPage() {
                   {/* 기업 상세 정보 */}
                   <div className="space-y-4">
                     <h2 className="text-xl font-semibold flex items-center gap-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                      </svg>
+                      <BarChart className="h-5 w-5 text-green-500" />
                       기업 상세 정보
                     </h2>
                     
@@ -496,9 +573,7 @@ export default function MyPage() {
                   {/* 공장 정보 */}
                   <div className="space-y-4">
                     <h2 className="text-xl font-semibold flex items-center gap-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                      </svg>
+                      <Target className="h-5 w-5 text-purple-500" />
                       공장 정보
                     </h2>
                     
@@ -593,12 +668,140 @@ export default function MyPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-12">
-                  <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">협력사 관리 기능 구현 중</h3>
-                  <p className="text-gray-600">
-                    곧 하위 협력사 목록 조회, 편집, 데이터 공유 현황 등을 관리할 수 있습니다.
-                  </p>
+                <div className="space-y-6">
+                  {/* 협력사 추가 섹션 */}
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-medium">협력사 목록</h3>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button>
+                          <Plus className="w-4 h-4 mr-2" />
+                          협력사 추가
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>새로운 협력사 추가</DialogTitle>
+                          <DialogDescription>
+                            하위 협력사 정보를 입력해주세요.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <div>
+                            <Label htmlFor="partner-name">협력사명</Label>
+                            <Input
+                              id="partner-name"
+                              value={newPartnerName}
+                              onChange={(e) => setNewPartnerName(e.target.value)}
+                              placeholder="협력사명을 입력하세요"
+                            />
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button
+                            onClick={addPartner}
+                            disabled={isAddingPartner || !newPartnerName.trim()}
+                          >
+                            {isAddingPartner ? "추가 중..." : "추가"}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+
+                  {/* 검색 */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      placeholder="협력사명으로 검색..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+
+                  {/* 협력사 목록 */}
+                  {filteredPartners.length > 0 ? (
+                    <div className="space-y-3">
+                      {filteredPartners.map((partner) => (
+                        <div
+                          key={partner.id}
+                          className="flex items-center justify-between p-4 border rounded-lg bg-gray-50"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Building2 className="w-5 h-5 text-blue-600" />
+                            <div>
+                              <p className="font-medium">{partner.tier1}</p>
+                              <p className="text-sm text-gray-500">하위 협력사</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setEditingPartner(partner)}
+                                >
+                                                                     <Pencil className="w-4 h-4" />
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>협력사 정보 수정</DialogTitle>
+                                  <DialogDescription>
+                                    협력사명을 수정할 수 있습니다.
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <div className="space-y-4">
+                                  <div>
+                                    <Label htmlFor="edit-partner-name">협력사명</Label>
+                                    <Input
+                                      id="edit-partner-name"
+                                      value={editingPartner?.tier1 || ""}
+                                      onChange={(e) => setEditingPartner(prev => 
+                                        prev ? { ...prev, tier1: e.target.value } : null
+                                      )}
+                                      placeholder="협력사명을 입력하세요"
+                                    />
+                                  </div>
+                                </div>
+                                <DialogFooter>
+                                  <Button
+                                    onClick={updatePartner}
+                                    disabled={!editingPartner?.tier1.trim()}
+                                  >
+                                    수정
+                                  </Button>
+                                </DialogFooter>
+                              </DialogContent>
+                            </Dialog>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => deletePartner(partner.id)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                                                             <XCircle className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">
+                        {searchTerm ? "검색 결과가 없습니다" : "등록된 협력사가 없습니다"}
+                      </h3>
+                      <p className="text-gray-600">
+                        {searchTerm 
+                          ? "다른 검색어를 시도해보세요."
+                          : "협력사 추가 버튼을 눌러 첫 번째 협력사를 등록해보세요."
+                        }
+                      </p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -626,15 +829,15 @@ export default function MyPage() {
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-gray-600">회사명</span>
-                        <span className="text-sm font-medium">{userInfo.name}</span>
+                        <span className="text-sm font-medium">{mockUserInfo.name}</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-gray-600">계층</span>
-                        <Badge variant="outline">{userInfo.tier}</Badge>
+                        <Badge variant="outline">{mockUserInfo.tier}</Badge>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-gray-600">역할</span>
-                        <Badge variant="secondary">{userInfo.role}</Badge>
+                        <Badge variant="secondary">{mockUserInfo.role}</Badge>
                       </div>
                     </div>
                   </div>
