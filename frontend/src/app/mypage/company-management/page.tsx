@@ -54,7 +54,7 @@ export default function CompanyManagementPage() {
         id: '1',
         name: '엔팜',
         tier: '2차사',
-        industry: '화학소재',
+        industry: '화학 소재',
         isStrategic: true,
         status: 'active',
         dataSharing: {
