@@ -230,6 +230,44 @@ class CompanyListResponse(BaseModel):
     message: Optional[str] = None
 
 
+# ===== Assessment Company Models =====
+
+class AssessmentCompanySummary(BaseModel):
+    """Assessment 테이블의 기업별 요약 정보"""
+    company_name: str
+    total_questions: int = 0
+    total_score: int = 0
+    max_possible_score: int = 0
+    achievement_rate: float = 0.0
+    last_assessment_date: Optional[datetime] = None
+    vulnerable_count: int = 0  # score가 0 또는 25인 문항 수
+
+
+class AssessmentCompanyListResponse(BaseModel):
+    """Assessment 테이블의 모든 기업 목록 응답"""
+    status: str = "success"
+    companies: List[AssessmentCompanySummary] = Field(default_factory=list)
+    total_count: int = 0
+    average_achievement_rate: float = 0.0
+    message: Optional[str] = None
+
+
+class CompanyAssessmentDashboard(BaseModel):
+    """기업별 Assessment 대시보드 데이터"""
+    company_name: str
+    assessment_summary: AssessmentCompanySummary
+    assessment_results: List[AssessmentResult] = Field(default_factory=list)
+    vulnerable_sections: List[VulnerableSection] = Field(default_factory=list)
+    domain_summary: Dict[str, Dict[str, Union[int, float]]] = Field(default_factory=dict)  # 도메인별 요약
+
+
+class CompanyAssessmentDashboardResponse(BaseModel):
+    """기업별 Assessment 대시보드 응답"""
+    status: str = "success"
+    dashboard: CompanyAssessmentDashboard
+    message: Optional[str] = None
+
+
 # ===== Error Response Models =====
 
 class ErrorResponse(BaseModel):

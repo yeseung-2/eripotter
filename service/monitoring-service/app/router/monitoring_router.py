@@ -96,3 +96,32 @@ async def get_solutions(
     except Exception as e:
         logger.error(f"❌ 솔루션 조회 API 오류: {e}")
         raise HTTPException(status_code=500, detail=f"솔루션 조회 중 오류가 발생했습니다: {str(e)}")
+
+# ===== Assessment Company Management Endpoints =====
+
+@monitoring_router.get("/assessment/companies", summary="Assessment 기업 목록 조회")
+async def get_assessment_companies(
+    controller: MonitoringController = Depends(get_monitoring_controller)
+):
+    """Assessment 테이블의 모든 기업 목록 조회"""
+    try:
+        result = controller.get_assessment_companies()
+        logger.info(f"✅ Assessment 기업 목록 조회 성공: {len(result.companies)}개 기업")
+        return result
+    except Exception as e:
+        logger.error(f"❌ Assessment 기업 목록 조회 API 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"Assessment 기업 목록 조회 중 오류가 발생했습니다: {str(e)}")
+
+@monitoring_router.get("/assessment/companies/{company_name}/dashboard", summary="기업별 Assessment 대시보드")
+async def get_company_assessment_dashboard(
+    company_name: str,
+    controller: MonitoringController = Depends(get_monitoring_controller)
+):
+    """특정 기업의 Assessment 대시보드 데이터 조회"""
+    try:
+        result = controller.get_company_assessment_dashboard(company_name)
+        logger.info(f"✅ 기업 Assessment 대시보드 조회 성공: {company_name}")
+        return result
+    except Exception as e:
+        logger.error(f"❌ 기업 Assessment 대시보드 조회 API 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"기업 Assessment 대시보드 조회 중 오류가 발생했습니다: {str(e)}")

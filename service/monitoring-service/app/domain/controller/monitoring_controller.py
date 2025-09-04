@@ -7,7 +7,9 @@ from ..model.monitoring_model import (
     SupplyChainVulnerabilityResponse,
     CompanyAssessmentResponse,
     SupplyChainAssessmentResponse,
-    CompanySolutionResponse
+    CompanySolutionResponse,
+    AssessmentCompanyListResponse,
+    CompanyAssessmentDashboardResponse
 )
 
 logger = logging.getLogger("monitoring-controller")
@@ -68,4 +70,24 @@ class MonitoringController:
             return self.service.get_company_solutions()
         except Exception as e:
             logger.error(f"❌ 회사 솔루션 목록 조회 컨트롤러 오류: {e}")
+            raise
+
+    # ===== Assessment Company Management =====
+    
+    def get_assessment_companies(self) -> AssessmentCompanyListResponse:
+        """Assessment 테이블의 모든 기업 목록 조회"""
+        try:
+            logger.info("📝 Assessment 기업 목록 조회 컨트롤러 요청")
+            return self.service.get_assessment_companies()
+        except Exception as e:
+            logger.error(f"❌ Assessment 기업 목록 조회 컨트롤러 오류: {e}")
+            raise
+    
+    def get_company_assessment_dashboard(self, company_name: str) -> CompanyAssessmentDashboardResponse:
+        """특정 기업의 Assessment 대시보드 데이터 조회"""
+        try:
+            logger.info(f"📝 기업 Assessment 대시보드 조회 컨트롤러 요청: company_name={company_name}")
+            return self.service.get_company_assessment_dashboard(company_name)
+        except Exception as e:
+            logger.error(f"❌ 기업 Assessment 대시보드 조회 컨트롤러 오류: {e}")
             raise

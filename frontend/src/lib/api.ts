@@ -64,6 +64,54 @@ export const generateSolutions = (companyName: string): Promise<SolutionSubmissi
   });
 };
 
+// ===== Assessment 기업 관리 API 함수들 =====
+
+// Assessment 테이블의 모든 기업 목록 조회
+export const getAssessmentCompanies = (): Promise<{
+  status: string;
+  companies: Array<{
+    company_name: string;
+    total_questions: number;
+    total_score: number;
+    max_possible_score: number;
+    achievement_rate: number;
+    last_assessment_date: string;
+    vulnerable_count: number;
+  }>;
+  total_count: number;
+  average_achievement_rate: number;
+}> => api("/api/monitoring/assessment/companies");
+
+// 특정 기업의 Assessment 대시보드 데이터 조회
+export const getCompanyAssessmentDashboard = (companyName: string): Promise<{
+  status: string;
+  dashboard: {
+    company_name: string;
+    assessment_summary: {
+      company_name: string;
+      total_questions: number;
+      total_score: number;
+      max_possible_score: number;
+      achievement_rate: number;
+      last_assessment_date: string;
+      vulnerable_count: number;
+    };
+    assessment_results: AssessmentResult[];
+    vulnerable_sections: VulnerableSection[];
+    domain_summary: Record<string, {
+      total_questions: number;
+      total_score: number;
+      max_possible_score: number;
+      achievement_rate: number;
+    }>;
+  };
+}> => {
+  if (!companyName) {
+    return Promise.reject(new Error('회사명이 필요합니다.'));
+  }
+  return api(`/api/monitoring/assessment/companies/${encodeURIComponent(companyName)}/dashboard`);
+};
+
 // ===== 데이터 공유 API 함수들 =====
 export const getSharingRequestsByProvider = (providerId: string, status?: string): Promise<any> =>
   api(`/sharing/provider/${providerId}${status ? `?status=${status}` : ''}`);

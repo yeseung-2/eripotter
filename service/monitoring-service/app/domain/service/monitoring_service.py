@@ -31,7 +31,11 @@ from ..model.monitoring_model import (
     CompanyListResponse,
     
     # Error Response Models
-    ErrorResponse
+    ErrorResponse,
+    
+    # Assessment Company Models
+    AssessmentCompanyListResponse, AssessmentCompanySummary,
+    CompanyAssessmentDashboard, CompanyAssessmentDashboardResponse
 )
 
 logger = logging.getLogger("monitoring-service")
@@ -65,6 +69,171 @@ class MonitoringService:
             return CompanyListResponse(
                 status="error",
                 message=f"회사 목록 조회 실패: {str(e)}"
+            )
+    
+    # ===== Assessment Company Management =====
+    
+    def get_assessment_companies(self) -> AssessmentCompanyListResponse:
+        """Assessment 테이블의 모든 기업 목록 조회"""
+        try:
+            logger.info("📝 Assessment 기업 목록 조회 요청")
+            
+            # Assessment 테이블에서 모든 기업 조회
+            companies_data = self.repository.get_assessment_companies()
+            
+            # 기업별 요약 정보 계산
+            companies = []
+            total_score_sum = 0
+            total_max_score_sum = 0
+            
+            for company_data in companies_data:
+                company_name = company_data['company_name']
+                
+                # 해당 기업의 assessment 결과 조회
+                assessment_results = self.repository.get_company_assessment_results(company_name)
+                
+                if assessment_results:
+                    total_score = sum(result['score'] for result in assessment_results)
+                    total_questions = len(assessment_results)
+                    max_possible_score = total_questions * 100  # 각 문항당 최대 100점
+                    achievement_rate = (total_score / max_possible_score) * 100 if max_possible_score > 0 else 0
+                    
+                    # 취약 부문 개수 계산 (score가 0 또는 25인 문항)
+                    vulnerable_count = len([r for r in assessment_results if r['score'] in [0, 25]])
+                    
+                    # 마지막 assessment 날짜
+                    last_assessment_date = max(result['timestamp'] for result in assessment_results if result['timestamp'])
+                    
+                    company_summary = AssessmentCompanySummary(
+                        company_name=company_name,
+                        total_questions=total_questions,
+                        total_score=total_score,
+                        max_possible_score=max_possible_score,
+                        achievement_rate=round(achievement_rate, 2),
+                        last_assessment_date=last_assessment_date,
+                        vulnerable_count=vulnerable_count
+                    )
+                    
+                    companies.append(company_summary)
+                    total_score_sum += total_score
+                    total_max_score_sum += max_possible_score
+            
+            # 전체 평균 달성률 계산
+            average_achievement_rate = (total_score_sum / total_max_score_sum) * 100 if total_max_score_sum > 0 else 0
+            
+            response = AssessmentCompanyListResponse(
+                companies=companies,
+                total_count=len(companies),
+                average_achievement_rate=round(average_achievement_rate, 2)
+            )
+            
+            logger.info(f"✅ Assessment 기업 목록 조회 성공: {len(companies)}개 기업")
+            return response
+            
+        except Exception as e:
+            logger.error(f"❌ Assessment 기업 목록 조회 중 예상치 못한 오류: {e}")
+            return AssessmentCompanyListResponse(
+                status="error",
+                message=f"Assessment 기업 목록 조회 실패: {str(e)}"
+            )
+    
+    def get_company_assessment_dashboard(self, company_name: str) -> CompanyAssessmentDashboardResponse:
+        """특정 기업의 Assessment 대시보드 데이터 조회"""
+        try:
+            logger.info(f"📝 기업 Assessment 대시보드 조회 요청: company_name={company_name}")
+            
+            # 기업의 assessment 결과 조회
+            assessment_results_data = self.repository.get_company_assessment_results(company_name)
+            assessment_results = []
+            
+            for result_data in assessment_results_data:
+                try:
+                    assessment_result = AssessmentResult(**result_data)
+                    assessment_results.append(assessment_result)
+                except Exception as e:
+                    logger.warning(f"⚠️ Assessment 결과 데이터 변환 실패: {e}")
+                    continue
+            
+            if not assessment_results:
+                return CompanyAssessmentDashboardResponse(
+                    status="error",
+                    message=f"기업 {company_name}의 Assessment 결과가 없습니다."
+                )
+            
+            # 요약 정보 계산
+            total_score = sum(result.score for result in assessment_results)
+            total_questions = len(assessment_results)
+            max_possible_score = total_questions * 100
+            achievement_rate = (total_score / max_possible_score) * 100 if max_possible_score > 0 else 0
+            vulnerable_count = len([r for r in assessment_results if r.score in [0, 25]])
+            last_assessment_date = max(result.timestamp for result in assessment_results if result.timestamp)
+            
+            assessment_summary = AssessmentCompanySummary(
+                company_name=company_name,
+                total_questions=total_questions,
+                total_score=total_score,
+                max_possible_score=max_possible_score,
+                achievement_rate=round(achievement_rate, 2),
+                last_assessment_date=last_assessment_date,
+                vulnerable_count=vulnerable_count
+            )
+            
+            # 취약 부문 조회
+            vulnerable_sections_data = self.repository.get_company_vulnerable_sections(company_name)
+            vulnerable_sections = []
+            
+            for section_data in vulnerable_sections_data:
+                try:
+                    vulnerable_section = VulnerableSection(**section_data)
+                    vulnerable_sections.append(vulnerable_section)
+                except Exception as e:
+                    logger.warning(f"⚠️ 취약 부문 데이터 변환 실패: {e}")
+                    continue
+            
+            # 도메인별 요약 계산
+            domain_summary = {}
+            for result in assessment_results:
+                if result.domain:
+                    if result.domain not in domain_summary:
+                        domain_summary[result.domain] = {
+                            'total_questions': 0,
+                            'total_score': 0,
+                            'max_possible_score': 0
+                        }
+                    
+                    domain_summary[result.domain]['total_questions'] += 1
+                    domain_summary[result.domain]['total_score'] += result.score
+                    domain_summary[result.domain]['max_possible_score'] += 100
+            
+            # 도메인별 달성률 계산
+            for domain in domain_summary:
+                if domain_summary[domain]['max_possible_score'] > 0:
+                    domain_summary[domain]['achievement_rate'] = round(
+                        (domain_summary[domain]['total_score'] / domain_summary[domain]['max_possible_score']) * 100, 2
+                    )
+                else:
+                    domain_summary[domain]['achievement_rate'] = 0.0
+            
+            dashboard = CompanyAssessmentDashboard(
+                company_name=company_name,
+                assessment_summary=assessment_summary,
+                assessment_results=assessment_results,
+                vulnerable_sections=vulnerable_sections,
+                domain_summary=domain_summary
+            )
+            
+            response = CompanyAssessmentDashboardResponse(
+                dashboard=dashboard
+            )
+            
+            logger.info(f"✅ 기업 Assessment 대시보드 조회 성공: {company_name}")
+            return response
+            
+        except Exception as e:
+            logger.error(f"❌ 기업 Assessment 대시보드 조회 중 예상치 못한 오류: {e}")
+            return CompanyAssessmentDashboardResponse(
+                status="error",
+                message=f"기업 Assessment 대시보드 조회 실패: {str(e)}"
             )
     
     # ===== Vulnerability Analysis =====
