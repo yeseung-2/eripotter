@@ -192,14 +192,13 @@ export default function MonitoringPage() {
             onClick={() => router.push('/main')}
             className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
           >
-            <Image 
+            <img 
               src="/logo.png" 
               alt="ERI Logo" 
-              width={40} 
-              height={40}
-              className="w-10 h-10"
+              width={32} 
+              height={32}
+              className="w-8 h-8"
             />
-            <h1 className="text-2xl font-bold text-gray-900">ERI</h1>
           </button>
           <div className="border-l border-gray-300 h-6"></div>
           <h2 className="text-xl font-semibold text-gray-700">공급망 모니터링</h2>

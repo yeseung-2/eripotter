@@ -3,6 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCompanyResults, getCompanySolutions, generateSolutions } from '@/lib/api';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Users } from 'lucide-react';
+import Image from 'next/image';
 
 export interface AssessmentSubmissionRequest {
   question_id: number;
