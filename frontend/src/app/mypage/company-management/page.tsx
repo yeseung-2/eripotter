@@ -175,12 +175,14 @@ export default function CompanyManagementPage() {
     );
   };
 
-  // 통계 계산
+  // 통계 데이터
   const stats = {
     total: companies.length,
     strategic: companies.filter(c => c.isStrategic).length,
     active: companies.filter(c => c.status === 'active').length,
-    avgScore: Math.round(companies.reduce((sum, c) => sum + c.environmentalScore, 0) / companies.length || 0)
+    avgScore: companies.length > 0 
+      ? Math.round(companies.reduce((sum, c) => sum + c.environmentalScore, 0) / companies.length)
+      : 0
   };
 
   return (
