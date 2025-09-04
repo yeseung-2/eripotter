@@ -9,7 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   AlertCircle,
-  TrendingUp
+  TrendingUp,
+  Building2,
+  FileText
 } from "lucide-react";
 
 import { api } from "@/lib/api";
@@ -26,6 +28,7 @@ const DataSharingPage = () => {
     completed_requests: 0,
   });
   const [currentCompanyName, setCurrentCompanyName] = useState("우리회사 A");
+  const [companyRole, setCompanyRole] = useState("tier1"); // 기본값: 1차사
 
   // ✅ 더미 데이터 로드 함수
   const loadData = () => {
@@ -43,7 +46,46 @@ const DataSharingPage = () => {
 
   useEffect(() => {
     loadData();
+    
+    // URL 파라미터에서 역할 확인
+    const urlParams = new URLSearchParams(window.location.search);
+    const roleParam = urlParams.get('role');
+    if (roleParam) {
+      setCompanyRole(roleParam);
+    }
   }, []);
+
+  // 원청사 접근 제한 체크
+  const isPrimeContractor = companyRole === 'prime';
+
+  // 원청사인 경우 접근 제한 페이지 표시
+  if (isPrimeContractor) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+        <Card className="max-w-md mx-auto">
+          <CardContent className="p-8 text-center">
+            <div className="mb-6">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <FileText className="w-8 h-8 text-blue-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">원청사 계정</h2>
+              <p className="text-gray-600">
+                원청사는 데이터 승인 페이지에 접근할 수 없습니다.
+              </p>
+              <p className="text-gray-600">
+                원청사는 협력사들에게 데이터를 요청하는 역할만 수행합니다.
+              </p>
+            </div>
+            <div className="space-y-4">
+              <p className="text-sm text-gray-500">
+                원청사는 데이터 요청 페이지에서 협력사들에게 데이터를 요청할 수 있습니다.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200">
