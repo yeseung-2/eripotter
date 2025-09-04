@@ -179,27 +179,77 @@ export default function CompanyManagementPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* 헤더 */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">고객사 목록 관리</h1>
-          <p className="text-gray-600">협력사 정보와 데이터 공유 현황을 관리합니다.</p>
-        </div>
-
-        {/* 통계 카드 */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <Building2 className="w-8 h-8 text-blue-600" />
-                <div>
-                  <p className="text-sm text-gray-600">총 협력사</p>
-                  <p className="text-2xl font-bold">{stats.total}</p>
-                </div>
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <header className="bg-white border-b border-gray-200 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              {/* 로고 클릭 시 main으로 이동 */}
+              <button
+                onClick={() => router.push('/main')}
+                className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
+              >
+                <Image 
+                  src="/logo.png" 
+                  alt="ERI Logo" 
+                  width={40} 
+                  height={40}
+                  className="w-10 h-10"
+                />
+                <h1 className="text-2xl font-bold text-gray-900">ERI</h1>
+              </button>
+              <div className="border-l border-gray-300 h-6"></div>
+              <h2 className="text-xl font-semibold text-gray-700">고객사 목록 관리</h2>
+            </div>
+            
+            {/* User Actions */}
+            <div className="flex items-center space-x-4">
+              {/* Chat */}
+              <Link href="/chat">
+                <Button variant="outline" className="flex items-center space-x-2">
+                  <span>💬</span>
+                  <span>챗봇</span>
+                </Button>
+              </Link>
+              
+              {/* My Page */}
+              <Link href="/mypage">
+                <Button variant="outline" className="flex items-center space-x-2">
+                  <Users className="w-4 h-4" />
+                  <span>마이페이지</span>
+                </Button>
+              </Link>
+              
+              {/* Profile Image */}
+              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+                <Users className="w-5 h-5 text-white" />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
+        </header>
+    
+        {/* Main Content */}
+        <div className="p-6">
+          <div className="max-w-7xl mx-auto">
+            {/* 페이지 제목 (기존 헤더 내용을 여기로 이동) */}
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">고객사 목록 관리</h1>
+              <p className="text-gray-600">협력사 정보와 데이터 공유 현황을 관리합니다.</p>
+            </div>
+    
+            {/* 통계 카드 */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <Building2 className="w-8 h-8 text-blue-600" />
+                    <div>
+                      <p className="text-sm text-gray-600">총 협력사</p>
+                      <p className="text-2xl font-bold">{stats.total}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
           
           <Card>
             <CardContent className="p-4">
@@ -384,6 +434,7 @@ export default function CompanyManagementPage() {
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 }

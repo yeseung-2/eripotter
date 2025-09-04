@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { getSupplyChainVulnerabilities, getAssessmentCompanies } from '@/lib/api';
+import Navigation from '@/components/Navigation';
+
 
 // ===== Supply Chain Vulnerability Interfaces =====
 
@@ -173,38 +175,58 @@ export default function MonitoringPage() {
     setActiveTab(tab);
   };
 
+  const [userType, setUserType] = useState<'supplier' | 'customer'>('supplier');
+
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-gray-900">공급망 모니터링</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="p-2 text-gray-400 hover:text-gray-500 transition-colors"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                </svg>
-              </button>
-              <div className="flex items-center space-x-3">
-                <Image 
-                  className="h-8 w-8 rounded-full" 
-                  src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" 
-                  alt="User avatar"
-                  width={32}
-                  height={32}
-                />
-                <span className="text-sm font-medium text-gray-700">관리자</span>
-              </div>
-            </div>
+    {/* Header */}
+    <header className="bg-white border-b border-gray-200 px-6 py-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          {/* 로고 클릭 시 main으로 이동 */}
+          <button
+            onClick={() => router.push('/main')}
+            className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
+          >
+            <Image 
+              src="/logo.png" 
+              alt="ERI Logo" 
+              width={40} 
+              height={40}
+              className="w-10 h-10"
+            />
+            <h1 className="text-2xl font-bold text-gray-900">ERI</h1>
+          </button>
+          <div className="border-l border-gray-300 h-6"></div>
+          <h2 className="text-xl font-semibold text-gray-700">공급망 모니터링</h2>
+        </div>
+        
+        {/* User Actions */}
+        <div className="flex items-center space-x-4">
+          {/* Chat */}
+          <Link href="/chat">
+            <Button variant="outline" className="flex items-center space-x-2">
+              <span>��</span>
+              <span>챗봇</span>
+            </Button>
+          </Link>
+          
+          {/* My Page */}
+          <Link href="/mypage">
+            <Button variant="outline" className="flex items-center space-x-2">
+              <Users className="w-4 h-4" />
+              <span>마이페이지</span>
+            </Button>
+          </Link>
+          
+          {/* Profile Image */}
+          <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+            <Users className="w-5 h-5 text-white" />
           </div>
         </div>
-      </header>
+      </div>
+    </header>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
@@ -229,7 +251,7 @@ export default function MonitoringPage() {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              Assessment 기업 목록
+              공급망 실사 현황
             </button>
           </nav>
         </div>

@@ -199,7 +199,8 @@ function AssessmentMainPageContent() {
     );
   }
 
-  return (
+  return ( 
+    <div className="flex h-screen bg-gray-50">
     <div style={{
       maxWidth: '800px',
       margin: '0 auto',
@@ -370,6 +371,7 @@ function AssessmentMainPageContent() {
           </ul>
         </div>
       </div>
+    </div>
     </div>
   );
 }

@@ -309,6 +309,55 @@ export default function AssessmentResultPage() {
   }
 
   return (
+    <div className="min-h-screen bg-gray-50">
+    {/* Header */}
+    <header className="bg-white border-b border-gray-200 px-6 py-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          {/* 로고 클릭 시 main으로 이동 */}
+          <button
+            onClick={() => router.push('/main')}
+            className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
+          >
+            <Image 
+              src="/logo.png" 
+              alt="ERI Logo" 
+              width={40} 
+              height={40}
+              className="w-10 h-10"
+            />
+            <h1 className="text-2xl font-bold text-gray-900">ERI</h1>
+          </button>
+          <div className="border-l border-gray-300 h-6"></div>
+          <h2 className="text-xl font-semibold text-gray-700">자가진단 결과</h2>
+        </div>
+        
+        {/* User Actions */}
+        <div className="flex items-center space-x-4">
+          {/* Chat */}
+          <Link href="/chat">
+            <Button variant="outline" className="flex items-center space-x-2">
+              <span>💬</span>
+              <span>챗봇</span>
+            </Button>
+          </Link>
+          
+          {/* My Page */}
+          <Link href="/mypage">
+            <Button variant="outline" className="flex items-center space-x-2">
+              <Users className="w-4 h-4" />
+              <span>마이페이지</span>
+            </Button>
+          </Link>
+          
+          {/* Profile Image */}
+          <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+            <Users className="w-5 h-5 text-white" />
+          </div>
+        </div>
+      </div>
+    </header>
+
     <div style={{
       maxWidth: '1000px',
       margin: '0 auto',
@@ -1121,6 +1170,7 @@ export default function AssessmentResultPage() {
           </button>
         </div>
       </div>
+    </div>
     </div>
   );
 }
