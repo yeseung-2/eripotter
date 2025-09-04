@@ -299,7 +299,7 @@ export default function MonitoringPage() {
                         </div>
                         {company.tier1s.length > 0 && (
                           <p className="text-sm text-gray-500 mt-1">
-                            Tier 1: {company.tier1s.join(', ')}
+                            2차사: {company.tier1s.join(', ')}
                           </p>
                         )}
                       </div>
