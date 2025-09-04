@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { Drawer } from '@/components/Drawer';
 import { getKesgItems, submitAssessment } from '@/lib/api';
 import type { KesgItem, KesgResponse, AssessmentSubmissionRequest, AssessmentSubmissionResponse, AssessmentRequest, LevelData, ChoiceData } from '@/types/assessment';
@@ -13,7 +13,8 @@ type ResponseData = {
   choice_ids?: number[];
 };
 
-export default function AssessmentPage() {
+// AssessmentPage 컴포넌트를 별도로 분리
+function AssessmentPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [kesgItems, setKesgItems] = useState<KesgItem[]>([]);
@@ -253,286 +254,418 @@ export default function AssessmentPage() {
       backgroundColor: '#f8f9fa',
       minHeight: '100vh'
     }}>
+      {/* 헤더 */}
       <div style={{
-        backgroundColor: 'white',
-        borderRadius: '12px',
-        padding: '40px',
-        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-        marginBottom: '30px'
+        textAlign: 'center',
+        marginBottom: '40px'
       }}>
         <h1 style={{
           fontSize: '32px',
           fontWeight: '700',
           color: '#2c3e50',
-          marginBottom: '8px',
-          textAlign: 'center'
+          marginBottom: '16px'
         }}>
-          자가진단
+          ESG 자가진단
         </h1>
         <p style={{
-          fontSize: '16px',
+          fontSize: '18px',
           color: '#7f8c8d',
-          textAlign: 'center',
-          marginBottom: '40px'
+          marginBottom: '8px'
         }}>
-          환경, 사회, 지배구조(ESG) 자가진단을 진행하세요.
+          현재 회사: <strong style={{ color: '#007bff' }}>{companyName}</strong>
         </p>
+        <p style={{
+          fontSize: '16px',
+          color: '#6c757d'
+        }}>
+          각 문항에 대해 가장 적절한 답변을 선택해주세요
+        </p>
+      </div>
 
-        <form onSubmit={handleSubmit}>
-          {kesgItems.map((item, index) => (
+      {/* 폼 */}
+      <form onSubmit={handleSubmit}>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '24px'
+        }}>
+          {kesgItems.map((item) => (
             <div key={item.id} style={{
-              marginBottom: '40px',
-              padding: '30px',
-              backgroundColor: '#f8f9fa',
-              borderRadius: '8px',
-              border: '1px solid #e9ecef',
-              position: 'relative'
+              backgroundColor: 'white',
+              borderRadius: '16px',
+              padding: '24px',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+              border: '1px solid #e9ecef'
             }}>
-              <div style={{ marginBottom: '24px' }}>
+              {/* 문항 정보 */}
+              <div style={{
+                marginBottom: '20px'
+              }}>
                 <div style={{
                   display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'flex-start',
-                  gap: '12px'
+                  alignItems: 'center',
+                  gap: '12px',
+                  marginBottom: '12px'
                 }}>
-                  <h3 style={{
-                    fontSize: '20px',
-                    fontWeight: '600',
-                    color: '#2c3e50',
-                    marginBottom: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    flex: 1
+                  <span style={{
+                    backgroundColor: '#007bff',
+                    color: 'white',
+                    padding: '4px 12px',
+                    borderRadius: '20px',
+                    fontSize: '14px',
+                    fontWeight: '600'
                   }}>
-                    <span style={{
-                      backgroundColor: '#007bff',
-                      color: 'white',
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                      fontWeight: '500',
-                      minWidth: '24px',
-                      textAlign: 'center'
-                    }}>
-                      {item.id}
-                    </span>
-                    {item.item_name}
-                  </h3>
-                  <button
-                    onClick={(e) => handleInfoClick(item, e)}
-                    style={{
-                      backgroundColor: 'transparent',
-                      border: 'none',
-                      padding: '8px',
-                      borderRadius: '50%',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      transition: 'all 0.2s ease',
-                      minWidth: '32px',
-                      height: '32px'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#e3f2fd';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                    }}
-                  >
-                    <span style={{ fontSize: '20px', color: '#007bff' }}>ℹ️</span>
-                  </button>
+                    {item.classification}
+                  </span>
+                  <span style={{
+                    backgroundColor: '#28a745',
+                    color: 'white',
+                    padding: '4px 12px',
+                    borderRadius: '20px',
+                    fontSize: '14px',
+                    fontWeight: '600'
+                  }}>
+                    {item.domain}
+                  </span>
+                  <span style={{
+                    backgroundColor: '#6f42c1',
+                    color: 'white',
+                    padding: '4px 12px',
+                    borderRadius: '20px',
+                    fontSize: '14px',
+                    fontWeight: '600'
+                  }}>
+                    {item.category}
+                  </span>
                 </div>
+                
+                <h3 style={{
+                  fontSize: '18px',
+                  fontWeight: '600',
+                  color: '#2c3e50',
+                  marginBottom: '8px',
+                  lineHeight: '1.4'
+                }}>
+                  {item.item_name}
+                </h3>
+                
+                <p style={{
+                  fontSize: '16px',
+                  color: '#6c757d',
+                  lineHeight: '1.6',
+                  marginBottom: '16px'
+                }}>
+                  {item.item_desc}
+                </p>
+
+                <button
+                  type="button"
+                  onClick={(e) => handleInfoClick(item, e)}
+                  style={{
+                    backgroundColor: 'transparent',
+                    border: '1px solid #007bff',
+                    color: '#007bff',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#007bff';
+                    e.currentTarget.style.color = 'white';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.color = '#007bff';
+                  }}
+                >
+                  ℹ️ 상세 정보 보기
+                </button>
               </div>
 
-              {/* 단계형 문항 */}
-              {(item.question_type === 'five_level' || item.question_type === 'three_level') &&
-                item.levels_json && (
-                  <div>
-                    <h4 style={{
+              {/* 응답 입력 */}
+              <div>
+                {item.question_type === 'five_level' && (
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
+                  }}>
+                    <label style={{
                       fontSize: '16px',
                       fontWeight: '600',
-                      color: '#495057',
-                      marginBottom: '16px'
+                      color: '#2c3e50',
+                      marginBottom: '8px'
                     }}>
-                      귀사의 상황을 가장 잘 설명하는 단계를 선택해주세요.:
-                    </h4>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {item.levels_json.map((level) => (
-                        <label
-                          key={level.level_no}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'flex-start',
-                            padding: '16px',
-                            backgroundColor: responses[item.id]?.level_no === level.level_no ? '#e3f2fd' : 'white',
-                            border: `2px solid ${responses[item.id]?.level_no === level.level_no ? '#2196f3' : '#dee2e6'}`,
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease',
-                            minHeight: '60px'
-                          }}
-                          onMouseEnter={(e) => {
-                            if (responses[item.id]?.level_no !== level.level_no) {
-                              e.currentTarget.style.backgroundColor = '#f8f9fa';
-                              e.currentTarget.style.borderColor = '#adb5bd';
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (responses[item.id]?.level_no !== level.level_no) {
-                              e.currentTarget.style.backgroundColor = 'white';
-                              e.currentTarget.style.borderColor = '#dee2e6';
-                            }
-                          }}
-                        >
+                      현재 수준을 선택해주세요:
+                    </label>
+                    <div style={{
+                      display: 'flex',
+                      gap: '8px',
+                      flexWrap: 'wrap'
+                    }}>
+                      {[1, 2, 3, 4, 5].map((level) => (
+                        <label key={level} style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          cursor: 'pointer'
+                        }}>
                           <input
                             type="radio"
-                            name={`question-${item.id}`}
-                            value={level.level_no}
-                            checked={responses[item.id]?.level_no === level.level_no}
-                            onChange={() => handleLevelChange(item.id, level.level_no)}
+                            name={`question_${item.id}`}
+                            value={level}
+                            checked={responses[item.id]?.level_no === level}
+                            onChange={() => handleLevelChange(item.id, level)}
                             style={{
-                              marginRight: '12px',
-                              marginTop: '2px',
-                              transform: 'scale(1.2)'
+                              width: '18px',
+                              height: '18px',
+                              accentColor: '#007bff'
                             }}
                           />
-                          <div>
-                            <span style={{
-                              fontWeight: '600',
-                              color: '#2c3e50',
-                              fontSize: '15px',
-                              display: 'block',
-                              marginBottom: '4px'
-                            }}>
-                              {level.label}
-                            </span>
-                            <span style={{
-                              color: '#6c757d',
-                              fontSize: '14px',
-                              lineHeight: '1.5'
-                            }}>
-                              {level.desc}
-                            </span>
-                          </div>
+                          <span style={{
+                            fontSize: '16px',
+                            color: '#2c3e50'
+                          }}>
+                            {level}
+                          </span>
                         </label>
                       ))}
                     </div>
                   </div>
                 )}
 
-              {/* 선택형 문항 */}
-              {item.question_type === 'five_choice' && item.choices_json && (
-                <div>
-                  <h4 style={{
-                    fontSize: '16px',
-                    fontWeight: '600',
-                    color: '#495057',
-                    marginBottom: '16px'
+                {item.question_type === 'three_level' && (
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
                   }}>
-                    귀사에 해당하는 항목을 모두 선택해 주세요.
-                  </h4>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {item.choices_json.map((choice) => (
-                      <label
-                        key={choice.id}
-                        style={{
+                    <label style={{
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      color: '#2c3e50',
+                      marginBottom: '8px'
+                    }}>
+                      현재 수준을 선택해주세요:
+                    </label>
+                    <div style={{
+                      display: 'flex',
+                      gap: '8px',
+                      flexWrap: 'wrap'
+                    }}>
+                      {[1, 2, 3].map((level) => (
+                        <label key={level} style={{
                           display: 'flex',
-                          alignItems: 'flex-start',
-                          padding: '16px',
-                          backgroundColor: responses[item.id]?.choice_ids?.includes(choice.id) ? '#e8f5e8' : 'white',
-                          border: `2px solid ${responses[item.id]?.choice_ids?.includes(choice.id) ? '#4caf50' : '#dee2e6'}`,
-                          borderRadius: '8px',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                          minHeight: '50px'
-                        }}
-                        onMouseEnter={(e) => {
-                          if (!responses[item.id]?.choice_ids?.includes(choice.id)) {
-                            e.currentTarget.style.backgroundColor = '#f8f9fa';
-                            e.currentTarget.style.borderColor = '#adb5bd';
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!responses[item.id]?.choice_ids?.includes(choice.id)) {
-                            e.currentTarget.style.backgroundColor = 'white';
-                            e.currentTarget.style.borderColor = '#dee2e6';
-                          }
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={responses[item.id]?.choice_ids?.includes(choice.id) || false}
-                          onChange={(e) =>
-                            handleChoiceChange(item.id, choice.id, e.target.checked)
-                          }
-                          style={{
-                            marginRight: '12px',
-                            marginTop: '2px',
-                            transform: 'scale(1.2)'
-                          }}
-                        />
-                        <span style={{
-                          color: '#2c3e50',
-                          fontSize: '15px',
-                          lineHeight: '1.5'
+                          alignItems: 'center',
+                          gap: '8px',
+                          cursor: 'pointer'
                         }}>
-                          {choice.text}
-                        </span>
-                      </label>
-                    ))}
+                          <input
+                            type="radio"
+                            name={`question_${item.id}`}
+                            value={level}
+                            checked={responses[item.id]?.level_no === level}
+                            onChange={() => handleLevelChange(item.id, level)}
+                            style={{
+                              width: '18px',
+                              height: '18px',
+                              accentColor: '#007bff'
+                            }}
+                          />
+                          <span style={{
+                            fontSize: '16px',
+                            color: '#2c3e50'
+                          }}>
+                            {level}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+
+                {item.question_type === 'five_choice' && (
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
+                  }}>
+                    <label style={{
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      color: '#2c3e50',
+                      marginBottom: '8px'
+                    }}>
+                      해당하는 항목을 모두 선택해주세요:
+                    </label>
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px'
+                    }}>
+                      {[1, 2, 3, 4, 5].map((choice) => (
+                        <label key={choice} style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          cursor: 'pointer'
+                        }}>
+                          <input
+                            type="checkbox"
+                            value={choice}
+                            checked={responses[item.id]?.choice_ids?.includes(choice) || false}
+                            onChange={(e) => handleChoiceChange(item.id, choice, e.target.checked)}
+                            style={{
+                              width: '18px',
+                              height: '18px',
+                              accentColor: '#007bff'
+                            }}
+                          />
+                          <span style={{
+                            fontSize: '16px',
+                            color: '#2c3e50'
+                          }}>
+                            선택지 {choice}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           ))}
+        </div>
 
-          <div style={{
-            textAlign: 'center',
-            marginTop: '40px',
-            paddingTop: '30px',
-            borderTop: '1px solid #e9ecef'
-          }}>
-            <button 
-              type="submit"
-              style={{
-                backgroundColor: '#007bff',
-                color: 'white',
-                border: 'none',
-                padding: '16px 32px',
-                fontSize: '18px',
-                fontWeight: '600',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                minWidth: '200px'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#0056b3';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 12px rgba(0, 123, 255, 0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#007bff';
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            >
-              자가진단 제출
-            </button>
-          </div>
-        </form>
-      </div>
-      
+        {/* 제출 버튼 */}
+        <div style={{
+          marginTop: '40px',
+          textAlign: 'center'
+        }}>
+          <button
+            type="submit"
+            style={{
+              backgroundColor: '#007bff',
+              color: 'white',
+              border: 'none',
+              padding: '16px 48px',
+              fontSize: '18px',
+              fontWeight: '600',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 4px 16px rgba(0, 123, 255, 0.3)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 123, 255, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 123, 255, 0.3)';
+            }}
+          >
+            📤 자가진단 제출하기
+          </button>
+        </div>
+      </form>
+
       {/* Drawer */}
-      {selectedQuestion && (
-        <Drawer
-          isOpen={drawerOpen}
-          onClose={handleDrawerClose}
-          question={selectedQuestion}
-        />
-      )}
+      <Drawer
+        isOpen={drawerOpen}
+        onClose={handleDrawerClose}
+        title={selectedQuestion?.item_name || ''}
+      >
+        {selectedQuestion && (
+          <div style={{
+            padding: '20px'
+          }}>
+            <h3 style={{
+              fontSize: '18px',
+              fontWeight: '600',
+              color: '#2c3e50',
+              marginBottom: '16px'
+            }}>
+              {selectedQuestion.item_name}
+            </h3>
+            
+            <p style={{
+              fontSize: '16px',
+              color: '#6c757d',
+              lineHeight: '1.6',
+              marginBottom: '20px'
+            }}>
+              {selectedQuestion.item_desc}
+            </p>
+
+            {selectedQuestion.metric_desc && (
+              <div style={{
+                marginBottom: '20px'
+              }}>
+                <h4 style={{
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  color: '#2c3e50',
+                  marginBottom: '8px'
+                }}>
+                  측정 방법:
+                </h4>
+                <p style={{
+                  fontSize: '14px',
+                  color: '#6c757d',
+                  lineHeight: '1.6'
+                }}>
+                  {selectedQuestion.metric_desc}
+                </p>
+              </div>
+            )}
+
+            {selectedQuestion.data_source && (
+              <div style={{
+                marginBottom: '20px'
+              }}>
+                <h4 style={{
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  color: '#2c3e50',
+                  marginBottom: '8px'
+                }}>
+                  데이터 소스:
+                </h4>
+                <p style={{
+                  fontSize: '14px',
+                  color: '#6c757d',
+                  lineHeight: '1.6'
+                }}>
+                  {selectedQuestion.data_source}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </Drawer>
     </div>
+  );
+}
+
+// 메인 export 컴포넌트를 Suspense로 감싸기
+export default function AssessmentSurveyPage() {
+  return (
+    <Suspense fallback={
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        fontSize: '18px',
+        color: '#666'
+      }}>
+        로딩 중...
+      </div>
+    }>
+      <AssessmentPage />
+    </Suspense>
   );
 }

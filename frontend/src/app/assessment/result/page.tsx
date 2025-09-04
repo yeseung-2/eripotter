@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCompanyResults, getCompanySolutions, generateSolutions } from '@/lib/api';
 import { useSearchParams } from 'next/navigation';
-import axios from 'axios';
+import axios from '@/lib/axios';
 
 export interface AssessmentSubmissionRequest {
   question_id: number;
