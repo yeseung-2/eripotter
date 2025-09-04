@@ -44,6 +44,10 @@ export default function AssessmentMainPage() {
 
   const handleViewResults = () => {
     setIsLoading(true);
+    // localStorage에서 기존 응답 데이터가 없다면 빈 배열로 초기화
+    if (!localStorage.getItem('assessmentResponses')) {
+      localStorage.setItem('assessmentResponses', JSON.stringify([]));
+    }
     router.push('/assessment/result');
   };
 

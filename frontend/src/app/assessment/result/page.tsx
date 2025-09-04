@@ -82,17 +82,13 @@ export default function AssessmentResultPage() {
       try {
         const parsedResponses = JSON.parse(savedResponses);
         setResponses(parsedResponses);
-        
-        // 자가진단 결과 데이터 가져오기
-        fetchAssessmentResults();
-        // 솔루션은 버튼 클릭 시에만 생성되므로 초기 로딩 시에는 불러오지 않음
       } catch (error) {
         console.error('응답 데이터 파싱 오류:', error);
       }
-    } else {
-      // 응답 데이터가 없어도 결과 페이지에서 데이터를 불러올 수 있도록 시도
-      fetchAssessmentResults();
     }
+    
+    // 응답 데이터 유무와 관계없이 자가진단 결과 데이터 가져오기 시도
+    fetchAssessmentResults();
     setLoading(false);
   }, [router]);
 
@@ -413,7 +409,7 @@ export default function AssessmentResultPage() {
             color: '#2c3e50',
             marginBottom: '20px'
           }}>
-            
+            자가진단 결과
           </h3>
           
           <div style={{
@@ -620,13 +616,53 @@ export default function AssessmentResultPage() {
                 padding: '40px',
                 textAlign: 'center'
               }}>
+                <div style={{
+                  fontSize: '48px',
+                  marginBottom: '16px'
+                }}>
+                  📊
+                </div>
+                <h4 style={{
+                  fontSize: '18px',
+                  color: '#2c3e50',
+                  marginBottom: '12px',
+                  fontWeight: '600'
+                }}>
+                  자가진단을 진행해보세요
+                </h4>
                 <p style={{
                   fontSize: '16px',
                   color: '#6c757d',
-                  margin: '0'
+                  marginBottom: '20px',
+                  lineHeight: '1.6'
                 }}>
-                  자가진단 결과 데이터를 불러올 수 없습니다.
+                  아직 자가진단을 완료하지 않았습니다.<br />
+                  자가진단을 진행하면 상세한 결과와 분석을 확인할 수 있습니다.
                 </p>
+                <button 
+                  onClick={() => router.push('/assessment')}
+                  style={{
+                    backgroundColor: '#007bff',
+                    color: 'white',
+                    border: 'none',
+                    padding: '12px 24px',
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#0056b3';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#007bff';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  자가진단 시작하기
+                </button>
               </div>
             )}
           </div>
@@ -787,12 +823,28 @@ export default function AssessmentResultPage() {
                 padding: '40px',
                 textAlign: 'center'
               }}>
+                <div style={{
+                  fontSize: '48px',
+                  marginBottom: '16px'
+                }}>
+                  🎉
+                </div>
+                <h4 style={{
+                  fontSize: '18px',
+                  color: '#28a745',
+                  marginBottom: '12px',
+                  fontWeight: '600'
+                }}>
+                  취약 부문이 없습니다
+                </h4>
                 <p style={{
                   fontSize: '16px',
                   color: '#6c757d',
-                  margin: '0'
+                  margin: '0',
+                  lineHeight: '1.6'
                 }}>
-                  자가진단 점수가 0점인 취약 부문이 없습니다.
+                  현재 자가진단 결과에서 25점 이하인 취약 부문이 발견되지 않았습니다.<br />
+                  지속적인 모니터링을 통해 ESG 수준을 유지하세요.
                 </p>
               </div>
             )}
@@ -920,13 +972,29 @@ export default function AssessmentResultPage() {
               padding: '40px',
               textAlign: 'center'
             }}>
+              <div style={{
+                fontSize: '48px',
+                marginBottom: '16px'
+              }}>
+                💡
+              </div>
+              <h4 style={{
+                fontSize: '18px',
+                color: '#2c3e50',
+                marginBottom: '12px',
+                fontWeight: '600'
+              }}>
+                AI 솔루션을 생성해보세요
+              </h4>
               <p style={{
                 fontSize: '16px',
                 color: '#6c757d',
                 margin: '0',
-                marginBottom: '20px'
+                marginBottom: '20px',
+                lineHeight: '1.6'
               }}>
-                아직 생성된 솔루션이 없습니다. 아래 버튼을 클릭하여 취약 부문에 대한 AI 솔루션을 생성해보세요.
+                취약 부문에 대한 맞춤형 AI 솔루션을 생성할 수 있습니다.<br />
+                아래 버튼을 클릭하여 솔루션을 생성해보세요.
               </p>
             </div>
           )}
