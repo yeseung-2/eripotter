@@ -79,7 +79,14 @@ export default function AssessmentMainPage() {
     if (!localStorage.getItem('assessmentResponses')) {
       localStorage.setItem('assessmentResponses', JSON.stringify([]));
     }
-    router.push('/assessment/result');
+    
+    // oauth_sub를 쿼리 파라미터로 전달
+    const oauthSub = searchParams.get('oauth_sub');
+    if (oauthSub) {
+      router.push(`/assessment/result?oauth_sub=${oauthSub}`);
+    } else {
+      router.push('/assessment/result');
+    }
   };
 
   // 에러가 있는 경우

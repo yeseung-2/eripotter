@@ -134,7 +134,10 @@ export default function AssessmentPage() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // 회사명 확인
+    // 회사명 확인 및 디버깅
+    console.log('현재 companyName 상태:', companyName);
+    console.log('현재 searchParams:', searchParams.toString());
+    
     if (!companyName) {
       alert('회사 정보가 없습니다. 자가진단 페이지로 이동합니다.');
       router.push('/assessment');
@@ -165,6 +168,10 @@ export default function AssessmentPage() {
     });
 
     console.log('제출된 응답:', formattedResponses);
+    console.log('API 호출 시 전송할 데이터:', {
+      company_name: companyName,
+      responses: formattedResponses
+    });
     
     try {
       // API 호출하여 실제로 데이터 저장
@@ -176,7 +183,14 @@ export default function AssessmentPage() {
       console.log('자가진단 응답이 성공적으로 저장되었습니다:', result);
       // 응답 데이터를 localStorage에 저장하고 결과 페이지로 이동
       localStorage.setItem('assessmentResponses', JSON.stringify(formattedResponses));
-      window.location.href = '/assessment/result';
+      
+      // oauth_sub를 쿼리 파라미터로 전달
+      const oauthSub = searchParams.get('oauth_sub');
+      if (oauthSub) {
+        router.push(`/assessment/result?oauth_sub=${oauthSub}`);
+      } else {
+        router.push('/assessment/result');
+      }
     } catch (error) {
       console.error('API 호출 오류:', error);
       alert('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
