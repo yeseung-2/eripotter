@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCompanyResults, getCompanySolutions, generateSolutions } from '@/lib/api';
+import { useSearchParams } from 'next/navigation';
+import axios from 'axios';
 
 export interface AssessmentSubmissionRequest {
   question_id: number;
@@ -65,6 +67,8 @@ export interface SolutionSubmissionResponse {
 }
 
 export default function AssessmentResultPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [responses, setResponses] = useState<AssessmentSubmissionRequest[]>([]);
   const [assessmentResults, setAssessmentResults] = useState<AssessmentResult[]>([]);
   const [vulnerableSections, setVulnerableSections] = useState<VulnerableSection[]>([]);
@@ -73,7 +77,46 @@ export default function AssessmentResultPage() {
   const [generatingSolutions, setGeneratingSolutions] = useState(false);
   const [totalScore, setTotalScore] = useState<number>(0);
   const [maxPossibleScore, setMaxPossibleScore] = useState<number>(0);
-  const router = useRouter();
+  const [companyName, setCompanyName] = useState<string | null>(null);
+
+  // OAuth Sub로 회사명 조회
+  useEffect(() => {
+    const fetchCompanyName = async () => {
+      try {
+        const oauthSub = searchParams.get('oauth_sub');
+        
+        if (!oauthSub) {
+          console.error('OAuth sub가 없습니다.');
+          alert('인증 정보가 없습니다. 자가진단 페이지로 이동합니다.');
+          router.push('/assessment');
+          return;
+        }
+
+        console.log('OAuth Sub 조회:', oauthSub);
+        
+        // OAuth Sub로 회사명 조회
+        const response = await axios.get(`/api/account/accounts/me?oauth_sub=${oauthSub}`);
+        
+        if (response.data && response.data.company_name) {
+          const company = response.data.company_name;
+          setCompanyName(company);
+          console.log('회사명 조회 성공:', company);
+        } else {
+          console.error('회사명이 설정되지 않음');
+          alert('회사 정보가 설정되지 않았습니다. 프로필을 먼저 설정해주세요.');
+          router.push('/assessment');
+          return;
+        }
+      } catch (error: any) {
+        console.error('회사명 조회 실패:', error);
+        alert('회사 정보 조회 중 오류가 발생했습니다. 자가진단 페이지로 이동합니다.');
+        router.push('/assessment');
+        return;
+      }
+    };
+
+    fetchCompanyName();
+  }, [searchParams, router]);
 
   useEffect(() => {
     // localStorage에서 응답 데이터 가져오기
@@ -87,19 +130,12 @@ export default function AssessmentResultPage() {
       }
     }
     
-    // 회사명 확인
-    const companyName = localStorage.getItem('companyName');
-    if (!companyName) {
-      console.error('회사명이 설정되지 않았습니다.');
-      alert('회사 정보가 없습니다. 자가진단 페이지로 이동합니다.');
-      router.push('/assessment');
-      return;
+    // 회사명이 설정된 후에만 결과 데이터 가져오기
+    if (companyName) {
+      fetchAssessmentResults();
     }
-    
-    // 응답 데이터 유무와 관계없이 자가진단 결과 데이터 가져오기 시도
-    fetchAssessmentResults();
     setLoading(false);
-  }, [router]);
+  }, [companyName]);
 
   // Assessment 결과가 변경될 때마다 취약 부문 업데이트 및 총 점수 계산
   useEffect(() => {
@@ -111,7 +147,6 @@ export default function AssessmentResultPage() {
 
   const fetchAssessmentResults = async () => {
     try {
-      const companyName = localStorage.getItem('companyName');
       if (!companyName) {
         console.error('회사명이 설정되지 않았습니다.');
         return;
@@ -136,7 +171,6 @@ export default function AssessmentResultPage() {
 
   const fetchSolutions = async () => {
     try {
-      const companyName = localStorage.getItem('companyName');
       if (!companyName) {
         console.error('회사명이 설정되지 않았습니다.');
         return;
@@ -150,7 +184,6 @@ export default function AssessmentResultPage() {
   };
 
   const handleGenerateSolutions = async () => {
-    const companyName = localStorage.getItem('companyName');
     if (!companyName) {
       alert('회사 정보가 없습니다. 자가진단 페이지로 이동합니다.');
       router.push('/assessment');

@@ -58,7 +58,14 @@ export default function AssessmentMainPage() {
     setIsLoading(true);
     // localStorage에서 기존 응답 데이터가 있다면 제거
     localStorage.removeItem('assessmentResponses');
-    router.push('/assessment/survey');
+    
+    // oauth_sub를 쿼리 파라미터로 전달
+    const oauthSub = searchParams.get('oauth_sub');
+    if (oauthSub) {
+      router.push(`/assessment/survey?oauth_sub=${oauthSub}`);
+    } else {
+      router.push('/assessment/survey');
+    }
   };
 
   const handleViewResults = () => {

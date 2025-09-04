@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { Drawer } from '@/components/Drawer';
 import { getKesgItems, submitAssessment } from '@/lib/api';
 import type { KesgItem, KesgResponse, AssessmentSubmissionRequest, AssessmentSubmissionResponse, AssessmentRequest, LevelData, ChoiceData } from '@/types/assessment';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import axios from '@/lib/axios';
 
 // Response type for managing form state
 type ResponseData = {
@@ -14,12 +15,51 @@ type ResponseData = {
 
 export default function AssessmentPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [kesgItems, setKesgItems] = useState<KesgItem[]>([]);
   const [responses, setResponses] = useState<Record<number, ResponseData>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState<KesgItem | null>(null);
+  const [companyName, setCompanyName] = useState<string | null>(null);
+
+  // OAuth Sub로 회사명 조회
+  useEffect(() => {
+    const fetchCompanyName = async () => {
+      try {
+        const oauthSub = searchParams.get('oauth_sub');
+        
+        if (!oauthSub) {
+          setError('OAuth 인증 정보가 없습니다. 다시 로그인해주세요.');
+          return;
+        }
+
+        console.log('OAuth Sub 조회:', oauthSub);
+        
+        // OAuth Sub로 회사명 조회
+        const response = await axios.get(`/api/account/accounts/me?oauth_sub=${oauthSub}`);
+        
+        if (response.data && response.data.company_name) {
+          const company = response.data.company_name;
+          setCompanyName(company);
+          console.log('회사명 조회 성공:', company);
+        } else {
+          setError('회사 정보가 설정되지 않았습니다. 프로필을 먼저 설정해주세요.');
+          console.log('회사명이 설정되지 않음');
+        }
+      } catch (error: any) {
+        console.error('회사명 조회 실패:', error);
+        if (error.response?.status === 404) {
+          setError('계정 정보를 찾을 수 없습니다. 회원가입을 먼저 진행해주세요.');
+        } else {
+          setError('회사 정보 조회 중 오류가 발생했습니다. 다시 시도해주세요.');
+        }
+      }
+    };
+
+    fetchCompanyName();
+  }, [searchParams]);
 
   const handleInfoClick = (question: KesgItem, e: React.MouseEvent) => {
     e.preventDefault();
@@ -95,7 +135,6 @@ export default function AssessmentPage() {
     e.preventDefault();
 
     // 회사명 확인
-    const companyName = localStorage.getItem('companyName');
     if (!companyName) {
       alert('회사 정보가 없습니다. 자가진단 페이지로 이동합니다.');
       router.push('/assessment');
