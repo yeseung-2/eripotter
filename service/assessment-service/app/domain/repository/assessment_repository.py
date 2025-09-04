@@ -77,39 +77,43 @@ class AssessmentRepository:
                     logger.warning("⚠️ 저장할 응답 데이터가 없습니다.")
                     return True
                 
-                # 배치 UPSERT 쿼리 실행
-                batch_upsert_query = text("""
-                    INSERT INTO assessment (company_name, question_id, question_type, level_no, choice_ids, score, timestamp)
-                    VALUES (:company_name, :question_id, :question_type, :level_no, :choice_ids, :score, NOW())
-                    ON CONFLICT (company_name, question_id) 
-                    DO UPDATE SET
-                        question_type = EXCLUDED.question_type,
-                        level_no = EXCLUDED.level_no,
-                        choice_ids = EXCLUDED.choice_ids,
-                        score = EXCLUDED.score,
-                        timestamp = NOW()
-                """)
-                
-                # executemany를 사용하여 배치로 실행
-                db.executemany(batch_upsert_query, [
-                    {
-                        'company_name': submission["company_name"],
-                        'question_id': submission["question_id"],
-                        'question_type': submission["question_type"],
-                        'level_no': submission.get("level_no"),
-                        'choice_ids': submission.get("choice_ids") if submission.get("choice_ids") else None,
-                        'score': submission["score"]
-                    }
-                    for submission in unique_submissions.values()
-                ])
+                # SQLAlchemy의 올바른 배치 처리 방법 사용
+                for submission in unique_submissions.values():
+                    # 기존 데이터가 있는지 확인
+                    existing = db.query(AssessmentEntity).filter(
+                        AssessmentEntity.company_name == submission["company_name"],
+                        AssessmentEntity.question_id == submission["question_id"]
+                    ).first()
+                    
+                    if existing:
+                        # 기존 데이터 업데이트
+                        existing.question_type = submission["question_type"]
+                        existing.level_no = submission.get("level_no")
+                        existing.choice_ids = submission.get("choice_ids")
+                        existing.score = submission["score"]
+                        existing.timestamp = datetime.now()
+                        logger.info(f"📝 기존 데이터 업데이트: {submission['company_name']} - 문항 {submission['question_id']}")
+                    else:
+                        # 새 데이터 생성
+                        new_assessment = AssessmentEntity(
+                            company_name=submission["company_name"],
+                            question_id=submission["question_id"],
+                            question_type=submission["question_type"],
+                            level_no=submission.get("level_no"),
+                            choice_ids=submission.get("choice_ids"),
+                            score=submission["score"],
+                            timestamp=datetime.now()
+                        )
+                        db.add(new_assessment)
+                        logger.info(f"📝 새 데이터 생성: {submission['company_name']} - 문항 {submission['question_id']}")
                 
                 db.commit()
-                logger.info(f"✅ Assessment 응답 배치 UPSERT 성공: {len(unique_submissions)}개 응답")
+                logger.info(f"✅ Assessment 응답 배치 저장 성공: {len(unique_submissions)}개 응답")
                 logger.info(f"📝 저장된 데이터 샘플: {list(unique_submissions.values())[:2] if unique_submissions else '없음'}")
                 return True
                 
         except Exception as e:
-            logger.error(f"❌ Assessment 배치 UPSERT 중 오류: {e}")
+            logger.error(f"❌ Assessment 배치 저장 중 오류: {e}")
             logger.error(f"❌ 오류 상세: {type(e).__name__}: {str(e)}")
             if 'db' in locals():
                 try:
