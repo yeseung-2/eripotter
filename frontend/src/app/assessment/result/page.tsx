@@ -188,7 +188,7 @@ export default function AssessmentResultPage() {
       const levelInfo = result.levels_json?.find(level => level.level_no === result.level_no);
       if (levelInfo) {
         // desc에도 • 기준 줄바꿈 적용
-        const formattedDesc = levelInfo.desc?.replace(/• /g, '\n• ').trim() || '';
+        const formattedDesc = ((levelInfo?.desc?.replace(/• /g, '\n• ')) ?? '').trim();
         return `${result.level_no}단계: ${formattedDesc}`;
       }
       return `${result.level_no}단계`;
@@ -499,7 +499,7 @@ export default function AssessmentResultPage() {
                       marginBottom: '12px',
                       whiteSpace: 'pre-line'
                     }}>
-                      {result.item_desc?.replace(/• /g, '\n• ').trim()}
+                      {(result.item_desc?.replace(/• /g, '\n• ') ?? '').trim()}
                     </div>
                     
                     <div style={{
