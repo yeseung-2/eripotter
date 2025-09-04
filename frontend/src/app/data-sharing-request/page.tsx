@@ -459,15 +459,15 @@ const SupplierRequestPage = () => {
 
   // 데이터 로드
   useEffect(() => {
-    if (suppliers.length > 0 && hasRequestPageAccess) {
-    loadData();
+    if (hasRequestPageAccess) {
+      loadData();
     }
-  }, [suppliers, hasRequestPageAccess]);
+  }, [hasRequestPageAccess]);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const useMockData = false; // 실제 API 사용으로 변경
+      const useMockData = true; // Mock 데이터 사용 (API 문제 해결 전까지)
       
       if (useMockData) {
         // Mock 데이터 사용 (기존 코드)
@@ -484,34 +484,21 @@ const SupplierRequestPage = () => {
         setStats(calculateMockStats(mockRequests));
         await new Promise(resolve => setTimeout(resolve, 500));
       } else {
-        // 실제 API 호출
-        console.log("🔧 실제 API 호출 시작...");
+        // 실제 API 호출 (현재는 비활성화)
+        console.log("🔧 실제 API 호출은 현재 비활성화되어 있습니다.");
         
-        // 1. 내가 보낸 요청들 조회
-        const requests = await getSharingRequestsByRequester(currentCompanyId);
-        console.log("요청 데이터:", requests);
-        setMyRequests(requests.data?.requests || []);
-        
-        // 2. 통계 조회
-        const stats = await getSharingStats(currentCompanyId);
-        console.log("통계 데이터:", stats);
-        setStats(stats.data || {
-          total_requests: 0,
-          pending_requests: 0,
-          approved_requests: 0,
-          rejected_requests: 0,
-          completed_requests: 0
-        });
-        
-        // 3. 협력사 관계는 Mock 데이터 유지 (현재 API 미구현)
+        // Mock 데이터로 대체
+        const mockRequests = MOCK_MY_REQUESTS;
+        setMyRequests(mockRequests);
         setSupplierChains(suppliers.map(supplier => ({
           id: supplier.id,
-            parent_company_id: currentCompanyId,
+          parent_company_id: currentCompanyId,
           child_company_id: supplier.id,
           child_company_name: `${supplier.icon} ${supplier.name} (${supplier.level}차)`,
           chain_level: supplier.level,
           relationship_type: supplier.relationship
         })));
+        setStats(calculateMockStats(mockRequests));
       }
     } catch (error) {
       console.error("데이터 로드 실패:", error);
