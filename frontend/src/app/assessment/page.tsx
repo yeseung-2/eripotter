@@ -15,26 +15,34 @@ function AssessmentMainPageContent() {
   useEffect(() => {
     const fetchCompanyName = async () => {
       try {
-        const oauthSub = searchParams.get('oauth_sub');
+        // URL 파라미터에서 oauth_sub 확인 (우선순위 1)
+        let oauthSub = searchParams.get('oauth_sub');
+        console.log('URL 파라미터에서 oauth_sub 확인:', oauthSub);
+        
+        // URL 파라미터에 없으면 localStorage에서 가져오기 (우선순위 2)
+        if (!oauthSub) {
+          oauthSub = localStorage.getItem('oauth_sub');
+          console.log('localStorage에서 oauth_sub 가져옴:', oauthSub);
+        }
         
         if (!oauthSub) {
           setError('OAuth 인증 정보가 없습니다. 다시 로그인해주세요.');
           return;
         }
 
-        console.log('OAuth Sub 조회:', oauthSub);
+        console.log('최종 oauth_sub:', oauthSub);
         
-        // OAuth Sub로 회사명 조회
+        // OAuth Sub로 회사명 조회 (PostgreSQL account 테이블에서)
         const response = await axios.get(`/api/account/accounts/me?oauth_sub=${oauthSub}`);
         
         if (response.data && response.data.company_name) {
           const company = response.data.company_name;
           setCompanyName(company);
           localStorage.setItem('companyName', company);
-          console.log('회사명 저장 성공:', company);
+          console.log('PostgreSQL에서 회사명 조회 성공:', company);
         } else {
           setError('회사 정보가 설정되지 않았습니다. 프로필을 먼저 설정해주세요.');
-          console.log('회사명이 설정되지 않음');
+          console.log('PostgreSQL에 회사명이 설정되지 않음');
         }
       } catch (error: any) {
         console.error('회사명 조회 실패:', error);
@@ -47,7 +55,7 @@ function AssessmentMainPageContent() {
     };
 
     fetchCompanyName();
-  }, [searchParams]);
+  }, [searchParams]); // searchParams 의존성 유지
 
   const handleStartAssessment = () => {
     if (!companyName) {
