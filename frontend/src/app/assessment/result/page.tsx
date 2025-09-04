@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCompanyResults, getCompanySolutions, generateSolutions } from '@/lib/api';
 import { useSearchParams } from 'next/navigation';
@@ -66,7 +66,8 @@ export interface SolutionSubmissionResponse {
   domain: string;
 }
 
-export default function AssessmentResultPage() {
+// useSearchParams를 사용하는 별도 컴포넌트
+function AssessmentResultContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [responses, setResponses] = useState<AssessmentSubmissionRequest[]>([]);
@@ -1155,5 +1156,25 @@ export default function AssessmentResultPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// 메인 컴포넌트 - Suspense로 감싸기
+export default function AssessmentResultPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        fontSize: '18px',
+        color: '#666'
+      }}>
+        로딩 중...
+      </div>
+    }>
+      <AssessmentResultContent />
+    </Suspense>
   );
 }

@@ -26,7 +26,6 @@ const nextConfig = {
   },
 
   // 파일시스템 모듈 이슈 회피
-  experimental: { esmExternals: 'loose' },
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
