@@ -254,16 +254,20 @@ class AssessmentService:
                 
                 submissions.append(submission)
             
+            logger.info(f"📝 변환된 submissions: {len(submissions)}개")
+            
             # 배치로 점수 계산
             submissions_with_scores = self.calculate_scores_batch(submissions)
+            logger.info(f"📝 점수 계산 완료: {len(submissions_with_scores)}개")
             
             # 데이터베이스에 저장
             success = self.repository.save_assessment_responses(submissions_with_scores)
             
             if success:
-                logger.info(f"✅ 자가진단 응답 제출 성공: company_name={company_name}")
+                logger.info(f"✅ 자가진단 응답 제출 성공: company_name={company_name}, 저장된 응답 수={len(submissions_with_scores)}")
             else:
                 logger.error(f"❌ 자가진단 응답 제출 실패: company_name={company_name}")
+                raise Exception("데이터베이스 저장에 실패했습니다.")
             
             # AssessmentSubmissionResponse 리스트로 변환하여 반환
             result = []
@@ -280,11 +284,12 @@ class AssessmentService:
                 )
                 result.append(response)
             
+            logger.info(f"✅ AssessmentSubmissionResponse 변환 완료: {len(result)}개")
             return result
             
         except Exception as e:
             logger.error(f"❌ 자가진단 응답 제출 중 예상치 못한 오류: {e}")
-            return []
+            raise
     
     def get_company_results(self, company_name: str) -> List[Dict[str, Union[str, int, List[int], None]]]:
         """회사별 자가진단 결과 조회"""

@@ -32,8 +32,12 @@ export const submitAssessment = (request: AssessmentRequest): Promise<Assessment
   });
 
 // 회사별 자가진단 결과 조회
-export const getCompanyResults = (companyName: string): Promise<{ assessment_results: any[] }> =>
-  api(`/api/assessment/assessment-results/${companyName}`);
+export const getCompanyResults = (companyName: string): Promise<{ assessment_results: any[] }> => {
+  if (!companyName) {
+    return Promise.reject(new Error('회사명이 필요합니다.'));
+  }
+  return api(`/api/assessment/assessment-results/${encodeURIComponent(companyName)}`);
+};
 
 // Assessment 서비스 상태 확인
 export const checkAssessmentHealth = () =>
@@ -43,14 +47,22 @@ export const checkAssessmentHealth = () =>
 import type { SolutionSubmissionResponse } from "@/types/assessment";
 
 // 회사별 솔루션 조회
-export const getCompanySolutions = (companyName: string): Promise<SolutionSubmissionResponse[]> =>
-  api(`/api/solution/${companyName}`);
+export const getCompanySolutions = (companyName: string): Promise<SolutionSubmissionResponse[]> => {
+  if (!companyName) {
+    return Promise.reject(new Error('회사명이 필요합니다.'));
+  }
+  return api(`/api/solution/${encodeURIComponent(companyName)}`);
+};
 
 // 솔루션 생성
-export const generateSolutions = (companyName: string): Promise<SolutionSubmissionResponse[]> =>
-  api(`/api/solution/generate/${companyName}`, {
+export const generateSolutions = (companyName: string): Promise<SolutionSubmissionResponse[]> => {
+  if (!companyName) {
+    return Promise.reject(new Error('회사명이 필요합니다.'));
+  }
+  return api(`/api/solution/generate/${encodeURIComponent(companyName)}`, {
     method: "POST",
   });
+};
 
 // ===== 데이터 공유 API 함수들 =====
 export const getSharingRequestsByProvider = (providerId: string, status?: string): Promise<any> =>

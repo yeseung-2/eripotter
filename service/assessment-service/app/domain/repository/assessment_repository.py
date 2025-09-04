@@ -62,12 +62,16 @@ class AssessmentRepository:
     def save_assessment_responses(self, submissions: List[Dict[str, Union[str, int, List[int], None]]]) -> bool:
         """assessment 테이블에 응답 데이터 저장 (같은 문항은 덮어쓰기) - 배치 UPSERT 방식"""
         try:
+            logger.info(f"📝 Assessment 응답 저장 시작: {len(submissions)}개 응답")
+            
             with get_session() as db:
                 # 회사명과 문항 ID로 그룹화하여 중복 제거
                 unique_submissions = {}
                 for submission in submissions:
                     key = (submission["company_name"], submission["question_id"])
                     unique_submissions[key] = submission
+                
+                logger.info(f"📝 중복 제거 후 저장할 응답: {len(unique_submissions)}개")
                 
                 if not unique_submissions:
                     logger.warning("⚠️ 저장할 응답 데이터가 없습니다.")
@@ -101,11 +105,18 @@ class AssessmentRepository:
                 
                 db.commit()
                 logger.info(f"✅ Assessment 응답 배치 UPSERT 성공: {len(unique_submissions)}개 응답")
+                logger.info(f"📝 저장된 데이터 샘플: {list(unique_submissions.values())[:2] if unique_submissions else '없음'}")
                 return True
+                
         except Exception as e:
             logger.error(f"❌ Assessment 배치 UPSERT 중 오류: {e}")
+            logger.error(f"❌ 오류 상세: {type(e).__name__}: {str(e)}")
             if 'db' in locals():
-                db.rollback()
+                try:
+                    db.rollback()
+                    logger.info("🔄 데이터베이스 롤백 완료")
+                except Exception as rollback_error:
+                    logger.error(f"❌ 롤백 중 오류: {rollback_error}")
             return False
 
     def get_company_results(self, company_name: str) -> List[Dict[str, Union[str, int, List[int], None]]]:

@@ -1,41 +1,60 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import axios from '@/lib/axios';
 
 export default function AssessmentMainPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
+  const [companyName, setCompanyName] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // OAuth Sub로 회사명 조회
   useEffect(() => {
     const fetchCompanyName = async () => {
-      if (typeof window !== 'undefined') {
-        const urlParams = new URLSearchParams(window.location.search);
-        const oauthSub = urlParams.get('oauth_sub');
+      try {
+        const oauthSub = searchParams.get('oauth_sub');
         
-        if (oauthSub) {
-          try {
-            // OAuth Sub로 회사명 조회
-            const response = await axios.get(`/api/account/accounts/me?oauth_sub=${oauthSub}`);
-            if (response.data && response.data.company_name) {
-              localStorage.setItem('companyName', response.data.company_name);
-              console.log('회사명 저장:', response.data.company_name);
-            } else {
-              console.log('회사명이 설정되지 않았습니다.');
-            }
-          } catch (error) {
-            console.error('회사명 조회 실패:', error);
-          }
+        if (!oauthSub) {
+          setError('OAuth 인증 정보가 없습니다. 다시 로그인해주세요.');
+          return;
+        }
+
+        console.log('OAuth Sub 조회:', oauthSub);
+        
+        // OAuth Sub로 회사명 조회
+        const response = await axios.get(`/api/account/accounts/me?oauth_sub=${oauthSub}`);
+        
+        if (response.data && response.data.company_name) {
+          const company = response.data.company_name;
+          setCompanyName(company);
+          localStorage.setItem('companyName', company);
+          console.log('회사명 저장 성공:', company);
+        } else {
+          setError('회사 정보가 설정되지 않았습니다. 프로필을 먼저 설정해주세요.');
+          console.log('회사명이 설정되지 않음');
+        }
+      } catch (error: any) {
+        console.error('회사명 조회 실패:', error);
+        if (error.response?.status === 404) {
+          setError('계정 정보를 찾을 수 없습니다. 회원가입을 먼저 진행해주세요.');
+        } else {
+          setError('회사 정보 조회 중 오류가 발생했습니다. 다시 시도해주세요.');
         }
       }
     };
 
     fetchCompanyName();
-  }, []);
+  }, [searchParams]);
 
   const handleStartAssessment = () => {
+    if (!companyName) {
+      alert('회사 정보를 먼저 설정해주세요.');
+      return;
+    }
+    
     setIsLoading(true);
     // localStorage에서 기존 응답 데이터가 있다면 제거
     localStorage.removeItem('assessmentResponses');
@@ -43,6 +62,11 @@ export default function AssessmentMainPage() {
   };
 
   const handleViewResults = () => {
+    if (!companyName) {
+      alert('회사 정보를 먼저 설정해주세요.');
+      return;
+    }
+    
     setIsLoading(true);
     // localStorage에서 기존 응답 데이터가 없다면 빈 배열로 초기화
     if (!localStorage.getItem('assessmentResponses')) {
@@ -50,6 +74,122 @@ export default function AssessmentMainPage() {
     }
     router.push('/assessment/result');
   };
+
+  // 에러가 있는 경우
+  if (error) {
+    return (
+      <div style={{
+        maxWidth: '800px',
+        margin: '0 auto',
+        padding: '40px 20px',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        backgroundColor: '#f8f9fa',
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{
+          backgroundColor: 'white',
+          borderRadius: '16px',
+          padding: '60px 40px',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+          textAlign: 'center',
+          width: '100%',
+          maxWidth: '600px'
+        }}>
+          <div style={{
+            fontSize: '48px',
+            marginBottom: '24px'
+          }}>
+            ⚠️
+          </div>
+          <h2 style={{
+            fontSize: '24px',
+            fontWeight: '600',
+            color: '#dc3545',
+            marginBottom: '16px'
+          }}>
+            인증 오류
+          </h2>
+          <p style={{
+            fontSize: '16px',
+            color: '#6c757d',
+            marginBottom: '24px',
+            lineHeight: '1.6'
+          }}>
+            {error}
+          </p>
+          <button 
+            onClick={() => window.location.href = '/'}
+            style={{
+              backgroundColor: '#007bff',
+              color: 'white',
+              border: 'none',
+              padding: '12px 24px',
+              fontSize: '16px',
+              fontWeight: '600',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            홈으로 돌아가기
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 로딩 중인 경우
+  if (!companyName) {
+    return (
+      <div style={{
+        maxWidth: '800px',
+        margin: '0 auto',
+        padding: '40px 20px',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        backgroundColor: '#f8f9fa',
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{
+          backgroundColor: 'white',
+          borderRadius: '16px',
+          padding: '60px 40px',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+          textAlign: 'center',
+          width: '100%',
+          maxWidth: '600px'
+        }}>
+          <div style={{
+            fontSize: '48px',
+            marginBottom: '24px'
+          }}>
+            🔄
+          </div>
+          <h2 style={{
+            fontSize: '24px',
+            fontWeight: '600',
+            color: '#2c3e50',
+            marginBottom: '16px'
+          }}>
+            회사 정보 확인 중...
+          </h2>
+          <p style={{
+            fontSize: '16px',
+            color: '#6c757d',
+            marginBottom: '0',
+            lineHeight: '1.6'
+          }}>
+            잠시만 기다려주세요.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -99,124 +239,39 @@ export default function AssessmentMainPage() {
             fontSize: '36px',
             fontWeight: '700',
             color: '#2c3e50',
-            marginBottom: '16px',
-            lineHeight: '1.2'
+            marginBottom: '16px'
           }}>
             ESG 자가진단
           </h1>
           
           <p style={{
             fontSize: '18px',
-            color: '#6c757d',
-            lineHeight: '1.6',
-            marginBottom: '0'
+            color: '#7f8c8d',
+            marginBottom: '8px'
           }}>
-            환경, 사회, 지배구조(ESG) 자가진단을 통해<br />
-            귀사의 ESG 현황을 파악하고 개선 방향을 제시받으세요
+            현재 로그인된 회사: <strong style={{ color: '#007bff' }}>{companyName}</strong>
           </p>
-        </div>
-
-        {/* 기능 설명 섹션 */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '24px',
-          marginBottom: '50px'
-        }}>
-          <div style={{
-            backgroundColor: '#f8f9fa',
-            borderRadius: '12px',
-            padding: '24px',
-            border: '2px solid #e9ecef'
+          
+          <p style={{
+            fontSize: '16px',
+            color: '#6c757d',
+            lineHeight: '1.6'
           }}>
-            <div style={{
-              width: '48px',
-              height: '48px',
-              backgroundColor: '#28a745',
-              borderRadius: '50%',
-              margin: '0 auto 16px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-              </svg>
-            </div>
-            <h3 style={{
-              fontSize: '18px',
-              fontWeight: '600',
-              color: '#2c3e50',
-              marginBottom: '8px'
-            }}>
-              자가진단 진행
-            </h3>
-            <p style={{
-              fontSize: '14px',
-              color: '#6c757d',
-              lineHeight: '1.5',
-              margin: '0'
-            }}>
-              ESG 관련 문항에 답변하여<br />
-              현재 상태를 진단해보세요
-            </p>
-          </div>
-
-          <div style={{
-            backgroundColor: '#f8f9fa',
-            borderRadius: '12px',
-            padding: '24px',
-            border: '2px solid #e9ecef'
-          }}>
-            <div style={{
-              width: '48px',
-              height: '48px',
-              backgroundColor: '#17a2b8',
-              borderRadius: '50%',
-              margin: '0 auto 16px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14,2 14,8 20,8"/>
-                <line x1="16" y1="13" x2="8" y2="13"/>
-                <line x1="16" y1="17" x2="8" y2="17"/>
-                <polyline points="10,9 9,9 8,9"/>
-              </svg>
-            </div>
-            <h3 style={{
-              fontSize: '18px',
-              fontWeight: '600',
-              color: '#2c3e50',
-              marginBottom: '8px'
-            }}>
-              결과 확인
-            </h3>
-            <p style={{
-              fontSize: '14px',
-              color: '#6c757d',
-              lineHeight: '1.5',
-              margin: '0'
-            }}>
-              진단 결과와 취약 부문<br />
-              솔루션을 확인하세요
-            </p>
-          </div>
+            ESG 경영 수준을 진단하고 개선 방안을 제시받으세요
+          </p>
         </div>
 
         {/* 버튼 섹션 */}
         <div style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: '16px'
+          gap: '20px'
         }}>
           <button 
             onClick={handleStartAssessment}
             disabled={isLoading}
             style={{
-              backgroundColor: '#28a745',
+              backgroundColor: '#007bff',
               color: 'white',
               border: 'none',
               padding: '20px 32px',
@@ -225,63 +280,30 @@ export default function AssessmentMainPage() {
               borderRadius: '12px',
               cursor: isLoading ? 'not-allowed' : 'pointer',
               transition: 'all 0.3s ease',
-              width: '100%',
               opacity: isLoading ? 0.7 : 1,
-              boxShadow: '0 4px 12px rgba(40, 167, 69, 0.3)'
+              boxShadow: '0 4px 16px rgba(0, 123, 255, 0.3)'
             }}
             onMouseEnter={(e) => {
               if (!isLoading) {
-                e.currentTarget.style.backgroundColor = '#218838';
                 e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(40, 167, 69, 0.4)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 123, 255, 0.4)';
               }
             }}
             onMouseLeave={(e) => {
               if (!isLoading) {
-                e.currentTarget.style.backgroundColor = '#28a745';
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(40, 167, 69, 0.3)';
+                e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 123, 255, 0.3)';
               }
             }}
           >
-            {isLoading ? (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px'
-              }}>
-                <div style={{
-                  width: '16px',
-                  height: '16px',
-                  border: '2px solid transparent',
-                  borderTop: '2px solid white',
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite'
-                }} />
-                처리 중...
-              </div>
-            ) : (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px'
-              }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M5 12h14"/>
-                  <path d="m12 5 7 7-7 7"/>
-                </svg>
-                자가진단 하러가기
-              </div>
-            )}
+            {isLoading ? '진행 중...' : '자가진단 시작하기'}
           </button>
-
+          
           <button 
             onClick={handleViewResults}
             disabled={isLoading}
             style={{
-              backgroundColor: 'transparent',
+              backgroundColor: 'white',
               color: '#007bff',
               border: '2px solid #007bff',
               padding: '18px 32px',
@@ -290,31 +312,26 @@ export default function AssessmentMainPage() {
               borderRadius: '12px',
               cursor: isLoading ? 'not-allowed' : 'pointer',
               transition: 'all 0.3s ease',
-              width: '100%',
               opacity: isLoading ? 0.7 : 1
             }}
             onMouseEnter={(e) => {
               if (!isLoading) {
-                e.currentTarget.style.backgroundColor = '#007bff';
-                e.currentTarget.style.color = 'white';
+                e.currentTarget.style.backgroundColor = '#f8f9fa';
                 e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 123, 255, 0.3)';
               }
             }}
             onMouseLeave={(e) => {
               if (!isLoading) {
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.color = '#007bff';
+                e.currentTarget.style.backgroundColor = 'white';
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = 'none';
               }
             }}
           >
-            자가진단 결과 보기
+            {isLoading ? '진행 중...' : '기존 결과 보기'}
           </button>
         </div>
 
-        {/* 추가 정보 섹션 */}
+        {/* 안내 섹션 */}
         <div style={{
           marginTop: '40px',
           padding: '24px',
@@ -322,35 +339,28 @@ export default function AssessmentMainPage() {
           borderRadius: '12px',
           border: '1px solid #e9ecef'
         }}>
-          <h4 style={{
+          <h3 style={{
             fontSize: '16px',
             fontWeight: '600',
-            color: '#495057',
+            color: '#2c3e50',
             marginBottom: '12px'
           }}>
-            💡 자가진단 안내
-          </h4>
+            📋 자가진단 안내
+          </h3>
           <ul style={{
             fontSize: '14px',
-            color: '#495057',
-            lineHeight: '1.8',
+            color: '#6c757d',
+            lineHeight: '1.6',
+            textAlign: 'left',
             margin: '0',
-            paddingLeft: '20px',
-            textAlign: 'left'
-            }}>
-            <li><strong>소요 시간:</strong> 평균 10~15분이 소요됩니다.</li>
-            <li><strong>진단 범위:</strong> 환경(E), 사회(S), 지배구조(G) 3개 영역으로 구성되어 있습니다.</li>
-            <li><strong>필요 자료:</strong> 최근 5개년 경영/환경 데이터(사업보고서, 내부 경영자료 등)를 참고하면 더욱 정확하게 응답할 수 있습니다.</li>
-            <li><strong>진단 결과:</strong> 현재 상태 분석과 함께 취약 부문에 대한 맞춤형 솔루션이 제공됩니다.</li>
-            <li><strong>진행 방법:</strong> 중간 저장은 불가능하므로 한 번에 완료해 주세요.</li>
-            </ul>
+            paddingLeft: '20px'
+          }}>
+            <li>자가진단은 약 10-15분 정도 소요됩니다</li>
+            <li>답변은 언제든지 수정할 수 있습니다</li>
+            <li>진단 완료 후 상세한 결과와 개선 방안을 확인할 수 있습니다</li>
+            <li>진단 결과는 회사별로 안전하게 저장됩니다</li>
+          </ul>
         </div>
-        <style jsx>{`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}</style>
       </div>
     </div>
   );

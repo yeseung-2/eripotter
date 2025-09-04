@@ -87,6 +87,15 @@ export default function AssessmentResultPage() {
       }
     }
     
+    // 회사명 확인
+    const companyName = localStorage.getItem('companyName');
+    if (!companyName) {
+      console.error('회사명이 설정되지 않았습니다.');
+      alert('회사 정보가 없습니다. 자가진단 페이지로 이동합니다.');
+      router.push('/assessment');
+      return;
+    }
+    
     // 응답 데이터 유무와 관계없이 자가진단 결과 데이터 가져오기 시도
     fetchAssessmentResults();
     setLoading(false);
@@ -102,8 +111,12 @@ export default function AssessmentResultPage() {
 
   const fetchAssessmentResults = async () => {
     try {
-      // localStorage에서 회사명 가져오기 (실제로는 사용자 정보에서 가져와야 함)
-      const companyName = localStorage.getItem('companyName') || '테스트회사';
+      const companyName = localStorage.getItem('companyName');
+      if (!companyName) {
+        console.error('회사명이 설정되지 않았습니다.');
+        return;
+      }
+      
       const data = await getCompanyResults(companyName);
       setAssessmentResults(data.assessment_results || []);
     } catch (error) {
@@ -123,7 +136,12 @@ export default function AssessmentResultPage() {
 
   const fetchSolutions = async () => {
     try {
-      const companyName = localStorage.getItem('companyName') || '테스트회사';
+      const companyName = localStorage.getItem('companyName');
+      if (!companyName) {
+        console.error('회사명이 설정되지 않았습니다.');
+        return;
+      }
+      
       const data = await getCompanySolutions(companyName);
       setSolutions(data || []);
     } catch (error) {
@@ -132,9 +150,15 @@ export default function AssessmentResultPage() {
   };
 
   const handleGenerateSolutions = async () => {
+    const companyName = localStorage.getItem('companyName');
+    if (!companyName) {
+      alert('회사 정보가 없습니다. 자가진단 페이지로 이동합니다.');
+      router.push('/assessment');
+      return;
+    }
+    
     setGeneratingSolutions(true);
     try {
-      const companyName = localStorage.getItem('companyName') || '테스트회사';
       const data = await generateSolutions(companyName);
       setSolutions(Array.isArray(data) ? data : []);
       if (data && data.length > 0) {

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Drawer } from '@/components/Drawer';
 import { getKesgItems, submitAssessment } from '@/lib/api';
 import type { KesgItem, KesgResponse, AssessmentSubmissionRequest, AssessmentSubmissionResponse, AssessmentRequest, LevelData, ChoiceData } from '@/types/assessment';
+import { useRouter } from 'next/navigation';
 
 // Response type for managing form state
 type ResponseData = {
@@ -12,6 +13,7 @@ type ResponseData = {
 };
 
 export default function AssessmentPage() {
+  const router = useRouter();
   const [kesgItems, setKesgItems] = useState<KesgItem[]>([]);
   const [responses, setResponses] = useState<Record<number, ResponseData>>({});
   const [loading, setLoading] = useState(true);
@@ -92,6 +94,14 @@ export default function AssessmentPage() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
+    // 회사명 확인
+    const companyName = localStorage.getItem('companyName');
+    if (!companyName) {
+      alert('회사 정보가 없습니다. 자가진단 페이지로 이동합니다.');
+      router.push('/assessment');
+      return;
+    }
+
     const formattedResponses: AssessmentSubmissionRequest[] = kesgItems.map((item) => {
       const response = responses[item.id];
 
@@ -120,7 +130,7 @@ export default function AssessmentPage() {
     try {
       // API 호출하여 실제로 데이터 저장
       const result = await submitAssessment({
-        company_name: localStorage.getItem('companyName') || '테스트회사',
+        company_name: companyName,
         responses: formattedResponses
       });
 
