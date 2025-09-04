@@ -549,7 +549,7 @@ const SupplierRequestPage = () => {
         body: JSON.stringify(requestData),
       });
       
-      if (response.status === "success") {
+      if (response && typeof response === 'object' && 'status' in response && response.status === "success") {
         alert("데이터 공유 요청이 성공적으로 전송되었습니다.");
         setShowRequestForm(false);
         setRequestForm({
