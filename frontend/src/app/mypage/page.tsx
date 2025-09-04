@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Building2, Users, TrendingUp, BarChart3, Settings, User } from 'lucide-react';
+import { Building2, Users, TrendingUp, BarChart, Settings, UserCheck } from 'lucide-react';
 import Link from 'next/link';
 import SupplyChainVisualizationPage from '@/components/SupplyChainVisualizationPage';
 import { Input } from '@/components/ui/input';
@@ -21,6 +22,7 @@ import { Textarea } from '@/components/ui/textarea';
 import axios from '@/lib/axios';
 
 export default function MyPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditing, setIsEditing] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
@@ -172,7 +174,7 @@ export default function MyPage() {
             onClick={() => router.push('/main')}
             className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
           >
-            <Image 
+            <img 
               src="/logo.png" 
               alt="ERI Logo" 
               width={40} 
@@ -246,7 +248,7 @@ export default function MyPage() {
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
-                  <BarChart3 className="w-8 h-8 text-green-600" />
+                  <BarChart className="w-8 h-8 text-green-600" />
                   <div>
                     <p className="text-sm text-gray-600">활성 요청</p>
                     <p className="text-2xl font-bold">{userInfo.activeRequests}</p>
@@ -314,7 +316,7 @@ export default function MyPage() {
                   <div className="grid grid-cols-2 gap-3">
                                          <Link href="/data-sharing-request">
                        <div className="p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
-                         <BarChart3 className="w-6 h-6 text-blue-600 mb-2" />
+                         <BarChart className="w-6 h-6 text-blue-600 mb-2" />
                          <p className="text-sm font-medium">데이터 요청</p>
                        </div>
                      </Link>
@@ -351,7 +353,7 @@ export default function MyPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <User className="w-5 h-5" />
+                  <UserCheck className="w-5 h-5" />
                   기업 프로필
                 </CardTitle>
                 <CardDescription>

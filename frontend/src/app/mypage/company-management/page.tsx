@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -18,8 +17,8 @@ import {
   CheckCircle,
   Clock,
   Users,
-  BarChart3,
-  Network
+  BarChart,
+  Share2
 } from 'lucide-react';
 
 interface Company {
@@ -196,7 +195,7 @@ export default function CompanyManagementPage() {
                 onClick={() => router.push('/main')}
                 className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
               >
-                <Image 
+                <img 
                   src="/logo.png" 
                   alt="ERI Logo" 
                   width={40} 
@@ -285,7 +284,7 @@ export default function CompanyManagementPage() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <BarChart3 className="w-8 h-8 text-purple-600" />
+                <BarChart className="w-8 h-8 text-purple-600" />
                 <div>
                   <p className="text-sm text-gray-600">평균 환경점수</p>
                   <p className="text-2xl font-bold">{stats.avgScore}</p>
