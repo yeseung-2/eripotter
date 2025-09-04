@@ -1,10 +1,8 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCompanyResults, getCompanySolutions, generateSolutions } from '@/lib/api';
-import { useSearchParams } from 'next/navigation';
-import axios from '@/lib/axios';
 
 export interface AssessmentSubmissionRequest {
   question_id: number;
@@ -66,10 +64,7 @@ export interface SolutionSubmissionResponse {
   domain: string;
 }
 
-// useSearchParams를 사용하는 별도 컴포넌트
-function AssessmentResultContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+export default function AssessmentResultPage() {
   const [responses, setResponses] = useState<AssessmentSubmissionRequest[]>([]);
   const [assessmentResults, setAssessmentResults] = useState<AssessmentResult[]>([]);
   const [vulnerableSections, setVulnerableSections] = useState<VulnerableSection[]>([]);
@@ -78,46 +73,7 @@ function AssessmentResultContent() {
   const [generatingSolutions, setGeneratingSolutions] = useState(false);
   const [totalScore, setTotalScore] = useState<number>(0);
   const [maxPossibleScore, setMaxPossibleScore] = useState<number>(0);
-  const [companyName, setCompanyName] = useState<string | null>(null);
-
-  // OAuth Sub로 회사명 조회
-  useEffect(() => {
-    const fetchCompanyName = async () => {
-      try {
-        const oauthSub = searchParams.get('oauth_sub');
-        
-        if (!oauthSub) {
-          console.error('OAuth sub가 없습니다.');
-          alert('인증 정보가 없습니다. 자가진단 페이지로 이동합니다.');
-          router.push('/assessment');
-          return;
-        }
-
-        console.log('OAuth Sub 조회:', oauthSub);
-        
-        // OAuth Sub로 회사명 조회
-        const response = await axios.get(`/api/account/accounts/me?oauth_sub=${oauthSub}`);
-        
-        if (response.data && response.data.company_name) {
-          const company = response.data.company_name;
-          setCompanyName(company);
-          console.log('회사명 조회 성공:', company);
-        } else {
-          console.error('회사명이 설정되지 않음');
-          alert('회사 정보가 설정되지 않았습니다. 프로필을 먼저 설정해주세요.');
-          router.push('/assessment');
-          return;
-        }
-      } catch (error: any) {
-        console.error('회사명 조회 실패:', error);
-        alert('회사 정보 조회 중 오류가 발생했습니다. 자가진단 페이지로 이동합니다.');
-        router.push('/assessment');
-        return;
-      }
-    };
-
-    fetchCompanyName();
-  }, [searchParams, router]);
+  const router = useRouter();
 
   useEffect(() => {
     // localStorage에서 응답 데이터 가져오기
@@ -131,12 +87,19 @@ function AssessmentResultContent() {
       }
     }
     
-    // 회사명이 설정된 후에만 결과 데이터 가져오기
-    if (companyName) {
-      fetchAssessmentResults();
+    // 회사명 확인
+    const companyName = localStorage.getItem('companyName');
+    if (!companyName) {
+      console.error('회사명이 설정되지 않았습니다.');
+      alert('회사 정보가 없습니다. 자가진단 페이지로 이동합니다.');
+      router.push('/assessment');
+      return;
     }
+    
+    // 응답 데이터 유무와 관계없이 자가진단 결과 데이터 가져오기 시도
+    fetchAssessmentResults();
     setLoading(false);
-  }, [companyName]);
+  }, [router]);
 
   // Assessment 결과가 변경될 때마다 취약 부문 업데이트 및 총 점수 계산
   useEffect(() => {
@@ -148,6 +111,7 @@ function AssessmentResultContent() {
 
   const fetchAssessmentResults = async () => {
     try {
+      const companyName = localStorage.getItem('companyName');
       if (!companyName) {
         console.error('회사명이 설정되지 않았습니다.');
         return;
@@ -172,6 +136,7 @@ function AssessmentResultContent() {
 
   const fetchSolutions = async () => {
     try {
+      const companyName = localStorage.getItem('companyName');
       if (!companyName) {
         console.error('회사명이 설정되지 않았습니다.');
         return;
@@ -185,6 +150,7 @@ function AssessmentResultContent() {
   };
 
   const handleGenerateSolutions = async () => {
+    const companyName = localStorage.getItem('companyName');
     if (!companyName) {
       alert('회사 정보가 없습니다. 자가진단 페이지로 이동합니다.');
       router.push('/assessment');
@@ -1156,25 +1122,5 @@ function AssessmentResultContent() {
         </div>
       </div>
     </div>
-  );
-}
-
-// 메인 컴포넌트 - Suspense로 감싸기
-export default function AssessmentResultPage() {
-  return (
-    <Suspense fallback={
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh',
-        fontSize: '18px',
-        color: '#666'
-      }}>
-        로딩 중...
-      </div>
-    }>
-      <AssessmentResultContent />
-    </Suspense>
   );
 }

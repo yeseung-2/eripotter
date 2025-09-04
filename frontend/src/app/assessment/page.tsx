@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import axios from '@/lib/axios';
 
-// AssessmentMainPage 컴포넌트를 별도로 분리
-function AssessmentMainPage() {
+export default function AssessmentMainPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
@@ -16,41 +15,17 @@ function AssessmentMainPage() {
   useEffect(() => {
     const fetchCompanyName = async () => {
       try {
-        // 1. 쿼리 파라미터에서 oauth_sub 확인
-        let oauthSub = searchParams.get('oauth_sub');
+        const oauthSub = searchParams.get('oauth_sub');
         
-        // 2. 쿼리 파라미터가 없으면 localStorage에서 확인
         if (!oauthSub) {
-          // localStorage의 모든 키 확인
-          console.log('localStorage 전체 내용:');
-          for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            console.log(`${key}: ${localStorage.getItem(key)}`);
-          }
-          
-          // 여러 가능한 키 이름으로 시도
-          const storedOauthSub = localStorage.getItem('oauth_sub') || 
-                                 localStorage.getItem('OAuth sub') || 
-                                 localStorage.getItem('oauthSub') ||
-                                 localStorage.getItem('oauth_sub_key');
-          oauthSub = storedOauthSub;
-          
-          console.log('localStorage에서 OAuth Sub 조회:', oauthSub);
-        }
-        
-        // 3. OAuth sub가 없으면 로그인 페이지로 리다이렉트
-        if (!oauthSub) {
-          console.log('OAuth sub가 없어서 로그인 페이지로 이동');
-          router.push('/');
+          setError('OAuth 인증 정보가 없습니다. 다시 로그인해주세요.');
           return;
         }
 
         console.log('OAuth Sub 조회:', oauthSub);
         
         // OAuth Sub로 회사명 조회
-        console.log('API 호출 시작:', `/api/account/accounts/me?oauth_sub=${oauthSub}`);
         const response = await axios.get(`/api/account/accounts/me?oauth_sub=${oauthSub}`);
-        console.log('API 응답:', response.data);
         
         if (response.data && response.data.company_name) {
           const company = response.data.company_name;
@@ -59,21 +34,12 @@ function AssessmentMainPage() {
           console.log('회사명 저장 성공:', company);
         } else {
           setError('회사 정보가 설정되지 않았습니다. 프로필을 먼저 설정해주세요.');
-          console.log('회사명이 설정되지 않음, 응답 데이터:', response.data);
+          console.log('회사명이 설정되지 않음');
         }
       } catch (error: any) {
         console.error('회사명 조회 실패:', error);
-        console.error('에러 상세 정보:', {
-          status: error.response?.status,
-          statusText: error.response?.statusText,
-          data: error.response?.data,
-          message: error.message
-        });
-        
         if (error.response?.status === 404) {
           setError('계정 정보를 찾을 수 없습니다. 회원가입을 먼저 진행해주세요.');
-        } else if (error.response?.status === 500) {
-          setError('서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
         } else {
           setError('회사 정보 조회 중 오류가 발생했습니다. 다시 시도해주세요.');
         }
@@ -81,7 +47,7 @@ function AssessmentMainPage() {
     };
 
     fetchCompanyName();
-  }, [searchParams, router]);
+  }, [searchParams]);
 
   const handleStartAssessment = () => {
     if (!companyName) {
@@ -92,14 +58,7 @@ function AssessmentMainPage() {
     setIsLoading(true);
     // localStorage에서 기존 응답 데이터가 있다면 제거
     localStorage.removeItem('assessmentResponses');
-    
-    // oauth_sub를 쿼리 파라미터로 전달
-    const oauthSub = searchParams.get('oauth_sub');
-    if (oauthSub) {
-      router.push(`/assessment/survey?oauth_sub=${oauthSub}`);
-    } else {
-      router.push('/assessment/survey');
-    }
+    router.push('/assessment/survey');
   };
 
   const handleViewResults = () => {
@@ -113,14 +72,7 @@ function AssessmentMainPage() {
     if (!localStorage.getItem('assessmentResponses')) {
       localStorage.setItem('assessmentResponses', JSON.stringify([]));
     }
-    
-    // oauth_sub를 쿼리 파라미터로 전달
-    const oauthSub = searchParams.get('oauth_sub');
-    if (oauthSub) {
-      router.push(`/assessment/result?oauth_sub=${oauthSub}`);
-    } else {
-      router.push('/assessment/result');
-    }
+    router.push('/assessment/result');
   };
 
   // 에러가 있는 경우
@@ -169,7 +121,7 @@ function AssessmentMainPage() {
             {error}
           </p>
           <button 
-            onClick={() => router.push('/')}
+            onClick={() => window.location.href = '/'}
             style={{
               backgroundColor: '#007bff',
               color: 'white',
@@ -181,12 +133,6 @@ function AssessmentMainPage() {
               cursor: 'pointer',
               transition: 'all 0.2s ease'
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#0056b3';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#007bff';
-            }}
           >
             홈으로 돌아가기
           </button>
@@ -196,17 +142,51 @@ function AssessmentMainPage() {
   }
 
   // 로딩 중인 경우
-  if (isLoading) {
+  if (!companyName) {
     return (
       <div style={{
+        maxWidth: '800px',
+        margin: '0 auto',
+        padding: '40px 20px',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        backgroundColor: '#f8f9fa',
+        minHeight: '100vh',
         display: 'flex',
-        justifyContent: 'center',
         alignItems: 'center',
-        height: '100vh',
-        fontSize: '18px',
-        color: '#666'
+        justifyContent: 'center'
       }}>
-        로딩 중...
+        <div style={{
+          backgroundColor: 'white',
+          borderRadius: '16px',
+          padding: '60px 40px',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+          textAlign: 'center',
+          width: '100%',
+          maxWidth: '600px'
+        }}>
+          <div style={{
+            fontSize: '48px',
+            marginBottom: '24px'
+          }}>
+            🔄
+          </div>
+          <h2 style={{
+            fontSize: '24px',
+            fontWeight: '600',
+            color: '#2c3e50',
+            marginBottom: '16px'
+          }}>
+            회사 정보 확인 중...
+          </h2>
+          <p style={{
+            fontSize: '16px',
+            color: '#6c757d',
+            marginBottom: '0',
+            lineHeight: '1.6'
+          }}>
+            잠시만 기다려주세요.
+          </p>
+        </div>
       </div>
     );
   }
@@ -274,119 +254,114 @@ function AssessmentMainPage() {
           
           <p style={{
             fontSize: '16px',
-            color: '#6c757d'
+            color: '#6c757d',
+            lineHeight: '1.6'
           }}>
-            ESG 성과를 평가하고 개선 방안을 도출하세요
+            ESG 경영 수준을 진단하고 개선 방안을 제시받으세요
           </p>
         </div>
 
-        {/* 액션 버튼들 */}
+        {/* 버튼 섹션 */}
         <div style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: '16px'
+          gap: '20px'
         }}>
-          <button
+          <button 
             onClick={handleStartAssessment}
-            disabled={!companyName}
+            disabled={isLoading}
             style={{
-              backgroundColor: companyName ? '#007bff' : '#6c757d',
+              backgroundColor: '#007bff',
               color: 'white',
               border: 'none',
-              padding: '16px 32px',
+              padding: '20px 32px',
               fontSize: '18px',
               fontWeight: '600',
               borderRadius: '12px',
-              cursor: companyName ? 'pointer' : 'not-allowed',
-              transition: 'all 0.2s ease',
-              boxShadow: companyName ? '0 4px 16px rgba(0, 123, 255, 0.3)' : 'none'
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              transition: 'all 0.3s ease',
+              opacity: isLoading ? 0.7 : 1,
+              boxShadow: '0 4px 16px rgba(0, 123, 255, 0.3)'
             }}
             onMouseEnter={(e) => {
-              if (companyName) {
+              if (!isLoading) {
                 e.currentTarget.style.transform = 'translateY(-2px)';
                 e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 123, 255, 0.4)';
               }
             }}
             onMouseLeave={(e) => {
-              if (companyName) {
+              if (!isLoading) {
                 e.currentTarget.style.transform = 'translateY(0)';
                 e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 123, 255, 0.3)';
               }
             }}
           >
-            🚀 자가진단 시작하기
+            {isLoading ? '진행 중...' : '자가진단 시작하기'}
           </button>
-
-          <button
+          
+          <button 
             onClick={handleViewResults}
-            disabled={!companyName}
+            disabled={isLoading}
             style={{
-              backgroundColor: companyName ? '#28a745' : '#6c757d',
-              color: 'white',
-              border: 'none',
-              padding: '16px 32px',
-              fontSize: '18px',
+              backgroundColor: 'white',
+              color: '#007bff',
+              border: '2px solid #007bff',
+              padding: '18px 32px',
+              fontSize: '16px',
               fontWeight: '600',
               borderRadius: '12px',
-              cursor: companyName ? 'pointer' : 'not-allowed',
-              transition: 'all 0.2s ease',
-              boxShadow: companyName ? '0 4px 16px rgba(40, 167, 69, 0.3)' : 'none'
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              transition: 'all 0.3s ease',
+              opacity: isLoading ? 0.7 : 1
             }}
             onMouseEnter={(e) => {
-              if (companyName) {
+              if (!isLoading) {
+                e.currentTarget.style.backgroundColor = '#f8f9fa';
                 e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(40, 167, 69, 0.4)';
               }
             }}
             onMouseLeave={(e) => {
-              if (companyName) {
+              if (!isLoading) {
+                e.currentTarget.style.backgroundColor = 'white';
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 16px rgba(40, 167, 69, 0.3)';
               }
             }}
           >
-            📊 이전 결과 보기
+            {isLoading ? '진행 중...' : '기존 결과 보기'}
           </button>
         </div>
 
-        {/* 안내 문구 */}
+        {/* 안내 섹션 */}
         <div style={{
           marginTop: '40px',
-          padding: '20px',
+          padding: '24px',
           backgroundColor: '#f8f9fa',
           borderRadius: '12px',
           border: '1px solid #e9ecef'
         }}>
-          <p style={{
+          <h3 style={{
+            fontSize: '16px',
+            fontWeight: '600',
+            color: '#2c3e50',
+            marginBottom: '12px'
+          }}>
+            📋 자가진단 안내
+          </h3>
+          <ul style={{
             fontSize: '14px',
             color: '#6c757d',
+            lineHeight: '1.6',
+            textAlign: 'left',
             margin: '0',
-            textAlign: 'center'
+            paddingLeft: '20px'
           }}>
-            💡 <strong>팁:</strong> 자가진단을 완료하면 ESG 성과 개선 방안과 맞춤형 솔루션을 제공받을 수 있습니다.
-          </p>
+            <li>자가진단은 약 10-15분 정도 소요됩니다</li>
+            <li>답변은 언제든지 수정할 수 있습니다</li>
+            <li>진단 완료 후 상세한 결과와 개선 방안을 확인할 수 있습니다</li>
+            <li>진단 결과는 회사별로 안전하게 저장됩니다</li>
+          </ul>
         </div>
       </div>
     </div>
-  );
-}
-
-// 메인 export 컴포넌트를 Suspense로 감싸기
-export default function AssessmentPage() {
-  return (
-    <Suspense fallback={
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        fontSize: '18px',
-        color: '#666'
-      }}>
-        로딩 중...
-      </div>
-    }>
-      <AssessmentMainPage />
-    </Suspense>
   );
 }
