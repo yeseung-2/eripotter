@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import axios from '@/lib/axios';
 
-export default function AssessmentMainPage() {
+function AssessmentMainPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
@@ -363,5 +363,58 @@ export default function AssessmentMainPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AssessmentMainPage() {
+  return (
+    <Suspense fallback={
+      <div style={{
+        maxWidth: '800px',
+        margin: '0 auto',
+        padding: '40px 20px',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        backgroundColor: '#f8f9fa',
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{
+          backgroundColor: 'white',
+          borderRadius: '16px',
+          padding: '60px 40px',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+          textAlign: 'center',
+          width: '100%',
+          maxWidth: '600px'
+        }}>
+          <div style={{
+            fontSize: '48px',
+            marginBottom: '24px'
+          }}>
+            🔄
+          </div>
+          <h2 style={{
+            fontSize: '24px',
+            fontWeight: '600',
+            color: '#2c3e50',
+            marginBottom: '16px'
+          }}>
+            페이지 로딩 중...
+          </h2>
+          <p style={{
+            fontSize: '16px',
+            color: '#6c757d',
+            marginBottom: '0',
+            lineHeight: '1.6'
+          }}>
+            잠시만 기다려주세요.
+          </p>
+        </div>
+      </div>
+    }>
+      <AssessmentMainPageContent />
+    </Suspense>
   );
 }
