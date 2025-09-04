@@ -53,7 +53,7 @@ class MonitoringRepository:
             return []
 
     def get_company_vulnerable_sections(self, company_name: str) -> List[Dict[str, Union[str, int, float, List[Dict[str, Union[str, int]]], Dict[str, int], None]]]:
-        """assessment와 kesg 테이블을 조인하여 특정 회사의 취약부문(score=0) 조회"""
+        """assessment와 kesg 테이블을 조인하여 특정 회사의 취약부문(score가 0점 또는 25점인 문항) 조회"""
         try:
             with get_session() as db:
                 # 테이블 존재 여부 확인
@@ -64,7 +64,7 @@ class MonitoringRepository:
                     logger.error(f"❌ assessment 또는 kesg 테이블이 존재하지 않습니다: {table_error}")
                     return []
                 
-                # assessment와 kesg 테이블 조인하여 score=0인 항목 조회
+                # assessment와 kesg 테이블 조인하여 score가 0점 또는 25점인 항목 조회
                 query = text("""
                     SELECT 
                         a.id, a.company_name, a.question_id, a.question_type, 
@@ -73,7 +73,7 @@ class MonitoringRepository:
                         k.levels_json, k.choices_json, k.weight
                     FROM assessment a
                     JOIN kesg k ON a.question_id = k.id
-                    WHERE a.company_name = :company_name AND a.score = 0
+                    WHERE a.company_name = :company_name AND a.score IN (0, 25)
                     ORDER BY k.classification, k.domain, k.category
                 """)
                 

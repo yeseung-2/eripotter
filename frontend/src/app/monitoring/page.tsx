@@ -209,13 +209,24 @@ export default function MonitoringPage() {
                     <div className="px-6 py-4">
                       <div className="space-y-3">
                         {company.vulnerable_sections.map((section) => (
-                          <div key={section.id} className="border border-red-200 bg-red-50 rounded-lg p-3">
+                          <div key={section.id} className={`border rounded-lg p-3 ${
+                            section.score === 0 
+                              ? 'border-red-200 bg-red-50' 
+                              : 'border-orange-200 bg-orange-50'
+                          }`}>
                             <div className="flex justify-between items-start mb-2">
-                              <h4 className="font-semibold text-red-800 text-sm">
+                              <h4 className={`font-semibold text-sm ${
+                                section.score === 0 ? 'text-red-800' : 'text-orange-800'
+                              }`}>
                                 {section.item_name || `문항 ${section.question_id}`}
                               </h4>
-                              <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                section.score === 0 ? 'bg-red-100 text-red-800' : 'bg-orange-100 text-orange-800'
+                              }`}>
                                 점수: {section.score}
+                                {section.score === 25 && (
+                                  <span className="ml-1 text-xs">(보통)</span>
+                                )}
                               </span>
                             </div>
                             <div className="text-xs text-gray-600 space-y-1">
@@ -251,7 +262,7 @@ export default function MonitoringPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">취약부문이 없습니다</h3>
-                <p className="text-gray-500">{rootCompany} 공급망에서 취약부문(score=0)이 있는 회사가 없습니다.</p>
+                <p className="text-gray-500">{rootCompany} 공급망에서 취약부문(자가진단 점수가 25점 이하인 문항)이 있는 회사가 없습니다.</p>
               </div>
             )}
           </div>

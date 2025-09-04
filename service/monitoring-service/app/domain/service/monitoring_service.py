@@ -70,11 +70,11 @@ class MonitoringService:
     # ===== Vulnerability Analysis =====
     
     def get_company_vulnerabilities(self) -> CompanyVulnerabilityResponse:
-        """특정 회사의 취약부문(score=0) 조회"""
+        """특정 회사의 취약부문(score가 0점 또는 25점인 문항) 조회"""
         try:
             logger.info(f"📝 회사 취약부문 조회 요청: company_name={self.root_company}")
             
-            # Assessment Service에서 취약부문 조회
+            # Assessment Service에서 취약부문 조회 (0점 또는 25점)
             vulnerable_sections_data = self.repository.get_company_vulnerable_sections(self.root_company)
             
             # Pydantic 모델로 변환
