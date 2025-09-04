@@ -16,17 +16,41 @@ function AssessmentMainPage() {
   useEffect(() => {
     const fetchCompanyName = async () => {
       try {
-        const oauthSub = searchParams.get('oauth_sub');
+        // 1. 쿼리 파라미터에서 oauth_sub 확인
+        let oauthSub = searchParams.get('oauth_sub');
         
+        // 2. 쿼리 파라미터가 없으면 localStorage에서 확인
         if (!oauthSub) {
-          setError('OAuth 인증 정보가 없습니다. 다시 로그인해주세요.');
+          // localStorage의 모든 키 확인
+          console.log('localStorage 전체 내용:');
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            console.log(`${key}: ${localStorage.getItem(key)}`);
+          }
+          
+          // 여러 가능한 키 이름으로 시도
+          const storedOauthSub = localStorage.getItem('oauth_sub') || 
+                                 localStorage.getItem('OAuth sub') || 
+                                 localStorage.getItem('oauthSub') ||
+                                 localStorage.getItem('oauth_sub_key');
+          oauthSub = storedOauthSub;
+          
+          console.log('localStorage에서 OAuth Sub 조회:', oauthSub);
+        }
+        
+        // 3. OAuth sub가 없으면 로그인 페이지로 리다이렉트
+        if (!oauthSub) {
+          console.log('OAuth sub가 없어서 로그인 페이지로 이동');
+          router.push('/');
           return;
         }
 
         console.log('OAuth Sub 조회:', oauthSub);
         
         // OAuth Sub로 회사명 조회
+        console.log('API 호출 시작:', `/api/account/accounts/me?oauth_sub=${oauthSub}`);
         const response = await axios.get(`/api/account/accounts/me?oauth_sub=${oauthSub}`);
+        console.log('API 응답:', response.data);
         
         if (response.data && response.data.company_name) {
           const company = response.data.company_name;
@@ -35,12 +59,21 @@ function AssessmentMainPage() {
           console.log('회사명 저장 성공:', company);
         } else {
           setError('회사 정보가 설정되지 않았습니다. 프로필을 먼저 설정해주세요.');
-          console.log('회사명이 설정되지 않음');
+          console.log('회사명이 설정되지 않음, 응답 데이터:', response.data);
         }
       } catch (error: any) {
         console.error('회사명 조회 실패:', error);
+        console.error('에러 상세 정보:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          message: error.message
+        });
+        
         if (error.response?.status === 404) {
           setError('계정 정보를 찾을 수 없습니다. 회원가입을 먼저 진행해주세요.');
+        } else if (error.response?.status === 500) {
+          setError('서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
         } else {
           setError('회사 정보 조회 중 오류가 발생했습니다. 다시 시도해주세요.');
         }
@@ -48,7 +81,7 @@ function AssessmentMainPage() {
     };
 
     fetchCompanyName();
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   const handleStartAssessment = () => {
     if (!companyName) {
@@ -136,7 +169,7 @@ function AssessmentMainPage() {
             {error}
           </p>
           <button 
-            onClick={() => window.location.href = '/'}
+            onClick={() => router.push('/')}
             style={{
               backgroundColor: '#007bff',
               color: 'white',
@@ -147,6 +180,12 @@ function AssessmentMainPage() {
               borderRadius: '8px',
               cursor: 'pointer',
               transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#0056b3';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#007bff';
             }}
           >
             홈으로 돌아가기
