@@ -1,14 +1,15 @@
 import axios from 'axios';
 
 const instance = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000",
-  timeout: 60000, // 60초로 증가 (POST 요청 처리 시간이 오래 걸림)
+  // .env(.env.local)에서 NEXT_PUBLIC_API_URL이 있으면 사용,
+  // 없으면 로컬 게이트웨이로 기본값.
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080',
+  timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// 요청 인터셉터 추가
 instance.interceptors.request.use(
   (config) => {
     console.log('API 요청:', config.method?.toUpperCase(), config.url);
@@ -20,11 +21,8 @@ instance.interceptors.request.use(
   }
 );
 
-// 응답 인터셉터 추가
 instance.interceptors.response.use(
-  (response) => {
-    return response;
-  },
+  (response) => response,
   (error) => {
     console.error('API 응답 에러:', error.response?.status, error.response?.data);
     return Promise.reject(error);

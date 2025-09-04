@@ -55,10 +55,11 @@ def cors_headers_for(request: Request):
 
 # 서비스 URL 설정
 ACCOUNT_SERVICE_URL = os.getenv("ACCOUNT_SERVICE_URL", "http://account-service:8001")
-ASSESSMENT_SERVICE_URL = os.getenv("ASSESSMENT_SERVICE_URL", "http://localhost:8002")
-CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "http://localhost:8003")
-SHARING_SERVICE_URL = os.getenv("SHARING_SERVICE_URL", "http://localhost:8008")
-REPORT_SERVICE_URL = os.getenv("REPORT_SERVICE_URL", "http://localhost:8007")
+ASSESSMENT_SERVICE_URL = os.getenv("ASSESSMENT_SERVICE_URL", "http://assessment-service:8002")
+CHATBOT_SERVICE_URL = os.getenv("CHATBOT_SERVICE_URL", "http://chatbot-service:8003")
+SHARING_SERVICE_URL = os.getenv("SHARING_SERVICE_URL", "http://sharing-service:8008")
+REPORT_SERVICE_URL = os.getenv("REPORT_SERVICE_URL", "http://report-service:8007")
+NORMAL_SERVICE_URL = os.getenv("NORMAL_SERVICE_URL", "http://normal-service:8005")
 TIMEOUT = float(os.getenv("UPSTREAM_TIMEOUT", "20"))
 
 @app.get("/health")
@@ -146,6 +147,24 @@ async def assessment_root(request: Request):
 @app.api_route("/api/assessment/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def assessment_any(path: str, request: Request):
     return await _proxy(request, ASSESSMENT_SERVICE_URL, f"/assessment/{path}")
+
+# Normal service 라우팅
+@app.api_route("/api/normal", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+async def normal_root(request: Request):
+    return await _proxy(request, NORMAL_SERVICE_URL, "/api/normal")
+
+@app.api_route("/api/normal/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+async def normal_any(path: str, request: Request):
+    return await _proxy(request, NORMAL_SERVICE_URL, f"/api/normal/{path}")
+
+# Normal service v1 라우팅 (프론트엔드 Next.js 프록시용)
+@app.api_route("/api/v1/normal", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+async def normal_v1_root(request: Request):
+    return await _proxy(request, NORMAL_SERVICE_URL, "/api/normal")
+
+@app.api_route("/api/v1/normal/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+async def normal_v1_any(path: str, request: Request):
+    return await _proxy(request, NORMAL_SERVICE_URL, f"/api/normal/{path}")
 
 @app.api_route("/api/chatbot", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def chatbot_root(request: Request):

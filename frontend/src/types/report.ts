@@ -46,4 +46,34 @@ export type Indicator = {
   };
   
   export type IndicatorSaveRequest = IndicatorDraftRequest;
+
+  // 새로운 통일된 API 응답 타입들
+  export type InputFieldsResponse = {
+    indicator_id: string;
+    required_data: string;
+    required_fields: any[];
+  };
+
+  export type DraftResponse = string; // HTML 문자열
+
+  export type SaveResponse = {
+    success: boolean;
+    message: string;
+    indicator_id: string;
+    company_name: string;
+    saved_at?: string;
+  };
+
+  export type IndicatorDataResponse = {
+    success: boolean;
+    message: string;
+    data: {
+      indicator_id: string;
+      company_name: string;
+      inputs: Record<string, any>;
+      retrieved_at: string;
+    } | null;
+  };
+
+  export type SummaryResponse = string; // HTML 문자열
   

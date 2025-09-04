@@ -19,8 +19,7 @@ import {
   Download,
   Eye,
   ArrowLeft,
-  TrendingUp,
-  RotateCcw
+  TrendingUp
 } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -261,7 +260,7 @@ const DataSharingPage = () => {
     const companyCode = "A"; // A, B, C 등
     const companyId = `TIER${companyTier}_${companyCode}`;
     
-    const tierNames = {
+    const tierNames: { [key: number]: string } = {
       0: "원청사",
       1: "1차사",
       2: "2차사",
@@ -269,7 +268,7 @@ const DataSharingPage = () => {
       4: "4차사"
     };
     
-    const tierIcons = {
+    const tierIcons: { [key: number]: string } = {
       0: "🏭",
       1: "🔧",
       2: "⚙️",
@@ -296,7 +295,7 @@ const currentUserId = companyInfo.userId;
 
 // 원청사 접근 권한 체크
 const isOriginalEquipmentManufacturer = companyInfo.companyTier === 0;
-const hasApprovalPageAccess = companyInfo.hasUpperTier; // 상위 tier가 있어야 승인 페이지 사용 가능
+  // 접근 제한 로직 제거
 const currentUserName = companyInfo.userName;
 
 // 동적으로 생성된 Mock 데이터
@@ -332,14 +331,21 @@ const MOCK_REQUESTS = generateMockRequests(companyInfo);
         const statusFilter = activeTab === "all" ? undefined : activeTab;
         const requestsResponse = await api(`/sharing/provider/${currentCompanyId}${statusFilter ? `?status=${statusFilter}` : ''}`);
         
-        if (requestsResponse.status === "success") {
-          setRequests(requestsResponse.data.requests || []);
+        // 타입 가드 추가
+        if (requestsResponse && typeof requestsResponse === 'object' && 'status' in requestsResponse) {
+          if (requestsResponse.status === "success") {
+            const responseData = requestsResponse as any;
+            setRequests(responseData.data?.requests || []);
+          }
         }
         
         // 통계 조회
         const statsResponse = await api(`/sharing/stats/${currentCompanyId}`);
-        if (statsResponse.status === "success") {
-          setStats(statsResponse.data);
+        if (statsResponse && typeof statsResponse === 'object' && 'status' in statsResponse) {
+          if (statsResponse.status === "success") {
+            const responseData = statsResponse as any;
+            setStats(responseData.data || {});
+          }
         }
       }
       
@@ -403,11 +409,16 @@ const MOCK_REQUESTS = generateMockRequests(companyInfo);
         method: 'PUT'
       });
       
-      if (response.status === "success") {
-        alert("요청이 승인되었습니다.");
-        setSelectedRequest(null);
-        setReviewComment("");
-        loadData();
+      // 타입 가드 추가
+      if (response && typeof response === 'object' && 'status' in response) {
+        if (response.status === "success") {
+          alert("요청이 승인되었습니다.");
+          setSelectedRequest(null);
+          setReviewComment("");
+          loadData();
+        } else {
+          alert("❌ 승인 처리 중 문제가 발생했습니다.\n네트워크 상태를 확인하고 다시 시도해주세요.");
+        }
       } else {
         alert("❌ 승인 처리 중 문제가 발생했습니다.\n네트워크 상태를 확인하고 다시 시도해주세요.");
       }
@@ -460,11 +471,16 @@ const MOCK_REQUESTS = generateMockRequests(companyInfo);
         method: 'PUT'
       });
       
-      if (response.status === "success") {
-        alert("요청이 거부되었습니다.");
-        setSelectedRequest(null);
-        setReviewComment("");
-        loadData();
+      // 타입 가드 추가
+      if (response && typeof response === 'object' && 'status' in response) {
+        if (response.status === "success") {
+          alert("요청이 거부되었습니다.");
+          setSelectedRequest(null);
+          setReviewComment("");
+          loadData();
+        } else {
+          alert("거부 처리 중 오류가 발생했습니다.");
+        }
       } else {
         alert("거부 처리 중 오류가 발생했습니다.");
       }
@@ -512,9 +528,14 @@ const MOCK_REQUESTS = generateMockRequests(companyInfo);
         method: 'POST'
       });
       
-      if (response.status === "success") {
-        alert("데이터가 성공적으로 전송되었습니다.");
-        loadData();
+      // 타입 가드 추가
+      if (response && typeof response === 'object' && 'status' in response) {
+        if (response.status === "success") {
+          alert("데이터가 성공적으로 전송되었습니다.");
+          loadData();
+        } else {
+          alert("데이터 전송 중 오류가 발생했습니다.");
+        }
       } else {
         alert("데이터 전송 중 오류가 발생했습니다.");
       }
@@ -596,44 +617,7 @@ const MOCK_REQUESTS = generateMockRequests(companyInfo);
   }
 
   // 원청사 접근 제한
-  if (!hasApprovalPageAccess) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-        <Card className="max-w-md mx-auto">
-          <CardContent className="p-8 text-center">
-            <div className="mb-6">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Building2 className="w-8 h-8 text-blue-600" />
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">원청사 계정</h2>
-              <p className="text-gray-600">
-                원청사는 데이터 승인 페이지에 접근할 수 없습니다.
-              </p>
-            </div>
-            <div className="space-y-4">
-              <p className="text-sm text-gray-500">
-                원청사는 협력사들에게 데이터를 요청하는 역할만 수행합니다.
-              </p>
-              <div className="space-y-2">
-                <Button 
-                  onClick={() => {
-                    // URL 파라미터로 원청사 역할로 접근
-                    window.open('/data-sharing-request?role=prime', '_blank');
-                  }} 
-                  className="w-full"
-                >
-                  데이터 요청 페이지로 이동 (원청사 역할)
-                </Button>
-                <p className="text-xs text-gray-400 text-center">
-                  테스트용: 원청사 관점에서 요청 페이지 체험
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  // 접근 제한 로직 제거 - 모든 사용자가 페이지 접근 가능
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200">
@@ -724,7 +708,7 @@ const MOCK_REQUESTS = generateMockRequests(companyInfo);
               size="default"
               className="border-gray-300 hover:bg-gray-50 px-4 py-2"
             >
-              <RotateCcw className="h-5 w-5 mr-2" />
+              <Clock className="h-5 w-5 mr-2" />
               새로고침
             </Button>
           </div>

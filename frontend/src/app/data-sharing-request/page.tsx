@@ -549,21 +549,26 @@ const SupplierRequestPage = () => {
         body: JSON.stringify(requestData),
       });
       
-      if (response.status === "success") {
-        alert("데이터 공유 요청이 성공적으로 전송되었습니다.");
-        setShowRequestForm(false);
-        setRequestForm({
-          provider_company_id: "",
-          provider_company_name: "",
-          data_type: "sustainability",
-          data_category: "",
-          data_description: "",
-          requested_fields: "",
-          purpose: "",
-          usage_period: "",
-          urgency_level: "normal"
-        });
-        loadData();
+      // response 타입 가드 추가
+      if (response && typeof response === 'object' && 'status' in response) {
+        if (response.status === "success") {
+          alert("데이터 공유 요청이 성공적으로 전송되었습니다.");
+          setShowRequestForm(false);
+          setRequestForm({
+            provider_company_id: "",
+            provider_company_name: "",
+            data_type: "sustainability",
+            data_category: "",
+            data_description: "",
+            requested_fields: "",
+            purpose: "",
+            usage_period: "",
+            urgency_level: "normal"
+          });
+          loadData();
+        } else {
+          alert("요청 전송 중 오류가 발생했습니다.");
+        }
       } else {
         alert("요청 전송 중 오류가 발생했습니다.");
       }

@@ -1,5 +1,5 @@
 """
-Assessment Service - MSA 프랙탈 구조
+Monitoring Train Service - MSA 프랙탈 구조
 """
 from dotenv import load_dotenv, find_dotenv
 from fastapi import FastAPI, Request, HTTPException
@@ -14,14 +14,14 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
     force=True,
 )
-logger = logging.getLogger("assessment-service")
+logger = logging.getLogger("monitoring-train-service")
 
 # ---------- .env ----------
 if os.getenv("RAILWAY_ENVIRONMENT") != "true":
     load_dotenv(find_dotenv())
 
 # ---------- FastAPI ----------
-app = FastAPI(title="Assessment Service API", description="Assessment 서비스", version="1.0.0")
+app = FastAPI(title="Monitoring Train Service API", description="AI 모델 학습 및 성능 비교 서비스", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -49,8 +49,13 @@ app.include_router(learning_router)
 def root():
     return {
         "status": "ok", 
-        "service": "assessment-service", 
-        "endpoints": ["/assessment", "/health", "/metrics"]
+        "service": "monitoring-train-service", 
+        "endpoints": [
+            "/assessment", 
+            "/learning", 
+            "/health", 
+            "/metrics"
+        ]
     }
 
 # ---------- Middleware ----------
@@ -68,6 +73,6 @@ async def log_requests(request: Request, call_next):
 
 # ---------- Entrypoint ----------
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", "8002"))
+    port = int(os.getenv("PORT", "8010"))
     logger.info(f"💻 서비스 시작 - 포트: {port}")
     uvicorn.run("app.main:app", host="0.0.0.0", port=port, log_level="info", access_log=True)

@@ -12,6 +12,7 @@ services:
     environment:
       - NODE_ENV=development
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NEXT_PUBLIC_GATEWAY_ORIGIN=http://gateway:8080
     restart: always
     depends_on:
       - gateway
@@ -28,18 +29,6 @@ services:
       - ./gateway:/app
     environment:
       - PYTHONUNBUFFERED=1
-      - FRONTEND_URL=${FRONTEND_URL:-https://eripotter.com}
-      - ACCOUNT_SERVICE_URL=${ACCOUNT_SERVICE_URL}
-      - ASSESSMENT_SERVICE_URL=${ASSESSMENT_SERVICE_URL}
-      - CHATBOT_SERVICE_URL=${CHATBOT_SERVICE_URL}
-      - MONITORING_SERVICE_URL=${MONITORING_SERVICE_URL}
-      - NORMAL_SERVICE_URL=${NORMAL_SERVICE_URL}
-      - REGULATION_SERVICE_URL=${REGULATION_SERVICE_URL}
-      - REPORT_SERVICE_URL=${REPORT_SERVICE_URL}
-      - SHARING_SERVICE_URL=${SHARING_SERVICE_URL}
-      - SOLUTION_SERVICE_URL=${SOLUTION_SERVICE_URL}
-      - JWT_ALGORITHM=HS256
-      - ACCESS_TOKEN_EXPIRE_MINUTES=30
     env_file:
       - ./gateway/.env
     restart: always
@@ -182,23 +171,7 @@ services:
     networks:
       - msa_network
 
-  monitoring-train:
-    build: ./service/monitoring-train
-    ports:
-      - "8010:8010"
-    volumes:
-      - ./service/monitoring-train:/app
-      - ./service/monitoring-train/app:/app/app
-      - ./service/monitoring-train/requirements.txt:/app/requirements.txt
-    environment:
-      - PYTHONUNBUFFERED=1
-      - DATABASE_URL=${DATABASE_URL}
-      - MODEL_DIR=/app/model/bomi-ai
-      - DATA_DIR=/app/data
-      - HF_REPO_ID=galaxybuddy/bomi-ai
-      - HF_REV=main
-    networks:
-      - msa_network
+
 
   postgres:
     image: postgres:15-alpine

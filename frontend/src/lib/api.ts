@@ -1,69 +1,55 @@
 // 공통 API 래퍼 - Gateway를 통해 모든 서비스에 접근
-const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+import { httpJson, httpText } from "./http";
 
-export async function api(path: string, init?: RequestInit) {
-  try {
-    const res = await fetch(`${BASE}${path}`, {
-      ...init,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(init?.headers || {}),
-      },
-      cache: "no-store",
-    });
-    if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
-    return res.json();
-  } catch (error) {
-    console.error(`API 호출 실패 (${path}):`, error);
-    throw error;
-  }
-}
-
-export async function apiText(path: string, init?: RequestInit) {
-  try {
-    const res = await fetch(`${BASE}${path}`, {
-      ...init,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(init?.headers || {}),
-      },
-      cache: "no-store",
-    });
-    if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
-    return res.text();
-  } catch (error) {
-    console.error(`API 호출 실패 (${path}):`, error);
-    throw error;
-  }
-}
+// 기존 호환성을 위한 별칭
+export const api = httpJson;
+export const apiText = httpText;
 
 // ===== API 함수들 =====
 import type {
   IndicatorListResponse,
-  IndicatorInputFieldResponse,
-  IndicatorDraftRequest,
-  IndicatorSaveRequest,
 } from "@/types/report";
 
 export const getAllIndicators = (): Promise<IndicatorListResponse> =>
-  api("/report/indicators");
+  api("/api/report/indicators");
 
-export const getIndicatorWithFields = (id: string): Promise<IndicatorInputFieldResponse> =>
-  api(`/report/indicators/${id}/fields`);
+// ===== Assessment API 함수들 =====
+import type { KesgResponse, AssessmentRequest, AssessmentSubmissionResponse } from "@/types/assessment";
 
-export const generateInputFields = (id: string): Promise<{ indicator_id: string; required_data: string; required_fields: any[] }> =>
-  api(`/report/reports/indicator/${id}/input-fields`);
+// KESG 문항 목록 조회
+export const getKesgItems = (): Promise<KesgResponse> =>
+  api("/api/assessment/kesg");
 
-export const generateDraft = (id: string, body: IndicatorDraftRequest): Promise<string> =>
-  apiText(`/report/reports/indicator/${id}/draft`, {
+// 특정 KESG 문항 조회
+export const getKesgItemById = (itemId: number) =>
+  api(`/api/assessment/kesg/${itemId}`);
+
+// 자가진단 응답 제출
+export const submitAssessment = (request: AssessmentRequest): Promise<AssessmentSubmissionResponse[]> =>
+  api("/api/assessment/", {
     method: "POST",
-    body: JSON.stringify(body),
+    body: JSON.stringify(request),
   });
 
-export const saveIndicator = (id: string, body: IndicatorSaveRequest): Promise<boolean> =>
-  api(`/report/reports/indicator/${id}/save`, {
+// 회사별 자가진단 결과 조회
+export const getCompanyResults = (companyName: string): Promise<{ assessment_results: any[] }> =>
+  api(`/api/assessment/assessment-results/${companyName}`);
+
+// Assessment 서비스 상태 확인
+export const checkAssessmentHealth = () =>
+  api("/api/assessment/health");
+
+// ===== Solution API 함수들 =====
+import type { SolutionSubmissionResponse } from "@/types/assessment";
+
+// 회사별 솔루션 조회
+export const getCompanySolutions = (companyName: string): Promise<SolutionSubmissionResponse[]> =>
+  api(`/api/solution/${companyName}`);
+
+// 솔루션 생성
+export const generateSolutions = (companyName: string): Promise<SolutionSubmissionResponse[]> =>
+  api(`/api/solution/generate/${companyName}`, {
     method: "POST",
-    body: JSON.stringify(body),
   });
 
 // ===== 데이터 공유 API 함수들 =====
@@ -124,3 +110,28 @@ export const getStrategicSuppliers = (companyId: string): Promise<any> =>
 // ===== 회사 관리 API 함수들 =====
 export const getCompanies = (): Promise<any> =>
   api(`/sharing/companies`);
+
+// ===== Monitoring API 함수들 =====
+// 공급망 취약부문 조회
+export const getSupplyChainVulnerabilities = (): Promise<any> =>
+  api("/api/monitoring/supply-chain/vulnerabilities");
+
+// 회사별 취약부문 조회
+export const getCompanyVulnerabilities = (): Promise<any> =>
+  api("/api/monitoring/vulnerabilities");
+
+// 회사별 Assessment 결과 조회
+export const getCompanyAssessment = (): Promise<any> =>
+  api("/api/monitoring/assessments");
+
+// 공급망 Assessment 결과 조회
+export const getSupplyChainAssessment = (): Promise<any> =>
+  api("/api/monitoring/supply-chain/assessments");
+
+// 회사별 솔루션 조회
+export const getCompanySolutionsFromMonitoring = (): Promise<any> =>
+  api("/api/monitoring/solutions");
+
+// 회사 목록 조회
+export const getCompanyList = (): Promise<any> =>
+  api("/api/monitoring/companies");

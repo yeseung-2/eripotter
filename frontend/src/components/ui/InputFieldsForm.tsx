@@ -13,7 +13,20 @@ export default function InputFieldsForm({
 }) {
   const [data, setData] = useState<Record<string, any>>(value || {});
 
-  useEffect(() => setData(value || {}), [value]);
+  // value가 변경될 때만 data를 업데이트 (초기화가 아닌 경우)
+  useEffect(() => {
+    // value가 있고, 현재 data와 다른 경우에만 업데이트
+    if (value && Object.keys(value).length > 0) {
+      setData(prev => {
+        const newData = { ...prev, ...value };
+        // 실제로 변경된 경우에만 업데이트
+        if (JSON.stringify(newData) !== JSON.stringify(prev)) {
+          return newData;
+        }
+        return prev;
+      });
+    }
+  }, [value]);
 
   const set = (k: string, v: any) => {
     const next = { ...data, [k]: v };
@@ -27,9 +40,13 @@ export default function InputFieldsForm({
         <div key={f.key} className="bg-white border rounded p-3">
           <label className="block text-sm font-medium text-slate-700">
             {f.label}
-            {f.required && <span className="text-red-500 ml-1">*</span>}
+            <span className="text-gray-400 ml-1">(선택사항)</span>
           </label>
-          {f.description && <p className="text-xs text-slate-500 mt-1">{f.description}</p>}
+          <div className="flex gap-2 text-xs text-slate-500 mt-1">
+            {f.description && <span>{f.description}</span>}
+            {f.unit && <span className="text-blue-600">단위: {f.unit}</span>}
+            {f.year && <span className="text-green-600">연도: {f.year}</span>}
+          </div>
 
           {f.type === "select" ? (
             <select

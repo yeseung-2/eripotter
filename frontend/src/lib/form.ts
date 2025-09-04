@@ -7,6 +7,8 @@ export type FormField = {
   required?: boolean;
   options?: string[];
   description?: string;
+  unit?: string;
+  year?: string;
 };
 
 export function normalizeFields(
