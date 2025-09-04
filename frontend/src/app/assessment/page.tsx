@@ -251,178 +251,180 @@ function AssessmentMainPageContent() {
         </div>
       </header>
 
-      <div className="flex h-screen bg-gray-50">
-    <div style={{
-      maxWidth: '800px',
-      margin: '0 auto',
-      padding: '40px 20px',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      backgroundColor: '#f8f9fa',
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center'
-    }}>
-      <div style={{
-        backgroundColor: 'white',
-        borderRadius: '16px',
-        padding: '60px 40px',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-        textAlign: 'center',
-        width: '100%',
-        maxWidth: '600px'
-      }}>
-        {/* 헤더 섹션 */}
+      {/* Main Content */}
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div style={{
-          marginBottom: '50px'
+          maxWidth: '800px',
+          margin: '0 auto',
+          padding: '40px 20px',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          backgroundColor: '#f8f9fa',
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
         }}>
           <div style={{
-            width: '80px',
-            height: '80px',
-            backgroundColor: '#007bff',
-            borderRadius: '50%',
-            margin: '0 auto 24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 4px 16px rgba(0, 123, 255, 0.3)'
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '60px 40px',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+            textAlign: 'center',
+            width: '100%',
+            maxWidth: '600px'
           }}>
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-              <path d="M9 12l2 2 4-4"/>
-              <path d="M21 12c-1 0-2-1-2-2s1-2 2-2 2 1 2 2-1 2-2 2z"/>
-              <path d="M3 12c1 0 2-1 2-2s-1-2-2-2-2 1-2 2 1 2 2 2z"/>
-              <path d="M12 3c0 1-1 2-2 2s-2 1-2 2 1 2 2 2 2-1 2-2 1-2 2-2 2-1 2-2-1-2-2-2z"/>
-            </svg>
+            {/* 헤더 섹션 */}
+            <div style={{
+              marginBottom: '50px'
+            }}>
+              <div style={{
+                width: '80px',
+                height: '80px',
+                backgroundColor: '#007bff',
+                borderRadius: '50%',
+                margin: '0 auto 24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 16px rgba(0, 123, 255, 0.3)'
+              }}>
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                  <path d="M9 12l2 2 4-4"/>
+                  <path d="M21 12c-1 0-2-1-2-2s1-2 2-2 2 1 2 2-1 2-2 2z"/>
+                  <path d="M3 12c1 0 2-1 2-2s-1-2-2-2-2 1-2 2 1 2 2 2z"/>
+                  <path d="M12 3c0 1-1 2-2 2s-2 1-2 2 1 2 2 2 2-1 2-2 1-2 2-2 2-1 2-2-1-2-2-2z"/>
+                </svg>
+              </div>
+              
+              <h1 style={{
+                fontSize: '36px',
+                fontWeight: '700',
+                color: '#2c3e50',
+                marginBottom: '16px'
+              }}>
+                ESG 자가진단
+              </h1>
+              
+              <p style={{
+                fontSize: '18px',
+                color: '#7f8c8d',
+                marginBottom: '8px'
+              }}>
+                현재 로그인된 회사: <strong style={{ color: '#007bff' }}>{companyName}</strong>
+              </p>
+              
+              <p style={{
+                fontSize: '16px',
+                color: '#6c757d',
+                lineHeight: '1.6'
+              }}>
+                ESG 경영 수준을 진단하고 개선 방안을 제시받으세요
+              </p>
+            </div>
+
+            {/* 버튼 섹션 */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '20px'
+            }}>
+              <button 
+                onClick={handleStartAssessment}
+                disabled={isLoading}
+                style={{
+                  backgroundColor: '#007bff',
+                  color: 'white',
+                  border: 'none',
+                  padding: '20px 32px',
+                  fontSize: '18px',
+                  fontWeight: '600',
+                  borderRadius: '12px',
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.3s ease',
+                  opacity: isLoading ? 0.7 : 1,
+                  boxShadow: '0 4px 16px rgba(0, 123, 255, 0.3)'
+                }}
+                onMouseEnter={(e) => {
+                  if (!isLoading) {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 123, 255, 0.4)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isLoading) {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 123, 255, 0.3)';
+                  }
+                }}
+              >
+                {isLoading ? '진행 중...' : '자가진단 시작하기'}
+              </button>
+              
+              <button 
+                onClick={handleViewResults}
+                disabled={isLoading}
+                style={{
+                  backgroundColor: 'white',
+                  color: '#007bff',
+                  border: '2px solid #007bff',
+                  padding: '18px 32px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  borderRadius: '12px',
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.3s ease',
+                  opacity: isLoading ? 0.7 : 1
+                }}
+                onMouseEnter={(e) => {
+                  if (!isLoading) {
+                    e.currentTarget.style.backgroundColor = '#f8f9fa';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isLoading) {
+                    e.currentTarget.style.backgroundColor = 'white';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }
+                }}
+              >
+                {isLoading ? '진행 중...' : '기존 결과 보기'}
+              </button>
+            </div>
+
+            {/* 안내 섹션 */}
+            <div style={{
+              marginTop: '40px',
+              padding: '24px',
+              backgroundColor: '#f8f9fa',
+              borderRadius: '12px',
+              border: '1px solid #e9ecef'
+            }}>
+              <h3 style={{
+                fontSize: '16px',
+                fontWeight: '600',
+                color: '#2c3e50',
+                marginBottom: '12px'
+              }}>
+                📋 자가진단 안내
+              </h3>
+              <ul style={{
+                fontSize: '14px',
+                color: '#6c757d',
+                lineHeight: '1.6',
+                textAlign: 'left',
+                margin: '0',
+                paddingLeft: '20px'
+              }}>
+                <li>자가진단은 약 10-15분 정도 소요됩니다</li>
+                <li>답변은 언제든지 수정할 수 있습니다</li>
+                <li>진단 완료 후 상세한 결과와 개선 방안을 확인할 수 있습니다</li>
+                <li>진단 결과는 회사별로 안전하게 저장됩니다</li>
+              </ul>
+            </div>
           </div>
-          
-          <h1 style={{
-            fontSize: '36px',
-            fontWeight: '700',
-            color: '#2c3e50',
-            marginBottom: '16px'
-          }}>
-            ESG 자가진단
-          </h1>
-          
-          <p style={{
-            fontSize: '18px',
-            color: '#7f8c8d',
-            marginBottom: '8px'
-          }}>
-            현재 로그인된 회사: <strong style={{ color: '#007bff' }}>{companyName}</strong>
-          </p>
-          
-          <p style={{
-            fontSize: '16px',
-            color: '#6c757d',
-            lineHeight: '1.6'
-          }}>
-            ESG 경영 수준을 진단하고 개선 방안을 제시받으세요
-          </p>
-        </div>
-
-        {/* 버튼 섹션 */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '20px'
-        }}>
-          <button 
-            onClick={handleStartAssessment}
-            disabled={isLoading}
-            style={{
-              backgroundColor: '#007bff',
-              color: 'white',
-              border: 'none',
-              padding: '20px 32px',
-              fontSize: '18px',
-              fontWeight: '600',
-              borderRadius: '12px',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              transition: 'all 0.3s ease',
-              opacity: isLoading ? 0.7 : 1,
-              boxShadow: '0 4px 16px rgba(0, 123, 255, 0.3)'
-            }}
-            onMouseEnter={(e) => {
-              if (!isLoading) {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 123, 255, 0.4)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isLoading) {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 123, 255, 0.3)';
-              }
-            }}
-          >
-            {isLoading ? '진행 중...' : '자가진단 시작하기'}
-          </button>
-          
-          <button 
-            onClick={handleViewResults}
-            disabled={isLoading}
-            style={{
-              backgroundColor: 'white',
-              color: '#007bff',
-              border: '2px solid #007bff',
-              padding: '18px 32px',
-              fontSize: '16px',
-              fontWeight: '600',
-              borderRadius: '12px',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              transition: 'all 0.3s ease',
-              opacity: isLoading ? 0.7 : 1
-            }}
-            onMouseEnter={(e) => {
-              if (!isLoading) {
-                e.currentTarget.style.backgroundColor = '#f8f9fa';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isLoading) {
-                e.currentTarget.style.backgroundColor = 'white';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }
-            }}
-          >
-            {isLoading ? '진행 중...' : '기존 결과 보기'}
-          </button>
-        </div>
-
-        {/* 안내 섹션 */}
-        <div style={{
-          marginTop: '40px',
-          padding: '24px',
-          backgroundColor: '#f8f9fa',
-          borderRadius: '12px',
-          border: '1px solid #e9ecef'
-        }}>
-          <h3 style={{
-            fontSize: '16px',
-            fontWeight: '600',
-            color: '#2c3e50',
-            marginBottom: '12px'
-          }}>
-            📋 자가진단 안내
-          </h3>
-          <ul style={{
-            fontSize: '14px',
-            color: '#6c757d',
-            lineHeight: '1.6',
-            textAlign: 'left',
-            margin: '0',
-            paddingLeft: '20px'
-          }}>
-            <li>자가진단은 약 10-15분 정도 소요됩니다</li>
-            <li>답변은 언제든지 수정할 수 있습니다</li>
-            <li>진단 완료 후 상세한 결과와 개선 방안을 확인할 수 있습니다</li>
-            <li>진단 결과는 회사별로 안전하게 저장됩니다</li>
-          </ul>
         </div>
       </div>
-    </div>
     </div>
   );
 }
