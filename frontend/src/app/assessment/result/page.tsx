@@ -117,8 +117,8 @@ export default function AssessmentResultPage() {
 
   const fetchVulnerableSections = async () => {
     try {
-      // Assessment 결과에서 score=0인 항목을 직접 필터링하여 취약 부문으로 설정
-      const vulnerableFromAssessment = assessmentResults.filter(result => result.score === 0);
+      // Assessment 결과에서 score가 0점 또는 25점인 항목을 취약 부문으로 설정
+      const vulnerableFromAssessment = assessmentResults.filter(result => result.score === 0 || result.score === 25);
       setVulnerableSections(vulnerableFromAssessment);
     } catch (error) {
       console.error('취약 부문 데이터 처리 오류:', error);
@@ -191,7 +191,9 @@ export default function AssessmentResultPage() {
       // levels_json에서 해당 level_no의 desc 찾기
       const levelInfo = result.levels_json?.find(level => level.level_no === result.level_no);
       if (levelInfo) {
-        return `${result.level_no}단계: ${levelInfo.desc}`;
+        // desc에도 • 기준 줄바꿈 적용
+        const formattedDesc = levelInfo.desc?.replace(/• /g, '\n• ').trim() || '';
+        return `${result.level_no}단계: ${formattedDesc}`;
       }
       return `${result.level_no}단계`;
     } else if (result.question_type === 'five_choice') {
@@ -501,7 +503,7 @@ export default function AssessmentResultPage() {
                       marginBottom: '12px',
                       whiteSpace: 'pre-line'
                     }}>
-                      {result.item_desc?.replace(/• /g, '\n• ')}
+                      {result.item_desc?.replace(/• /g, '\n• ').trim()}
                     </div>
                     
                     <div style={{
@@ -655,7 +657,7 @@ export default function AssessmentResultPage() {
               textAlign: 'center',
               fontWeight: '500'
             }}>
-              ⚠️ 다음 부문들은 자가진단 점수가 0점인 취약 영역입니다.
+              ⚠️ 다음 부문들은 자가진단 점수가 25점 이하인 취약 영역입니다.
             </p>
           </div>
           
@@ -733,6 +735,46 @@ export default function AssessmentResultPage() {
                     </div>
                   </div>
                   
+                  {/* 점수 표시 */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    alignItems: 'center',
+                    marginTop: '12px'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      <span style={{
+                        fontSize: '14px',
+                        color: section.score === 0 ? '#dc3545' : '#fd7e14',
+                        fontWeight: '600'
+                      }}>
+                        점수:
+                      </span>
+                      <span style={{
+                        fontSize: '18px',
+                        color: section.score === 0 ? '#dc3545' : '#fd7e14',
+                        fontWeight: '700'
+                      }}>
+                        {section.score}점
+                      </span>
+                      {section.score === 25 && (
+                        <span style={{
+                          fontSize: '12px',
+                          color: '#fd7e14',
+                          backgroundColor: '#fff3cd',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          border: '1px solid #fd7e14'
+                        }}>
+                          보통
+                        </span>
+                      )}
+                    </div>
+                  </div>
 
                 </div>
               ))}

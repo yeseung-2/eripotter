@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Building2, Users, TrendingUp, BarChart3, Cog, User, Calendar, MapPin, Phone, Mail, Globe, Shield, Activity } from 'lucide-react';
+import { Building2, Users, TrendingUp, BarChart3, Settings, User, Calendar, MapPin, Phone, Mail, Globe, Shield, Activity } from 'lucide-react';
 import Link from 'next/link';
 import SupplyChainVisualizationPage from '@/components/SupplyChainVisualizationPage';
 import { Input } from '@/components/ui/input';

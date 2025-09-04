@@ -144,6 +144,61 @@ class SubstanceMappingRepository:
             logger.error(f"❌ AI 매핑 결과 저장 실패: {e}")
             return False
 
+    def save_simple_ai_mapping_result(self, substance_name: str, mapped_sid: str, mapped_name: str, confidence: float, company_id: str = None, company_name: str = None) -> str:
+        """단순한 AI 매핑 결과를 저장하고 ID 반환 (새로운 메서드)"""
+        try:
+            session = self.Session()
+            
+            # 매핑 상태 결정
+            if confidence >= 0.7:
+                mapping_status = "auto_mapped"
+            elif confidence >= 0.4:
+                mapping_status = "needs_review"
+            else:
+                mapping_status = "needs_review"
+            
+            # CertificationEntity 객체 생성 (normal_id는 None으로 설정)
+            certification_entity = CertificationEntity(
+                normal_id=None,  # 단순 매핑이므로 normal_id 없음
+                company_id=company_id,
+                company_name=company_name,
+                
+                # 원본 정보
+                original_gas_name=substance_name,
+                original_amount="",  # 단순 매핑이므로 양 정보 없음
+                
+                # AI 매핑 결과
+                ai_mapped_sid=mapped_sid,
+                ai_mapped_name=mapped_name,
+                ai_confidence_score=confidence,
+                ai_cas_number=None,  # CAS 번호 정보가 없을 수 있음
+                
+                # 최종 결과 (AI 결과와 동일)
+                final_mapped_sid=mapped_sid,
+                final_mapped_name=mapped_name,
+                final_cas_number=None,
+                final_standard_unit="",  # 단위 정보 없음
+                
+                mapping_status=mapping_status
+            )
+            
+            session.add(certification_entity)
+            session.commit()
+            
+            # 생성된 ID 반환
+            saved_id = str(certification_entity.id)
+            session.close()
+            
+            logger.info(f"✅ 단순 AI 매핑 결과 저장 완료: {substance_name} -> {mapped_name} (ID: {saved_id})")
+            return saved_id
+            
+        except SQLAlchemyError as e:
+            if 'session' in locals():
+                session.rollback()
+                session.close()
+            logger.error(f"❌ 단순 AI 매핑 결과 저장 실패: {e}")
+            return None
+
     def update_user_mapping_correction(self, certification_id: int, correction_data: Dict[str, Any], reviewed_by: str = None) -> bool:
         """사용자가 매핑을 수정한 결과를 certification 테이블에 업데이트"""
         try:

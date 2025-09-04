@@ -162,6 +162,25 @@ class NormalService(ISubstanceMapping, IDataNormalization, IESGValidation):
             logger.error(f"❌ 매핑 통계 조회 실패: {e}")
             return {"error": str(e)}
 
+    def save_ai_mapping_result(self, substance_name: str, mapped_sid: str, mapped_name: str, confidence: float, company_id: str = None, company_name: str = None) -> str:
+        """AI 매핑 결과를 저장하고 ID 반환"""
+        if not self.db_available:
+            logger.warning("⚠️ 데이터베이스 연결이 불가능하여 저장을 건너뜁니다.")
+            return None
+        
+        try:
+            return self.substance_mapping_repository.save_simple_ai_mapping_result(
+                substance_name=substance_name,
+                mapped_sid=mapped_sid,
+                mapped_name=mapped_name,
+                confidence=confidence,
+                company_id=company_id,
+                company_name=company_name
+            )
+        except Exception as e:
+            logger.error(f"❌ AI 매핑 결과 저장 실패: {e}")
+            return None
+
     def get_saved_mappings(self, company_id: str = None, limit: int = 10) -> List[Dict[str, Any]]:
         """저장된 매핑 결과 조회"""
         if not self.db_available:

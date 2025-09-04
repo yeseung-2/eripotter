@@ -14,6 +14,7 @@ class SubstanceMappingResult(BaseModel):
     top5_candidates: List[Dict[str, Any]] = []
     status: str = "success"
     error: Optional[str] = None
+    saved_id: Optional[str] = None
 
 class SubstanceMappingRequest(BaseModel):
     """물질매핑 요청 모델"""

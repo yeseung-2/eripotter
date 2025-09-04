@@ -344,15 +344,15 @@ class AssessmentService:
             return []
     
     def get_vulnerable_sections(self, company_name: str) -> List[Dict[str, Union[str, int, List[int], None]]]:
-        """특정 회사의 취약 부문 조회 (score가 0인 문항)"""
+        """특정 회사의 취약 부문 조회 (score가 0점 또는 25점인 문항)"""
         try:
             logger.info(f"📝 취약 부문 조회 요청: company_name={company_name}")
             
             # 기본 결과 조회
             results = self.repository.get_company_results(company_name)
             
-            # score가 0인 문항만 필터링
-            vulnerable_results = [result for result in results if result.get('score', 0) == 0]
+            # score가 0점 또는 25점인 문항을 취약 부문으로 필터링
+            vulnerable_results = [result for result in results if result.get('score', 0) in [0, 25]]
             
             # kesg 데이터와 조인하여 상세 정보 추가
             detailed_vulnerable_sections = []
@@ -379,7 +379,7 @@ class AssessmentService:
                 
                 detailed_vulnerable_sections.append(detailed_section)
             
-            logger.info(f"✅ 취약 부문 조회 성공: {len(detailed_vulnerable_sections)}개 취약 부문")
+            logger.info(f"✅ 취약 부문 조회 성공: {len(detailed_vulnerable_sections)}개 취약 부문 (0점: {len([r for r in vulnerable_results if r.get('score') == 0])}개, 25점: {len([r for r in vulnerable_results if r.get('score') == 25])}개)")
             return detailed_vulnerable_sections
             
         except Exception as e:

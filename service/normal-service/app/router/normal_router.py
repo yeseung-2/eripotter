@@ -214,6 +214,37 @@ async def get_environmental_data(
 
 # ===== 물질 매핑 API =====
 
+@normal_router.post("/substance/save-and-map", summary="물질 매핑 및 결과 저장")
+async def save_and_map_substance(
+    request: SubstanceMappingRequest,
+    service: NormalService = Depends(get_substance_mapping_service)
+):
+    """물질명을 표준 물질 ID로 매핑하고 결과를 저장"""
+    try:
+        # AI 매핑 수행
+        result = service.map_substance(request.substance_name)
+        
+        # 매핑 결과 저장
+        if request.company_id:
+            saved_id = service.save_ai_mapping_result(
+                substance_name=request.substance_name,
+                mapped_sid=result.mapped_sid,
+                mapped_name=result.mapped_name,
+                confidence=result.confidence,
+                company_id=request.company_id,
+                company_name=request.company_name
+            )
+            result.saved_id = saved_id
+        
+        return SubstanceMappingResponse(
+            status="success",
+            data=result,
+            timestamp=datetime.now().isoformat()
+        )
+    except Exception as e:
+        logger.error(f"물질 매핑 및 저장 실패: {e}")
+        raise HTTPException(status_code=500, detail=f"매핑 및 저장 처리 중 오류가 발생했습니다: {str(e)}")
+
 @normal_router.post("/substance/map", summary="단일 물질 매핑")
 async def map_single_substance(
     request: SubstanceMappingRequest,
