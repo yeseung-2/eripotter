@@ -48,6 +48,49 @@ class MonitoringService:
     
     # ===== Company Management =====
     
+    def get_company_partners(self, company_name: str) -> List[Dict[str, Union[str, int, None]]]:
+        """특정 회사의 협력사 목록 조회"""
+        try:
+            partners = self.repository.get_company_records(company_name)
+            logger.info(f"✅ 협력사 목록 조회 성공: {company_name} - {len(partners)}개")
+            return partners
+        except Exception as e:
+            logger.error(f"❌ 협력사 목록 조회 실패: {e}")
+            return []
+
+    def add_company_partner(self, company_name: str, partner_name: str) -> bool:
+        """새로운 협력사 추가"""
+        try:
+            success = self.repository.add_tier1_company(company_name, partner_name)
+            if success:
+                logger.info(f"✅ 협력사 추가 성공: {company_name} -> {partner_name}")
+            return success
+        except Exception as e:
+            logger.error(f"❌ 협력사 추가 실패: {e}")
+            return False
+
+    def update_company_partner(self, partner_id: int, partner_name: str) -> bool:
+        """협력사 정보 수정"""
+        try:
+            success = self.repository.update_tier1_company(partner_id, partner_name)
+            if success:
+                logger.info(f"✅ 협력사 수정 성공: ID {partner_id} -> {partner_name}")
+            return success
+        except Exception as e:
+            logger.error(f"❌ 협력사 수정 실패: {e}")
+            return False
+
+    def delete_company_partner(self, partner_id: int) -> bool:
+        """협력사 삭제"""
+        try:
+            success = self.repository.delete_tier1_company(partner_id)
+            if success:
+                logger.info(f"✅ 협력사 삭제 성공: ID {partner_id}")
+            return success
+        except Exception as e:
+            logger.error(f"❌ 협력사 삭제 실패: {e}")
+            return False
+    
     def get_company_list(self) -> CompanyListResponse:
         """회사 목록 조회"""
         try:

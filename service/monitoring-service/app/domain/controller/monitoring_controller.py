@@ -18,6 +18,90 @@ class MonitoringController:
     def __init__(self, service: MonitoringService):
         self.service = service
     
+    # ===== Company Partner Management =====
+    
+    def get_company_partners(self, company_name: str) -> Dict[str, Union[str, List[Dict[str, Union[str, int, None]]]]]:
+        """특정 회사의 협력사 목록 조회"""
+        try:
+            logger.info(f"📝 협력사 목록 조회 컨트롤러 요청: {company_name}")
+            partners = self.service.get_company_partners(company_name)
+            return {
+                "status": "success",
+                "data": partners
+            }
+        except Exception as e:
+            logger.error(f"❌ 협력사 목록 조회 컨트롤러 오류: {e}")
+            return {
+                "status": "error",
+                "message": str(e)
+            }
+
+    def add_company_partner(self, company_name: str, partner_name: str) -> Dict[str, str]:
+        """새로운 협력사 추가"""
+        try:
+            logger.info(f"📝 협력사 추가 컨트롤러 요청: {company_name} -> {partner_name}")
+            success = self.service.add_company_partner(company_name, partner_name)
+            if success:
+                return {
+                    "status": "success",
+                    "message": "협력사가 성공적으로 추가되었습니다."
+                }
+            else:
+                return {
+                    "status": "error",
+                    "message": "협력사 추가에 실패했습니다."
+                }
+        except Exception as e:
+            logger.error(f"❌ 협력사 추가 컨트롤러 오류: {e}")
+            return {
+                "status": "error",
+                "message": str(e)
+            }
+
+    def update_company_partner(self, partner_id: int, partner_name: str) -> Dict[str, str]:
+        """협력사 정보 수정"""
+        try:
+            logger.info(f"📝 협력사 수정 컨트롤러 요청: ID {partner_id} -> {partner_name}")
+            success = self.service.update_company_partner(partner_id, partner_name)
+            if success:
+                return {
+                    "status": "success",
+                    "message": "협력사 정보가 성공적으로 수정되었습니다."
+                }
+            else:
+                return {
+                    "status": "error",
+                    "message": "협력사 수정에 실패했습니다."
+                }
+        except Exception as e:
+            logger.error(f"❌ 협력사 수정 컨트롤러 오류: {e}")
+            return {
+                "status": "error",
+                "message": str(e)
+            }
+
+    def delete_company_partner(self, partner_id: int) -> Dict[str, str]:
+        """협력사 삭제"""
+        try:
+            logger.info(f"📝 협력사 삭제 컨트롤러 요청: ID {partner_id}")
+            success = self.service.delete_company_partner(partner_id)
+            if success:
+                return {
+                    "status": "success",
+                    "message": "협력사가 성공적으로 삭제되었습니다."
+                }
+            else:
+                return {
+                    "status": "error",
+                    "message": "협력사 삭제에 실패했습니다."
+                }
+        except Exception as e:
+            logger.error(f"❌ 협력사 삭제 컨트롤러 오류: {e}")
+            return {
+                "status": "error",
+                "message": str(e)
+            }
+    
     def get_company_list(self) -> CompanyListResponse:
         """회사 목록 조회"""
         try:

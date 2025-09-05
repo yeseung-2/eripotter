@@ -32,6 +32,66 @@ def get_monitoring_controller(service: MonitoringService = Depends(get_monitorin
 
 # ===== 데이터베이스 연동 엔드포인트들 =====
 
+# ===== Company Partner Management API =====
+
+@monitoring_router.get("/partners", summary="협력사 목록 조회")
+async def get_company_partners(
+    company_name: str,
+    controller: MonitoringController = Depends(get_monitoring_controller)
+):
+    """특정 회사의 협력사 목록 조회"""
+    try:
+        result = controller.get_company_partners(company_name)
+        logger.info(f"✅ 협력사 목록 조회 성공: {company_name} - {len(result.get('data', []))}개")
+        return result
+    except Exception as e:
+        logger.error(f"❌ 협력사 목록 조회 API 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"협력사 목록 조회 중 오류가 발생했습니다: {str(e)}")
+
+@monitoring_router.post("/partners", summary="협력사 추가")
+async def add_company_partner(
+    company_name: str,
+    partner_name: str,
+    controller: MonitoringController = Depends(get_monitoring_controller)
+):
+    """새로운 협력사 추가"""
+    try:
+        result = controller.add_company_partner(company_name, partner_name)
+        logger.info(f"✅ 협력사 추가 성공: {company_name} -> {partner_name}")
+        return result
+    except Exception as e:
+        logger.error(f"❌ 협력사 추가 API 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"협력사 추가 중 오류가 발생했습니다: {str(e)}")
+
+@monitoring_router.put("/partners/{partner_id}", summary="협력사 정보 수정")
+async def update_company_partner(
+    partner_id: int,
+    partner_name: str,
+    controller: MonitoringController = Depends(get_monitoring_controller)
+):
+    """협력사 정보 수정"""
+    try:
+        result = controller.update_company_partner(partner_id, partner_name)
+        logger.info(f"✅ 협력사 수정 성공: ID {partner_id} -> {partner_name}")
+        return result
+    except Exception as e:
+        logger.error(f"❌ 협력사 수정 API 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"협력사 수정 중 오류가 발생했습니다: {str(e)}")
+
+@monitoring_router.delete("/partners/{partner_id}", summary="협력사 삭제")
+async def delete_company_partner(
+    partner_id: int,
+    controller: MonitoringController = Depends(get_monitoring_controller)
+):
+    """협력사 삭제"""
+    try:
+        result = controller.delete_company_partner(partner_id)
+        logger.info(f"✅ 협력사 삭제 성공: ID {partner_id}")
+        return result
+    except Exception as e:
+        logger.error(f"❌ 협력사 삭제 API 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"협력사 삭제 중 오류가 발생했습니다: {str(e)}")
+
 @monitoring_router.get("/companies", summary="회사 목록 조회")
 async def get_company_list(
     controller: MonitoringController = Depends(get_monitoring_controller)

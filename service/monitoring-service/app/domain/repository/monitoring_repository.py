@@ -52,6 +52,71 @@ class MonitoringRepository:
             logger.error(f"❌ Tier1 협력사 조회 중 오류: {e}")
             return []
 
+    def add_tier1_company(self, company_name: str, tier1_name: str) -> bool:
+        """company 테이블에 새로운 tier1 협력사 추가"""
+        try:
+            with get_session() as db:
+                # 새로운 레코드 생성
+                new_company = CompanyDB(
+                    company_name=company_name,
+                    tier1=tier1_name
+                )
+                db.add(new_company)
+                db.commit()
+                logger.info(f"✅ Tier1 협력사 추가 성공: {company_name} -> {tier1_name}")
+                return True
+        except Exception as e:
+            logger.error(f"❌ Tier1 협력사 추가 중 오류: {e}")
+            return False
+
+    def update_tier1_company(self, company_id: int, tier1_name: str) -> bool:
+        """company 테이블의 tier1 협력사 정보 수정"""
+        try:
+            with get_session() as db:
+                company = db.query(CompanyDB).filter(CompanyDB.id == company_id).first()
+                if company:
+                    company.tier1 = tier1_name
+                    db.commit()
+                    logger.info(f"✅ Tier1 협력사 수정 성공: ID {company_id} -> {tier1_name}")
+                    return True
+                else:
+                    logger.warning(f"⚠️ 해당 ID의 회사를 찾을 수 없음: {company_id}")
+                    return False
+        except Exception as e:
+            logger.error(f"❌ Tier1 협력사 수정 중 오류: {e}")
+            return False
+
+    def delete_tier1_company(self, company_id: int) -> bool:
+        """company 테이블에서 tier1 협력사 삭제"""
+        try:
+            with get_session() as db:
+                company = db.query(CompanyDB).filter(CompanyDB.id == company_id).first()
+                if company:
+                    db.delete(company)
+                    db.commit()
+                    logger.info(f"✅ Tier1 협력사 삭제 성공: ID {company_id}")
+                    return True
+                else:
+                    logger.warning(f"⚠️ 해당 ID의 회사를 찾을 수 없음: {company_id}")
+                    return False
+        except Exception as e:
+            logger.error(f"❌ Tier1 협력사 삭제 중 오류: {e}")
+            return False
+
+    def get_company_records(self, company_name: str) -> List[Dict[str, Union[str, int, None]]]:
+        """특정 회사의 모든 company 레코드 조회 (ID 포함)"""
+        try:
+            with get_session() as db:
+                companies = db.query(CompanyDB).filter(
+                    CompanyDB.company_name == company_name
+                ).all()
+                result = [company.to_dict() for company in companies]
+                logger.info(f"✅ 회사 레코드 조회 성공: {company_name} - {len(result)}개")
+                return result
+        except Exception as e:
+            logger.error(f"❌ 회사 레코드 조회 중 오류: {e}")
+            return []
+
     def get_assessment_companies(self) -> List[Dict[str, str]]:
         """assessment 테이블에서 모든 기업명 조회 (중복 제거)"""
         try:

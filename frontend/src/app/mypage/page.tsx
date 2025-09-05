@@ -123,21 +123,15 @@ export default function MyPage() {
     loadProfile();
   }, []);
 
-  // 협력사 목록 조회 (로컬 상태로 관리)
+  // 협력사 목록 조회 (API 호출)
   const fetchPartners = async () => {
     try {
-      // 임시로 로컬 스토리지에서 협력사 목록을 가져오거나 기본값 사용
-      const savedPartners = localStorage.getItem(`partners_${mockUserInfo.name}`);
-      if (savedPartners) {
-        setPartners(JSON.parse(savedPartners));
+      const response = await axios.get(`/api/monitoring/partners?company_name=${encodeURIComponent("LG에너지솔루션")}`);
+      if (response.data.status === "success") {
+        setPartners(response.data.data);
       } else {
-        // 기본 협력사 목록 설정
-        const defaultPartners = [
-          { id: 1, company_name: mockUserInfo.name, tier1: "에코프로비엠" },
-          { id: 2, company_name: mockUserInfo.name, tier1: "포스코퓨처엠" }
-        ];
-        setPartners(defaultPartners);
-        localStorage.setItem(`partners_${mockUserInfo.name}`, JSON.stringify(defaultPartners));
+        console.error("협력사 목록 조회 실패:", response.data.message);
+        setPartners([]);
       }
     } catch (error) {
       console.error("협력사 목록 조회 실패:", error);
@@ -146,70 +140,70 @@ export default function MyPage() {
     }
   };
 
-  // 협력사 추가 (로컬 상태로 관리)
+  // 협력사 추가 (API 호출)
   const addPartner = async () => {
     if (!newPartnerName.trim()) return;
     
     setIsAddingPartner(true);
     try {
-      // 새로운 협력사 객체 생성
-      const newPartner = {
-        id: Date.now(), // 임시 ID 생성
-        company_name: mockUserInfo.name,
-        tier1: newPartnerName.trim()
-      };
+      const response = await axios.post("/api/monitoring/partners", null, {
+        params: {
+          company_name: "LG에너지솔루션",
+          partner_name: newPartnerName.trim()
+        }
+      });
       
-      // 로컬 상태 업데이트
-      const updatedPartners = [...partners, newPartner];
-      setPartners(updatedPartners);
-      
-      // 로컬 스토리지에 저장
-      localStorage.setItem(`partners_${mockUserInfo.name}`, JSON.stringify(updatedPartners));
-      
-      setNewPartnerName("");
-      setIsAddingPartner(false);
-      
-      console.log("협력사 추가 완료:", newPartner);
+      if (response.data.status === "success") {
+        // 성공 시 목록 다시 조회
+        await fetchPartners();
+        setNewPartnerName("");
+        console.log("협력사 추가 완료:", newPartnerName.trim());
+      } else {
+        console.error("협력사 추가 실패:", response.data.message);
+      }
     } catch (error) {
       console.error("협력사 추가 실패:", error);
+    } finally {
       setIsAddingPartner(false);
     }
   };
 
-  // 협력사 삭제 (로컬 상태로 관리)
+  // 협력사 삭제 (API 호출)
   const deletePartner = async (partnerId: number) => {
     try {
-      // 로컬 상태에서 제거
-      const updatedPartners = partners.filter(p => p.id !== partnerId);
-      setPartners(updatedPartners);
+      const response = await axios.delete(`/api/monitoring/partners/${partnerId}`);
       
-      // 로컬 스토리지 업데이트
-      localStorage.setItem(`partners_${mockUserInfo.name}`, JSON.stringify(updatedPartners));
-      
-      console.log("협력사 삭제 완료:", partnerId);
+      if (response.data.status === "success") {
+        // 성공 시 목록 다시 조회
+        await fetchPartners();
+        console.log("협력사 삭제 완료:", partnerId);
+      } else {
+        console.error("협력사 삭제 실패:", response.data.message);
+      }
     } catch (error) {
       console.error("협력사 삭제 실패:", error);
     }
   };
 
-  // 협력사 수정 (로컬 상태로 관리)
+  // 협력사 수정 (API 호출)
   const updatePartner = async () => {
     if (!editingPartner || !editingPartner.tier1.trim()) return;
     
     try {
-      // 로컬 상태 업데이트
-      const updatedPartners = partners.map(p => 
-        p.id === editingPartner.id 
-          ? { ...p, tier1: editingPartner.tier1.trim() }
-          : p
-      );
-      setPartners(updatedPartners);
+      const response = await axios.put(`/api/monitoring/partners/${editingPartner.id}`, null, {
+        params: {
+          partner_name: editingPartner.tier1.trim()
+        }
+      });
       
-      // 로컬 스토리지 업데이트
-      localStorage.setItem(`partners_${mockUserInfo.name}`, JSON.stringify(updatedPartners));
-      
-      setEditingPartner(null);
-      console.log("협력사 수정 완료:", editingPartner);
+      if (response.data.status === "success") {
+        // 성공 시 목록 다시 조회
+        await fetchPartners();
+        setEditingPartner(null);
+        console.log("협력사 수정 완료:", editingPartner);
+      } else {
+        console.error("협력사 수정 실패:", response.data.message);
+      }
     } catch (error) {
       console.error("협력사 수정 실패:", error);
     }
@@ -221,10 +215,8 @@ export default function MyPage() {
   );
 
   useEffect(() => {
-    if (mockUserInfo.name) {
-      fetchPartners();
-    }
-  }, [mockUserInfo.name]);
+    fetchPartners();
+  }, []);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
