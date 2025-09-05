@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Building2, Users, TrendingUp, BarChart, Settings, UserCheck, Plus, XCircle, Pencil, Search, FileText, CheckCircle, AlertCircle, Calendar, Target } from 'lucide-react';
+import { Building2, Users, TrendingUp, BarChart3, Settings2, User, Plus, XCircle, Edit, Search, FileText, CheckCircle, AlertCircle, Calendar, Target } from 'lucide-react';
 import Link from 'next/link';
 import SupplyChainVisualizationPage from '@/components/SupplyChainVisualizationPage';
 import { Input } from '@/components/ui/input';
@@ -123,60 +123,93 @@ export default function MyPage() {
     loadProfile();
   }, []);
 
-  // 협력사 목록 조회
+  // 협력사 목록 조회 (로컬 상태로 관리)
   const fetchPartners = async () => {
     try {
-      const response = await axios.get(`/api/partners?company_name=${encodeURIComponent(mockUserInfo.name)}`);
-      setPartners(response.data);
+      // 임시로 로컬 스토리지에서 협력사 목록을 가져오거나 기본값 사용
+      const savedPartners = localStorage.getItem(`partners_${mockUserInfo.name}`);
+      if (savedPartners) {
+        setPartners(JSON.parse(savedPartners));
+      } else {
+        // 기본 협력사 목록 설정
+        const defaultPartners = [
+          { id: 1, company_name: mockUserInfo.name, tier1: "에코프로비엠" },
+          { id: 2, company_name: mockUserInfo.name, tier1: "포스코퓨처엠" }
+        ];
+        setPartners(defaultPartners);
+        localStorage.setItem(`partners_${mockUserInfo.name}`, JSON.stringify(defaultPartners));
+      }
     } catch (error) {
       console.error("협력사 목록 조회 실패:", error);
+      // 오류 시 빈 배열로 설정
+      setPartners([]);
     }
   };
 
-  // 협력사 추가
+  // 협력사 추가 (로컬 상태로 관리)
   const addPartner = async () => {
     if (!newPartnerName.trim()) return;
     
     setIsAddingPartner(true);
     try {
-      const response = await axios.post("/api/partners", {
+      // 새로운 협력사 객체 생성
+      const newPartner = {
+        id: Date.now(), // 임시 ID 생성
         company_name: mockUserInfo.name,
         tier1: newPartnerName.trim()
-      });
+      };
       
-      setPartners([...partners, response.data]);
+      // 로컬 상태 업데이트
+      const updatedPartners = [...partners, newPartner];
+      setPartners(updatedPartners);
+      
+      // 로컬 스토리지에 저장
+      localStorage.setItem(`partners_${mockUserInfo.name}`, JSON.stringify(updatedPartners));
+      
       setNewPartnerName("");
       setIsAddingPartner(false);
+      
+      console.log("협력사 추가 완료:", newPartner);
     } catch (error) {
       console.error("협력사 추가 실패:", error);
       setIsAddingPartner(false);
     }
   };
 
-  // 협력사 삭제
+  // 협력사 삭제 (로컬 상태로 관리)
   const deletePartner = async (partnerId: number) => {
     try {
-      await axios.delete(`/api/partners/${partnerId}`);
-      setPartners(partners.filter(p => p.id !== partnerId));
+      // 로컬 상태에서 제거
+      const updatedPartners = partners.filter(p => p.id !== partnerId);
+      setPartners(updatedPartners);
+      
+      // 로컬 스토리지 업데이트
+      localStorage.setItem(`partners_${mockUserInfo.name}`, JSON.stringify(updatedPartners));
+      
+      console.log("협력사 삭제 완료:", partnerId);
     } catch (error) {
       console.error("협력사 삭제 실패:", error);
     }
   };
 
-  // 협력사 수정
+  // 협력사 수정 (로컬 상태로 관리)
   const updatePartner = async () => {
     if (!editingPartner || !editingPartner.tier1.trim()) return;
     
     try {
-      const response = await axios.put(`/api/partners/${editingPartner.id}`, {
-        company_name: mockUserInfo.name,
-        tier1: editingPartner.tier1.trim()
-      });
+      // 로컬 상태 업데이트
+      const updatedPartners = partners.map(p => 
+        p.id === editingPartner.id 
+          ? { ...p, tier1: editingPartner.tier1.trim() }
+          : p
+      );
+      setPartners(updatedPartners);
       
-      setPartners(partners.map(p => 
-        p.id === editingPartner.id ? response.data : p
-      ));
+      // 로컬 스토리지 업데이트
+      localStorage.setItem(`partners_${mockUserInfo.name}`, JSON.stringify(updatedPartners));
+      
       setEditingPartner(null);
+      console.log("협력사 수정 완료:", editingPartner);
     } catch (error) {
       console.error("협력사 수정 실패:", error);
     }
@@ -331,7 +364,7 @@ export default function MyPage() {
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
-                  <BarChart className="w-8 h-8 text-green-600" />
+                  <BarChart3 className="w-8 h-8 text-green-600" />
                   <div>
                     <p className="text-sm text-gray-600">활성 요청</p>
                     <p className="text-2xl font-bold">{mockUserInfo.activeRequests}</p>
@@ -383,7 +416,7 @@ export default function MyPage() {
                       <span className="text-sm">협력사 3곳 새로 등록</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <BarChart className="w-4 h-4 text-orange-500" />
+                      <BarChart3 className="w-4 h-4 text-orange-500" />
                       <span className="text-sm">환경 데이터 8건 업데이트</span>
                     </div>
                   </div>
@@ -436,7 +469,7 @@ export default function MyPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <UserCheck className="w-5 h-5" />
+                  <User className="w-5 h-5" />
                   기업 프로필
                 </CardTitle>
                 <CardDescription>
@@ -518,7 +551,7 @@ export default function MyPage() {
                   {/* 기업 상세 정보 */}
                   <div className="space-y-4">
                     <h2 className="text-xl font-semibold flex items-center gap-2">
-                      <BarChart className="h-5 w-5 text-green-500" />
+                      <BarChart3 className="h-5 w-5 text-green-500" />
                       기업 상세 정보
                     </h2>
                     
@@ -743,7 +776,7 @@ export default function MyPage() {
                                   size="sm"
                                   onClick={() => setEditingPartner(partner)}
                                 >
-                                                                     <Pencil className="w-4 h-4" />
+                                                                     <Edit className="w-4 h-4" />
                                 </Button>
                               </DialogTrigger>
                               <DialogContent>
@@ -815,7 +848,7 @@ export default function MyPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Settings className="w-5 h-5" />
+                  <Settings2 className="w-5 h-5" />
                   설정
                 </CardTitle>
                 <CardDescription>

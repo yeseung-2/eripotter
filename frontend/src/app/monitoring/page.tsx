@@ -396,9 +396,6 @@ export default function MonitoringPage() {
                       <div className="px-6 py-4 border-b border-gray-200">
                         <div className="flex justify-between items-start">
                           <h3 className="text-lg font-bold text-gray-900">{company.company_name}</h3>
-                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                            달성률: {company.achievement_rate}%
-                          </span>
                         </div>
                         <div className="mt-2 space-y-1">
                           <p className="text-sm text-gray-500">
