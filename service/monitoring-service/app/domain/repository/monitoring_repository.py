@@ -120,11 +120,26 @@ class MonitoringRepository:
     def get_recursive_supply_chain(self, root_company: str, max_depth: int = 5) -> Dict[str, Union[str, List, int]]:
         """재귀적으로 공급망 구조를 가져오는 함수"""
         try:
+            def get_tier_from_depth(depth: int) -> str:
+                """깊이로부터 티어 계산"""
+                if depth == 0:
+                    return "원청사"
+                elif depth == 1:
+                    return "1차사"
+                elif depth == 2:
+                    return "2차사"
+                elif depth == 3:
+                    return "3차사"
+                elif depth == 4:
+                    return "4차사"
+                else:
+                    return f"{depth + 1}차사"
+            
             def build_supply_chain_tree(company_name: str, current_depth: int = 0) -> Dict[str, Union[str, List, int]]:
                 if current_depth >= max_depth:
                     return {
                         "company_name": company_name,
-                        "tier": f"{current_depth + 1}차사" if current_depth > 0 else "원청사",
+                        "tier": get_tier_from_depth(current_depth),
                         "children": [],
                         "depth": current_depth
                     }
@@ -144,7 +159,7 @@ class MonitoringRepository:
                 
                 return {
                     "company_name": company_name,
-                    "tier": f"{current_depth + 1}차사" if current_depth > 0 else "원청사",
+                    "tier": get_tier_from_depth(current_depth),
                     "children": children,
                     "depth": current_depth,
                     "partner_count": len(tier1_partners)

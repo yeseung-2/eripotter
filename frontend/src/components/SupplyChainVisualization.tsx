@@ -110,6 +110,23 @@ export default function SupplyChainVisualization({ onCompanySelect, isLegendExpa
   const [supplyChainData, setSupplyChainData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
+  const [savedPositions, setSavedPositions] = useState<{[key: string]: {x: number, y: number}}>({});
+
+  // 저장된 노드 위치 로드
+  useEffect(() => {
+    const loadSavedPositions = () => {
+      try {
+        const saved = localStorage.getItem('supply-chain-positions');
+        if (saved) {
+          setSavedPositions(JSON.parse(saved));
+        }
+      } catch (error) {
+        console.error('저장된 위치 로드 실패:', error);
+      }
+    };
+
+    loadSavedPositions();
+  }, []);
 
   // 공급망 데이터 가져오기
   useEffect(() => {
@@ -151,17 +168,21 @@ export default function SupplyChainVisualization({ onCompanySelect, isLegendExpa
       const nodeId = nodeIdCounter.toString();
       nodeIdCounter++;
 
+      // 저장된 위치가 있으면 사용, 없으면 기본 위치 생성
+      const savedPosition = savedPositions[node.company_name];
+      const defaultPosition = { 
+        x: depth * 300 + (index * 200), 
+        y: depth * 200 + (Math.random() * 50 - 25) // 약간의 랜덤 오프셋
+      };
+
       // 노드 생성
       const reactFlowNode: Node = {
         id: nodeId,
         type: 'companyNode',
-        position: { 
-          x: depth * 300 + (index * 200), 
-          y: depth * 200 + (Math.random() * 50 - 25) // 약간의 랜덤 오프셋
-        },
+        position: savedPosition || defaultPosition,
         data: {
           label: node.company_name,
-          tier: node.tier,
+          tier: getTierFromDepth(depth),
           industry: getIndustryFromCompanyName(node.company_name),
           isStrategic: isStrategicPartner(node.company_name),
           selected: false,
@@ -199,6 +220,18 @@ export default function SupplyChainVisualization({ onCompanySelect, isLegendExpa
 
     return { nodes, edges };
   }, []);
+
+  // 깊이로부터 티어 계산
+  const getTierFromDepth = (depth: number): string => {
+    switch (depth) {
+      case 0: return '원청사';
+      case 1: return '1차사';
+      case 2: return '2차사';
+      case 3: return '3차사';
+      case 4: return '4차사';
+      default: return `${depth + 1}차사`;
+    }
+  };
 
   // 회사명으로부터 업종 추정
   const getIndustryFromCompanyName = (companyName: string): string => {
@@ -515,6 +548,38 @@ export default function SupplyChainVisualization({ onCompanySelect, isLegendExpa
     }
   }, [generatedNodes, generatedEdges, setNodes, setEdges]);
 
+  // 노드 위치 변경 시 자동 저장
+  const saveNodePositions = useCallback((nodes: Node[]) => {
+    try {
+      const positions: {[key: string]: {x: number, y: number}} = {};
+      nodes.forEach(node => {
+        if (node.data?.label) {
+          positions[node.data.label] = {
+            x: node.position.x,
+            y: node.position.y
+          };
+        }
+      });
+      
+      localStorage.setItem('supply-chain-positions', JSON.stringify(positions));
+      setSavedPositions(positions);
+      console.log('노드 위치 저장 완료:', positions);
+    } catch (error) {
+      console.error('노드 위치 저장 실패:', error);
+    }
+  }, []);
+
+  // 노드 변경 시 위치 저장 (디바운싱 적용)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (nodes.length > 0) {
+        saveNodePositions(nodes);
+      }
+    }, 1000); // 1초 후 저장
+
+    return () => clearTimeout(timeoutId);
+  }, [nodes, saveNodePositions]);
+
   // 디버깅: 컴포넌트 마운트 시 엣지 정보 출력
   React.useEffect(() => {
     console.log('📊 초기 노드 개수:', initialNodes.length);
@@ -630,6 +695,30 @@ export default function SupplyChainVisualization({ onCompanySelect, isLegendExpa
               다시 시도
             </button>
           </div>
+        </div>
+      )}
+
+      {/* 저장/초기화 버튼 */}
+      {!isLoading && !error && (
+        <div className="absolute top-4 right-4 z-10 flex gap-2">
+          <button
+            onClick={() => saveNodePositions(nodes)}
+            className="px-3 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
+            title="현재 위치 저장"
+          >
+            💾 저장
+          </button>
+          <button
+            onClick={() => {
+              localStorage.removeItem('supply-chain-positions');
+              setSavedPositions({});
+              window.location.reload();
+            }}
+            className="px-3 py-2 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
+            title="위치 초기화"
+          >
+            🔄 초기화
+          </button>
         </div>
       )}
 
