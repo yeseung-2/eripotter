@@ -1,0 +1,29 @@
+```html
+<h3>[표 SC33-2] 장애인 고용률 현황 표</h3>
+
+<table border="1">
+  <thead>
+    <tr>
+      <th rowspan="2">구분</th>
+      <th rowspan="2">단위</th>
+      <th colspan="3">년도</th>
+    </tr>
+    <tr>
+      <th>2021</th>
+      <th>2022</th>
+      <th>2023</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>장애인 고용률</td>
+      <td>%</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+```
+
+위 HTML 코드에서 병합되어야 하는 셀(`rowspan`, `colspan`)을 반영하여 표를 구성했습니다. "년도" 항목은 `colspan`을 사용하여 3개 열(2021, 2022, 2023)을 병합하였습니다. "구분"과 "단위"는 각 2개의 행을 차지하기 때문에 `rowspan`을 사용하였습니다.

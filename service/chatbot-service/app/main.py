@@ -52,9 +52,10 @@ app.add_middleware(
 )
 
 # LangChain 모델 초기화
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
 try:
-    openai_api_key = os.getenv("OPENAI_API_KEY")
-    if not openai_api_key:
+    if not OPENAI_API_KEY:
         logger.warning("OPENAI_API_KEY가 설정되지 않았습니다. 기본 응답을 사용합니다.")
         llm = None
         embeddings = None
@@ -62,10 +63,10 @@ try:
         llm = ChatOpenAI(
             model="gpt-3.5-turbo",
             temperature=0.7,
-            api_key=openai_api_key
+            api_key=OPENAI_API_KEY
         )
         embeddings = OpenAIEmbeddings(
-            api_key=openai_api_key
+            api_key=OPENAI_API_KEY
         )
 except Exception as e:
     logger.error(f"LangChain 모델 초기화 실패: {str(e)}")

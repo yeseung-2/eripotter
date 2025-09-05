@@ -1,4 +1,19 @@
-fastapi==0.104.1
+# --- 기존 라인 유지 ---
+eripotter-common==0.1.4
 uvicorn[standard]==0.24.0
-httpx==0.25.2
-pydantic==2.5.0
+psycopg2-binary==2.9.9
+alembic==1.13.1
+python-multipart==0.0.9
+python-dotenv==1.0.0
+
+qdrant-client==1.15.1
+openai>=1.50.0
+langchain>=0.1.20
+langchain-community>=0.0.38,<0.1
+langchain-openai>=0.1.0
+
+# --- 여기부터 RAG 필수 3종 고정 ---
+# bge-m3 호환 안정 조합
+torch==2.3.1             # CPU 휠 자동 설치
+transformers==4.41.2     # torch 2.3.x와 호환
+sentence-transformers==2.7.0  # bge-m3 신규 모델 호환성 좋음

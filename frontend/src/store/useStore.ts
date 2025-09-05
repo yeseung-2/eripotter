@@ -4,6 +4,7 @@ import { persist } from 'zustand/middleware';
 interface User {
   user_id: string;
   company_id: string;
+  company_name?: string;  // 기업명 추가
   user_name?: string;
 }
 

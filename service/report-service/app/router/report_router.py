@@ -1,90 +1,156 @@
 """
-Report Router - API 엔드포인트 및 의존성 주입
+Report Router - ESG 매뉴얼 기반 보고서 API 라우팅
 """
-from fastapi import APIRouter, HTTPException, Depends
-from typing import List, Optional
-from datetime import datetime
-import logging
+from fastapi import APIRouter, Depends, Request
+from ..domain.controller.report_controller import ReportController, get_report_controller
+from ..domain.model.report_model import (
+    ReportCreateRequest, ReportCreateResponse,
+    ReportGetResponse, ReportUpdateRequest, ReportUpdateResponse,
+    ReportDeleteResponse, ReportListResponse, ReportCompleteRequest, ReportCompleteResponse,
+    IndicatorDraftRequest, IndicatorSaveRequest,
+    IndicatorListResponse, IndicatorInputFieldResponse, IndicatorDraftResponse
+)
 
-# Domain imports
-from ..domain.service.report_service import ReportService
-from ..domain.controller.report_controller import ReportController
+router = APIRouter(tags=["reports"])
 
-logger = logging.getLogger("report-router")
+# 기본 CRUD
+@router.post("/reports", response_model=ReportCreateResponse)
+async def create_report(request: ReportCreateRequest, controller: ReportController = Depends(get_report_controller)):
+    return controller.create_report(request)
 
-# DI 함수들
-def get_report_service() -> ReportService:
-    """Report Service 인스턴스 생성"""
-    return ReportService()
+@router.get("/reports/{topic}/{company_name}", response_model=ReportGetResponse)
+async def get_report(topic: str, company_name: str, controller: ReportController = Depends(get_report_controller)):
+    return controller.get_report(topic, company_name)
 
-def get_report_controller(service: ReportService = Depends(get_report_service)) -> ReportController:
-    """Report Controller 인스턴스 생성"""
-    return ReportController(service)
+@router.put("/reports", response_model=ReportUpdateResponse)
+async def update_report(request: ReportUpdateRequest, controller: ReportController = Depends(get_report_controller)):
+    return controller.update_report(request)
 
-# 라우터 생성
-report_router = APIRouter(prefix="/report", tags=["report"])
+@router.delete("/reports/{topic}/{company_name}", response_model=ReportDeleteResponse)
+async def delete_report(topic: str, company_name: str, controller: ReportController = Depends(get_report_controller)):
+    return controller.delete_report(topic, company_name)
 
-@report_router.get("/health", summary="서비스 상태 확인")
+@router.post("/reports/complete", response_model=ReportCompleteResponse)
+async def complete_report(request: ReportCompleteRequest, controller: ReportController = Depends(get_report_controller)):
+    return controller.complete_report(request.topic, request.company_name)
+
+# 목록
+@router.get("/reports/company/{company_name}", response_model=ReportListResponse)
+async def get_reports_by_company(company_name: str, controller: ReportController = Depends(get_report_controller)):
+    return controller.get_reports_by_company(company_name)
+
+@router.get("/reports/company/{company_name}/type/{report_type}", response_model=ReportListResponse)
+async def get_reports_by_type(company_name: str, report_type: str, controller: ReportController = Depends(get_report_controller)):
+    return controller.get_reports_by_type(company_name, report_type)
+
+@router.get("/reports/status/{company_name}")
+async def get_report_status(company_name: str, controller: ReportController = Depends(get_report_controller)):
+    return controller.get_report_status(company_name)
+
+# ESG 매뉴얼 기반 지표 API
+@router.get("/reports/indicator/{indicator_id}/summary")
+async def get_indicator_summary(indicator_id: str, controller: ReportController = Depends(get_report_controller)):
+    return controller.get_indicator_summary(indicator_id)
+
+@router.get("/reports/indicator/{indicator_id}/input-fields")
+async def generate_input_fields(indicator_id: str, controller: ReportController = Depends(get_report_controller)):
+    return controller.generate_input_fields(indicator_id)
+
+@router.post("/reports/indicator/{indicator_id}/draft")
+async def generate_indicator_draft(indicator_id: str, body: IndicatorDraftRequest, controller: ReportController = Depends(get_report_controller)):
+    return controller.generate_indicator_draft(indicator_id, body.company_name, body.inputs)
+
+@router.post("/reports/indicator/{indicator_id}/save")
+async def save_indicator_data(indicator_id: str, body: IndicatorSaveRequest, controller: ReportController = Depends(get_report_controller)):
+    return controller.save_indicator_data(indicator_id, body.company_name, body.inputs)
+
+@router.get("/reports/indicator/{indicator_id}/data")
+async def get_indicator_data(indicator_id: str, company_name: str, controller: ReportController = Depends(get_report_controller)):
+    return controller.get_indicator_data(indicator_id, company_name)
+
+# ===== 지표 관리 API =====
+@router.get("/indicators", response_model=IndicatorListResponse)
+async def get_all_indicators(controller: ReportController = Depends(get_report_controller)):
+    return controller.get_all_indicators()
+
+@router.get("/indicators/category/{category}", response_model=IndicatorListResponse)
+async def get_indicators_by_category(category: str, controller: ReportController = Depends(get_report_controller)):
+    return controller.get_indicators_by_category(category)
+
+@router.get("/indicators/{indicator_id}/fields", response_model=IndicatorInputFieldResponse)
+async def get_indicator_with_recommended_fields(indicator_id: str, controller: ReportController = Depends(get_report_controller)):
+    return controller.get_indicator_with_recommended_fields(indicator_id)
+
+@router.post("/indicators/{indicator_id}/enhanced-draft", response_model=IndicatorDraftResponse)
+async def generate_enhanced_draft(indicator_id: str, body: IndicatorDraftRequest, controller: ReportController = Depends(get_report_controller)):
+    return controller.generate_enhanced_draft(indicator_id, body.company_name, body.inputs)
+
+# ===== 개별 지표 처리 API (새로 추가) =====
+@router.post("/indicators/{indicator_id}/process", response_model=IndicatorDraftResponse)
+async def process_single_indicator(
+    indicator_id: str, 
+    body: IndicatorDraftRequest, 
+    controller: ReportController = Depends(get_report_controller)
+):
+    """
+    개별 지표 처리: 입력필드 생성 → 초안생성 (한 번에 처리)
+    """
+    return controller.process_single_indicator(indicator_id, body.company_name, body.inputs)
+
+@router.get("/indicators/{indicator_id}/input-fields-only")
+@router.post("/indicators/{indicator_id}/input-fields-only")
+async def get_indicator_input_fields_only(
+    indicator_id: str, 
+    controller: ReportController = Depends(get_report_controller)
+):
+    """
+    개별 지표의 입력필드만 생성 (RAG 기반)
+    """
+    return controller.generate_input_fields_only(indicator_id)
+
+@router.post("/indicators/{indicator_id}/draft-only", response_model=IndicatorDraftResponse)
+async def generate_indicator_draft_only(
+    indicator_id: str, 
+    body: IndicatorDraftRequest, 
+    controller: ReportController = Depends(get_report_controller)
+):
+    """
+    개별 지표의 초안만 생성 (입력된 데이터 기반)
+    """
+    return controller.generate_indicator_draft_only(indicator_id, body.company_name, body.inputs)
+
+# ===== 새로운 통일된 API 엔드포인트 =====
+# 프론트엔드에서 요청한 새로운 엔드포인트들
+@router.get("/indicator/{indicator_id}/input-fields")
+async def get_input_fields_new(indicator_id: str, controller: ReportController = Depends(get_report_controller)):
+    """새로운 통일된 엔드포인트: 입력필드 조회"""
+    return controller.generate_input_fields(indicator_id)
+
+@router.post("/indicator/{indicator_id}/draft")
+async def generate_draft_new(indicator_id: str, company_name: str, request: Request, controller: ReportController = Depends(get_report_controller)):
+    """새로운 통일된 엔드포인트: 초안 생성"""
+    # 요청 바디에서 inputs를 직접 받음
+    body = await request.json()
+    return controller.generate_indicator_draft(indicator_id, company_name, body)
+
+@router.post("/indicator/{indicator_id}/save")
+async def save_indicator_data_new(indicator_id: str, company_name: str, request: Request, controller: ReportController = Depends(get_report_controller)):
+    """새로운 통일된 엔드포인트: 입력값 저장"""
+    # 요청 바디에서 inputs를 직접 받음
+    body = await request.json()
+    return controller.save_indicator_data(indicator_id, company_name, body)
+
+@router.get("/indicator/{indicator_id}/data")
+async def get_indicator_data_new(indicator_id: str, company_name: str, controller: ReportController = Depends(get_report_controller)):
+    """새로운 통일된 엔드포인트: 입력값 조회"""
+    return controller.get_indicator_data(indicator_id, company_name)
+
+@router.get("/indicator/{indicator_id}/summary")
+async def get_indicator_summary_new(indicator_id: str, controller: ReportController = Depends(get_report_controller)):
+    """새로운 통일된 엔드포인트: 지표 요약"""
+    return controller.get_indicator_summary(indicator_id)
+
+# 헬스체크
+@router.get("/reports/health")
 async def health_check():
-    """서비스 상태 확인 엔드포인트"""
-    return {
-        "status": "healthy",
-        "service": "report-service",
-        "timestamp": datetime.now().isoformat(),
-        "message": "Report service is running"
-    }
-
-@report_router.get("/", summary="모든 보고서 목록 조회")
-async def get_all_reports(
-    controller: ReportController = Depends(get_report_controller)
-):
-    """모든 보고서 목록 조회"""
-    return controller.get_all_reports()
-
-@report_router.get("/{report_id}", summary="특정 보고서 조회")
-async def get_report_by_id(
-    report_id: str,
-    controller: ReportController = Depends(get_report_controller)
-):
-    """특정 보고서 조회"""
-    return controller.get_report_by_id(report_id)
-
-@report_router.post("/", summary="새로운 보고서 초안 생성")
-async def create_report_draft(
-    report_data: dict,
-    controller: ReportController = Depends(get_report_controller)
-):
-    """새로운 보고서 초안 생성"""
-    return controller.create_report_draft(report_data)
-
-@report_router.put("/{report_id}", summary="보고서 업데이트")
-async def update_report(
-    report_id: str,
-    report_data: dict,
-    controller: ReportController = Depends(get_report_controller)
-):
-    """보고서 업데이트"""
-    return controller.update_report(report_id, report_data)
-
-@report_router.delete("/{report_id}", summary="보고서 삭제")
-async def delete_report(
-    report_id: str,
-    controller: ReportController = Depends(get_report_controller)
-):
-    """보고서 삭제"""
-    return controller.delete_report(report_id)
-
-@report_router.post("/{report_id}/generate", summary="AI를 통한 보고서 초안 생성")
-async def generate_report_with_ai(
-    report_id: str,
-    controller: ReportController = Depends(get_report_controller)
-):
-    """AI를 통한 보고서 초안 생성"""
-    return controller.generate_report_with_ai(report_id)
-
-@report_router.get("/metrics", summary="서비스 메트릭 조회")
-async def get_metrics(
-    controller: ReportController = Depends(get_report_controller)
-):
-    """서비스 메트릭 조회"""
-    return controller.get_metrics()
+    return {"status": "healthy", "service": "report-service"}

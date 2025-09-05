@@ -31,11 +31,11 @@ class SolutionService:
         )
     
     def generate_solutions(self, company_name: str) -> List[SolutionSubmissionResponse]:
-        """취약 부문별 솔루션 생성 - Assessment 테이블의 score=0인 문항에 대해서만"""
+        """취약 부문별 솔루션 생성 - Assessment 테이블의 score=0 또는 score=25인 문항에 대해서만"""
         try:
             logger.info(f"📝 솔루션 생성 요청: company_name={company_name}")
             
-            # 1) Assessment Service에서 score=0인 데이터 조회
+            # 1) Assessment Service에서 score=0 또는 score=25인 데이터 조회
             vulnerable_sections_data = self.repository.get_vulnerable_sections(company_name)
             
             if not vulnerable_sections_data:
@@ -59,15 +59,15 @@ class SolutionService:
                 logger.info(f"✅ 검증된 취약 부문이 없습니다: company_name={company_name}")
                 return []
             
-            # 3) GPT API 호출하여 솔루션 생성 (score=0인 항목만)
+            # 3) GPT API 호출하여 솔루션 생성 (score=0 또는 score=25인 항목)
             solutions = []
             for vulnerable_section in vulnerable_sections:
                 try:
-                    # Assessment 테이블의 score=0 조건을 엄격하게 검증
+                    # Assessment 테이블의 score=0 또는 score=25 조건을 엄격하게 검증
                     if not self._is_vulnerable_section_model(vulnerable_section):
                         continue
                     
-                    # GPT 솔루션 생성 (score=0인 항목에 대해서만)
+                    # GPT 솔루션 생성 (score=0 또는 score=25인 항목에 대해서만)
                     solution_text = self._generate_solution_with_gpt_model(vulnerable_section)
                     
                     # 4) 솔루션 저장
@@ -104,10 +104,10 @@ class SolutionService:
             raise
     
     def _is_vulnerable_section_model(self, vulnerable_section: VulnerableSection) -> bool:
-        """Assessment 테이블의 score=0 조건을 Pydantic 모델로 엄격하게 검증"""
+        """Assessment 테이블의 score=0 또는 score=25 조건을 Pydantic 모델로 엄격하게 검증"""
         try:
-            # 1. score가 정확히 0인지 확인
-            if vulnerable_section.score != 0:
+            # 1. score가 0 또는 25인지 확인
+            if vulnerable_section.score not in [0, 25]:
                 return False
             
             # 2. 필수 필드들이 존재하는지 확인
@@ -127,7 +127,7 @@ class SolutionService:
             return False
     
     def _is_vulnerable_section(self, section: Dict[str, Union[str, int, None]]) -> bool:
-        """Assessment 테이블의 score=0 조건을 엄격하게 검증 (기존 메서드 - 호환성 유지)"""
+        """Assessment 테이블의 score=0 또는 score=25 조건을 엄격하게 검증 (기존 메서드 - 호환성 유지)"""
         try:
             # 1. score 필드가 존재하는지 확인
             if 'score' not in section:
@@ -140,8 +140,8 @@ class SolutionService:
                 logger.warning(f"⚠️ score가 정수가 아님: {score}, type: {type(score)}")
                 return False
             
-            # 3. score가 정확히 0인지 확인
-            if score != 0:
+            # 3. score가 0 또는 25인지 확인
+            if score not in [0, 25]:
                 return False
             
             # 4. 필수 필드들이 존재하는지 확인

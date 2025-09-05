@@ -10,13 +10,13 @@ from sqlalchemy import (
     JSON,
     BigInteger,
     TIMESTAMP,
-    ARRAY
+    ARRAY,
+    UniqueConstraint
 )
-from sqlalchemy.ext.declarative import declarative_base
+
+from eripotter_common.database import Base
 from sqlalchemy.sql import func
 from typing import Dict
-
-Base = declarative_base()
 
 class KesgEntity(Base):
     """KESG 테이블 엔티티 - Railway PostgreSQL 구조와 동일"""
@@ -95,6 +95,11 @@ class AssessmentEntity(Base):
     # 타임스탬프
     timestamp = Column(TIMESTAMP, nullable=True, server_default=func.now(), comment="제출 시간 (기본값 now())")
 
+    # 복합 유니크 제약조건: 같은 회사의 같은 문항은 중복 불가
+    __table_args__ = (
+        UniqueConstraint('company_name', 'question_id', name='uq_company_question'),
+    )
+
     def __repr__(self):
         return f"<AssessmentEntity(id={self.id}, company_name='{self.company_name}', question_id={self.question_id}, score={self.score})>"
 
@@ -108,5 +113,5 @@ class AssessmentEntity(Base):
             'level_no': self.level_no,
             'choice_ids': self.choice_ids,
             'score': self.score,
-            'timestamp': self.timestamp
+            'timestamp': self.timestamp.isoformat() if self.timestamp else None
         }

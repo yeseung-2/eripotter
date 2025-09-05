@@ -1,187 +1,167 @@
 """
-Assessment Repository - Mock Repository Layer
-DB 연결 없이 임시 데이터 반환
+Assessment Repository - Database Repository Layer
+실제 Railway PostgreSQL 데이터베이스와 연결
 """
 
-from pydantic import BaseModel
+import logging
+from sqlalchemy import text, func
 from typing import List, Optional, Dict, Union
 from datetime import datetime
+from eripotter_common.database import get_session
+from ..entity.assessment_entity import KesgEntity, AssessmentEntity
 
-class KesgEntity(BaseModel):
-    """KESG 테이블 엔티티 - Railway PostgreSQL 구조와 동일"""
-    id: int
-    classification: Optional[str] = None
-    domain: Optional[str] = None
-    category: Optional[str] = None
-    item_name: Optional[str] = None
-    item_desc: Optional[str] = None
-    metric_desc: Optional[str] = None
-    data_source: Optional[str] = None
-    data_period: Optional[str] = None
-    data_method: Optional[str] = None
-    data_detail: Optional[str] = None
-    question_type: Optional[str] = None
-    levels_json: Optional[List[Dict[str, Union[str, int]]]] = None
-    choices_json: Optional[List[Dict[str, Union[str, int]]]] = None
-    scoring_json: Optional[Dict[str, int]] = None
-    weight: Optional[float] = None
-
-    def to_dict(self) -> Dict[str, Union[str, int, float, List[Dict[str, Union[str, int]]], Dict[str, int], None]]:
-        """엔티티를 딕셔너리로 변환"""
-        return {
-            'id': self.id,
-            'classification': self.classification,
-            'domain': self.domain,
-            'category': self.category,
-            'item_name': self.item_name,
-            'item_desc': self.item_desc,
-            'metric_desc': self.metric_desc,
-            'data_source': self.data_source,
-            'data_period': self.data_period,
-            'data_method': self.data_method,
-            'data_detail': self.data_detail,
-            'question_type': self.question_type,
-            'levels_json': self.levels_json,
-            'choices_json': self.choices_json,
-            'scoring_json': self.scoring_json,
-            'weight': self.weight
-        }
+logger = logging.getLogger("assessment-repository")
 
 
-class AssessmentEntity(BaseModel):
-    """Assessment 테이블 엔티티"""
-    id: int
-    company_name: str
-    question_id: int
-    question_type: str
-    level_no: Optional[int] = None
-    choice_ids: Optional[List[int]] = None
-    score: int
-    timestamp: Optional[datetime] = None
-
-    def to_dict(self) -> Dict[str, Union[str, int, List[int], datetime, None]]:
-        """엔티티를 딕셔너리로 변환"""
-        return {
-            'id': self.id,
-            'company_name': self.company_name,
-            'question_id': self.question_id,
-            'question_type': self.question_type,
-            'level_no': self.level_no,
-            'choice_ids': self.choice_ids,
-            'score': self.score,
-            'timestamp': self.timestamp
-        }
 
 
-# Mock Repository 클래스
+# Database Repository 클래스
 class AssessmentRepository:
-    # 클래스 변수로 변경하여 인스턴스 간에도 데이터 유지
-    _storage: List[Dict[str, Union[str, int, List[int], None]]] = []
-    
     def __init__(self):
-        # 인스턴스 변수는 제거하고 클래스 변수 사용
-        pass
-
+        """Repository 초기화 시 데이터베이스 연결 테스트"""
+        try:
+            with get_session() as db:
+                # 간단한 연결 테스트
+                db.execute(text("SELECT 1"))
+                logger.info("✅ 데이터베이스 연결 테스트 성공")
+        except Exception as e:
+            logger.error(f"❌ 데이터베이스 연결 테스트 실패: {e}")
+            raise
     def get_kesg_items(self) -> List[Dict[str, Union[str, int, float, List[Dict[str, Union[str, int]]], Dict[str, int], None]]]:
-        """하드코딩된 kesg 문항 리스트"""
-        return [
-            {
-                "id": 1,
-                "classification": "E-1-3",
-                "domain": "환경",
-                "category": "환경경영 체계",
-                "item_name": "환경정책 수립",
-                "item_desc": "조직의 고유한 제품, 생산 및 서비스 활동에 의해 필연적으로 발생되는 부정적인 환경영향을 최소화하기 위한 정책",
-                "metric_desc": "환경경영을 위한 조직의 중장기 환경정책에 따른 실천적 목표와 세부적인 계획",
-                "data_source": "환경경영시스템, 중장기 환경정책, 연간 환경정책 관련 계획 및 보고서",
-                "data_period": "직전 회계연도 기준",
-                "data_method": "N/A",
-                "data_detail": "N/A",
-                "question_type": "five_level",
-                "levels_json": [
-                    {
-                        "level_no": 1,
-                        "label": "1단계",
-                        "desc": "환경경영을 추진하기 위한 연간 환경정책, 정량적 환경목표가 수립되어 있지 않음",
-                        "score": 0
-                    },
-                    {
-                        "level_no": 2,
-                        "label": "2단계",
-                        "desc": "연간 환경정책, 정량적 환경목표 및 환경경영계획은 수립되어 있으나 방침 및 목표, 계획에 대한 관련 근거가 없이 형식적으로 수립되어 있음",
-                        "score": 25
-                    },
-                    {
-                        "level_no": 3,
-                        "label": "3단계",
-                        "desc": "연간 환경정책, 정량적 환경목표 및 추진계획은 조직의 외부 및 내부 이슈를 고려하여 체계적으로 수립되어 있으며 모니터링, 측정, 분석 및 평가하고 있음",
-                        "score": 50
-                    },
-                    {
-                        "level_no": 4,
-                        "label": "4단계",
-                        "desc": "예산을 반영한 중장기 환경정책, 정량적 환경목표 및 추진계획이 체계적으로 수립되어 있으며 정기적으로 모니터링, 측정, 분석 및 평가하여 피드백을 통한 환경성과 및 개선활동 실적을 보유하고 있음",
-                        "score": 75
-                    },
-                    {
-                        "level_no": 5,
-                        "label": "5단계",
-                        "desc": "4단계 + 조직의 영향력과 통제력 범위에 있는 사업장(자회사, 종속법인, 연결실체)까지를 포함",
-                        "score": 100
-                    }
-                ],
-                "choices_json": None,
-                "scoring_json": None,
-                "weight": 1.0
-            },
-            {
-                "id": 2,
-                "classification": "G-1-1",
-                "domain": "지배구조",
-                "category": "윤리경영",
-                "item_name": "윤리경영 체계",
-                "item_desc": "비윤리 행위 방지 체계 구축 여부",
-                "metric_desc": "윤리경영 방침 및 내부 통제 시스템",
-                "data_source": "내부 규정, 윤리경영 보고서",
-                "data_period": "직전 회계연도 기준",
-                "data_method": "N/A",
-                "data_detail": "N/A",
-                "question_type": "five_choice",
-                "levels_json": None,
-                "choices_json": [
-                    {"id": 1, "text": "ISO37001(부패방지경영시스템) 인증을 받은 경우"},
-                    {"id": 2, "text": "비윤리 행위에 대한 내부신고 및 모니터링 체계를 갖추고 있는 경우"},
-                    {"id": 3, "text": "비윤리 행위 예방을 위한 교육 및 훈련이 이루어지고 있는 경우"},
-                    {"id": 4, "text": "비윤리 행위 발생 시 징계 등 조치 및 개선을 위한 프로세스를 갖추고 있는 경우"},
-                    {"id": 5, "text": "비윤리 행위 발생 및 사후조치에 관한 정보공개 체계를 갖추고 있는 경우"}
-                ],
-                "scoring_json": 
-                    {
-                    "1": 0,
-                    "2": 25,
-                    "3": 50,
-                    "4": 75,
-                    "5": 100
-                    },
-                "weight": 1.0
-            }
-        ]
+        """kesg 테이블에서 모든 문항 조회"""
+        try:
+            with get_session() as db:
+                kesg_items = db.query(KesgEntity).all()
+                result = [item.to_dict() for item in kesg_items]
+                logger.info(f"✅ KESG 항목 조회 성공: {len(result)}개 항목")
+                return result
+        except Exception as e:
+            logger.error(f"❌ KESG 항목 조회 중 오류: {e}")
+            return []
 
     def get_kesg_item_by_id(self, item_id: int) -> Optional[Dict[str, Union[str, int, float, List[Dict[str, Union[str, int]]], Dict[str, int], None]]]:
-        return next((i for i in self.get_kesg_items() if i["id"] == item_id), None)
+        """kesg 테이블에서 특정 ID의 문항 조회"""
+        try:
+            with get_session() as db:
+                item = db.query(KesgEntity).filter(KesgEntity.id == item_id).first()
+                return item.to_dict() if item else None
+        except Exception as e:
+            logger.error(f"❌ KESG 항목 조회 중 오류: {e}")
+            return None
 
     def get_kesg_scoring_data(self, question_ids: List[int]) -> Dict[int, Dict[str, Union[str, int, float, List[Dict[str, Union[str, int]]], Dict[str, int], None]]]:
-        return {item["id"]: item for item in self.get_kesg_items() if item["id"] in question_ids}
+        """kesg 테이블에서 여러 문항의 점수 데이터 조회"""
+        try:
+            with get_session() as db:
+                items = db.query(KesgEntity).filter(KesgEntity.id.in_(question_ids)).all()
+                return {item.id: item.to_dict() for item in items}
+        except Exception as e:
+            logger.error(f"❌ KESG 점수 데이터 조회 중 오류: {e}")
+            return {}
 
     def save_assessment_responses(self, submissions: List[Dict[str, Union[str, int, List[int], None]]]) -> bool:
-        print(f"🔍 Mock Repository: 저장할 데이터: {submissions}")
-        self._storage.extend(submissions)
-        print(f"🔍 Mock Repository: 현재 저장된 데이터: {self._storage}")
-        return True
+        """assessment 테이블에 응답 데이터 저장 (같은 문항은 덮어쓰기) - 배치 UPSERT 방식"""
+        try:
+            logger.info(f"📝 Assessment 응답 저장 시작: {len(submissions)}개 응답")
+            
+            with get_session() as db:
+                # 회사명과 문항 ID로 그룹화하여 중복 제거
+                unique_submissions = {}
+                for submission in submissions:
+                    key = (submission["company_name"], submission["question_id"])
+                    unique_submissions[key] = submission
+                
+                logger.info(f"📝 중복 제거 후 저장할 응답: {len(unique_submissions)}개")
+                
+                if not unique_submissions:
+                    logger.warning("⚠️ 저장할 응답 데이터가 없습니다.")
+                    return True
+                
+                # SQLAlchemy의 올바른 배치 처리 방법 사용
+                for submission in unique_submissions.values():
+                    # 기존 데이터가 있는지 확인
+                    existing = db.query(AssessmentEntity).filter(
+                        AssessmentEntity.company_name == submission["company_name"],
+                        AssessmentEntity.question_id == submission["question_id"]
+                    ).first()
+                    
+                    if existing:
+                        # 기존 데이터 업데이트
+                        existing.question_type = submission["question_type"]
+                        existing.level_no = submission.get("level_no")
+                        existing.choice_ids = submission.get("choice_ids")
+                        existing.score = submission["score"]
+                        existing.timestamp = datetime.now()
+                        logger.info(f"📝 기존 데이터 업데이트: {submission['company_name']} - 문항 {submission['question_id']}")
+                    else:
+                        # 새 데이터 생성
+                        new_assessment = AssessmentEntity(
+                            company_name=submission["company_name"],
+                            question_id=submission["question_id"],
+                            question_type=submission["question_type"],
+                            level_no=submission.get("level_no"),
+                            choice_ids=submission.get("choice_ids"),
+                            score=submission["score"],
+                            timestamp=datetime.now()
+                        )
+                        db.add(new_assessment)
+                        logger.info(f"📝 새 데이터 생성: {submission['company_name']} - 문항 {submission['question_id']}")
+                
+                db.commit()
+                logger.info(f"✅ Assessment 응답 배치 저장 성공: {len(unique_submissions)}개 응답")
+                logger.info(f"📝 저장된 데이터 샘플: {list(unique_submissions.values())[:2] if unique_submissions else '없음'}")
+                return True
+                
+        except Exception as e:
+            logger.error(f"❌ Assessment 배치 저장 중 오류: {e}")
+            logger.error(f"❌ 오류 상세: {type(e).__name__}: {str(e)}")
+            if 'db' in locals():
+                try:
+                    db.rollback()
+                    logger.info("🔄 데이터베이스 롤백 완료")
+                except Exception as rollback_error:
+                    logger.error(f"❌ 롤백 중 오류: {rollback_error}")
+            return False
 
     def get_company_results(self, company_name: str) -> List[Dict[str, Union[str, int, List[int], None]]]:
-        print(f"🔍 Mock Repository: 조회 요청 company_name: '{company_name}'")
-        print(f"🔍 Mock Repository: 저장된 모든 데이터: {self._storage}")
-        results = [s for s in self._storage if s["company_name"] == company_name]
-        print(f"🔍 Mock Repository: 조회 결과: {results}")
-        return results
+        """assessment 테이블에서 특정 회사의 결과 조회"""
+        try:
+            with get_session() as db:
+                results = db.query(AssessmentEntity).filter(
+                    AssessmentEntity.company_name == company_name
+                ).order_by(AssessmentEntity.question_id).all()
+                result_list = [result.to_dict() for result in results]
+                logger.info(f"✅ 회사 결과 조회 성공: {company_name} - {len(result_list)}개 결과")
+                return result_list
+        except Exception as e:
+            logger.error(f"❌ 회사 결과 조회 중 오류: {e}")
+            return []
+
+    def get_assessment_by_company_and_question(self, company_name: str, question_id: int) -> Optional[Dict[str, Union[str, int, List[int], None]]]:
+        """특정 회사의 특정 문항에 대한 응답 조회"""
+        try:
+            with get_session() as db:
+                result = db.query(AssessmentEntity).filter(
+                    AssessmentEntity.company_name == company_name,
+                    AssessmentEntity.question_id == question_id
+                ).first()
+                return result.to_dict() if result else None
+        except Exception as e:
+            logger.error(f"❌ 특정 응답 조회 중 오류: {e}")
+            return None
+
+    def delete_company_assessments(self, company_name: str) -> bool:
+        """특정 회사의 모든 자가진단 응답 삭제"""
+        try:
+            with get_session() as db:
+                deleted_count = db.query(AssessmentEntity).filter(
+                    AssessmentEntity.company_name == company_name
+                ).delete()
+                db.commit()
+                logger.info(f"✅ 회사 자가진단 응답 삭제 성공: {company_name} - {deleted_count}개 삭제")
+                return True
+        except Exception as e:
+            logger.error(f"❌ 회사 자가진단 응답 삭제 중 오류: {e}")
+            if 'db' in locals():
+                db.rollback()
+            return False

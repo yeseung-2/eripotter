@@ -17,7 +17,15 @@ export default function SignupPage() {
     user_id: '',
     user_pw: '',
     user_pw_confirm: '',
-    company_id: ''
+    industry: '',
+    bs_num: '',
+    company_id: '',
+    company_add: '',
+    company_country: '',
+    manager_dept: '',
+    manager_name: '',
+    manager_email: '',
+    manager_phone: ''
   });
 
   // Loading state
@@ -49,7 +57,15 @@ export default function SignupPage() {
       const signupData = {
         user_id: userData.user_id,
         user_pw: userData.user_pw,
-        company_id: userData.company_id
+        industry: userData.industry,
+        bs_num: userData.bs_num,
+        company_id: userData.company_id,
+        company_add: userData.company_add,
+        company_country: userData.company_country,
+        manager_dept: userData.manager_dept,
+        manager_name: userData.manager_name,
+        manager_email: userData.manager_email,
+        manager_phone: userData.manager_phone
       };
 
       // ✅ 게이트웨이 경유로 호출
@@ -104,60 +120,167 @@ export default function SignupPage() {
 
           {/* Signup Form */}
           <form onSubmit={handleSignup} className="space-y-6">
-            {/* Username Input */}
-            <div className="relative">
-              <input
-                type="text"
-                name="user_id"
-                value={userData.user_id}
-                onChange={handleInputChange}
-                placeholder="Username"
-                className="w-full px-0 py-4 text-lg text-gray-800 placeholder-gray-400 bg-transparent border-0 border-b-2 border-gray-200 focus:border-blue-500 focus:outline-none transition-all duration-300"
-                required
-                disabled={isLoading}
-              />
+            {/* 계정 정보 섹션 */}
+            <div className="space-y-6">
+              <h3 className="text-lg font-semibold text-gray-700">계정 정보</h3>
+              <div className="relative">
+                <input
+                  type="text"
+                  name="user_id"
+                  value={userData.user_id}
+                  onChange={handleInputChange}
+                  placeholder="아이디"
+                  className="w-full px-0 py-4 text-lg text-gray-800 placeholder-gray-400 bg-transparent border-0 border-b-2 border-gray-200 focus:border-blue-500 focus:outline-none transition-all duration-300"
+                  required
+                  disabled={isLoading}
+                />
+              </div>
+              <div className="relative">
+                <input
+                  type="password"
+                  name="user_pw"
+                  value={userData.user_pw}
+                  onChange={handleInputChange}
+                  placeholder="비밀번호"
+                  className="w-full px-0 py-4 text-lg text-gray-800 placeholder-gray-400 bg-transparent border-0 border-b-2 border-gray-200 focus:border-blue-500 focus:outline-none transition-all duration-300"
+                  required
+                  disabled={isLoading}
+                />
+              </div>
+              <div className="relative">
+                <input
+                  type="password"
+                  name="user_pw_confirm"
+                  value={userData.user_pw_confirm}
+                  onChange={handleInputChange}
+                  placeholder="비밀번호 확인"
+                  className="w-full px-0 py-4 text-lg text-gray-800 placeholder-gray-400 bg-transparent border-0 border-b-2 border-gray-200 focus:border-blue-500 focus:outline-none transition-all duration-300"
+                  required
+                  disabled={isLoading}
+                />
+              </div>
             </div>
 
-            {/* Company ID Input */}
-            <div className="relative">
-              <input
-                type="text"
-                name="company_id"
-                value={userData.company_id}
-                onChange={handleInputChange}
-                placeholder="Company ID"
-                className="w-full px-0 py-4 text-lg text-gray-800 placeholder-gray-400 bg-transparent border-0 border-b-2 border-gray-200 focus:border-blue-500 focus:outline-none transition-all duration-300"
-                required
-                disabled={isLoading}
-              />
+            {/* 회사 정보 섹션 */}
+            <div className="space-y-6 mt-8">
+              <h3 className="text-lg font-semibold text-gray-700">회사 정보</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="relative">
+                  <input
+                    type="text"
+                    name="company_id"
+                    value={userData.company_id}
+                    onChange={handleInputChange}
+                    placeholder="회사명"
+                    className="w-full px-0 py-4 text-lg text-gray-800 placeholder-gray-400 bg-transparent border-0 border-b-2 border-gray-200 focus:border-blue-500 focus:outline-none transition-all duration-300"
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    name="industry"
+                    value={userData.industry}
+                    onChange={handleInputChange}
+                    placeholder="업종"
+                    className="w-full px-0 py-4 text-lg text-gray-800 placeholder-gray-400 bg-transparent border-0 border-b-2 border-gray-200 focus:border-blue-500 focus:outline-none transition-all duration-300"
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    name="bs_num"
+                    value={userData.bs_num}
+                    onChange={handleInputChange}
+                    placeholder="사업자등록번호"
+                    className="w-full px-0 py-4 text-lg text-gray-800 placeholder-gray-400 bg-transparent border-0 border-b-2 border-gray-200 focus:border-blue-500 focus:outline-none transition-all duration-300"
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    name="company_country"
+                    value={userData.company_country}
+                    onChange={handleInputChange}
+                    placeholder="국가"
+                    className="w-full px-0 py-4 text-lg text-gray-800 placeholder-gray-400 bg-transparent border-0 border-b-2 border-gray-200 focus:border-blue-500 focus:outline-none transition-all duration-300"
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+              <div className="relative">
+                <input
+                  type="text"
+                  name="company_add"
+                  value={userData.company_add}
+                  onChange={handleInputChange}
+                  placeholder="회사 주소"
+                  className="w-full px-0 py-4 text-lg text-gray-800 placeholder-gray-400 bg-transparent border-0 border-b-2 border-gray-200 focus:border-blue-500 focus:outline-none transition-all duration-300"
+                  required
+                  disabled={isLoading}
+                />
+              </div>
             </div>
 
-            {/* Password Input */}
-            <div className="relative">
-              <input
-                type="password"
-                name="user_pw"
-                value={userData.user_pw}
-                onChange={handleInputChange}
-                placeholder="Password"
-                className="w-full px-0 py-4 text-lg text-gray-800 placeholder-gray-400 bg-transparent border-0 border-b-2 border-gray-200 focus:border-blue-500 focus:outline-none transition-all duration-300"
-                required
-                disabled={isLoading}
-              />
-            </div>
-
-            {/* Password Confirm Input */}
-            <div className="relative">
-              <input
-                type="password"
-                name="user_pw_confirm"
-                value={userData.user_pw_confirm}
-                onChange={handleInputChange}
-                placeholder="Confirm Password"
-                className="w-full px-0 py-4 text-lg text-gray-800 placeholder-gray-400 bg-transparent border-0 border-b-2 border-gray-200 focus:border-blue-500 focus:outline-none transition-all duration-300"
-                required
-                disabled={isLoading}
-              />
+            {/* 담당자 정보 섹션 */}
+            <div className="space-y-6 mt-8">
+              <h3 className="text-lg font-semibold text-gray-700">담당자 정보</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="relative">
+                  <input
+                    type="text"
+                    name="manager_name"
+                    value={userData.manager_name}
+                    onChange={handleInputChange}
+                    placeholder="담당자 이름"
+                    className="w-full px-0 py-4 text-lg text-gray-800 placeholder-gray-400 bg-transparent border-0 border-b-2 border-gray-200 focus:border-blue-500 focus:outline-none transition-all duration-300"
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    name="manager_dept"
+                    value={userData.manager_dept}
+                    onChange={handleInputChange}
+                    placeholder="담당자 부서"
+                    className="w-full px-0 py-4 text-lg text-gray-800 placeholder-gray-400 bg-transparent border-0 border-b-2 border-gray-200 focus:border-blue-500 focus:outline-none transition-all duration-300"
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="relative">
+                  <input
+                    type="email"
+                    name="manager_email"
+                    value={userData.manager_email}
+                    onChange={handleInputChange}
+                    placeholder="담당자 이메일"
+                    className="w-full px-0 py-4 text-lg text-gray-800 placeholder-gray-400 bg-transparent border-0 border-b-2 border-gray-200 focus:border-blue-500 focus:outline-none transition-all duration-300"
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="relative">
+                  <input
+                    type="tel"
+                    name="manager_phone"
+                    value={userData.manager_phone}
+                    onChange={handleInputChange}
+                    placeholder="담당자 연락처"
+                    className="w-full px-0 py-4 text-lg text-gray-800 placeholder-gray-400 bg-transparent border-0 border-b-2 border-gray-200 focus:border-blue-500 focus:outline-none transition-all duration-300"
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Signup Button */}

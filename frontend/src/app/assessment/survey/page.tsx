@@ -1,64 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Info } from 'lucide-react';
 import { Drawer } from '@/components/Drawer';
-
-// TypeScript interfaces converted from assessment_model.py Pydantic models
-
-export interface KesgItem {
-  id: number;
-  classification?: string;
-  domain?: string;
-  category?: string;
-  item_name?: string;
-  item_desc?: string;
-  metric_desc?: string;
-  data_source?: string;
-  data_period?: string;
-  data_method?: string;
-  data_detail?: string;
-  question_type?: string;
-  levels_json?: LevelData[];
-  choices_json?: ChoiceData[];
-  scoring_json?: Record<string, number>;
-  weight?: number;
-}
-
-export interface KesgResponse {
-  items: KesgItem[];
-  total_count: number;
-}
-
-export interface AssessmentSubmissionRequest {
-  question_id: number;
-  question_type: string;
-  level_no?: number;
-  choice_ids?: number[];
-}
-
-export interface AssessmentSubmissionResponse {
-  id: number;
-  company_name: string;
-  question_id: number;
-  question_type: string;
-  level_no?: number;
-  choice_ids?: number[];
-  score: number;
-  timestamp?: string;
-}
-
-export interface AssessmentRequest {
-  company_name: string;
-  responses: AssessmentSubmissionRequest[];
-}
-
-export interface AssessmentResponse {
-  id: string;
-  company_name: string;
-  created_at: string;
-  status: string;
-}
+import { getKesgItems, submitAssessment } from '@/lib/api';
+import type { KesgItem, KesgResponse, AssessmentSubmissionRequest, AssessmentSubmissionResponse, AssessmentRequest, LevelData, ChoiceData } from '@/types/assessment';
+import { useRouter } from 'next/navigation';
 
 // Response type for managing form state
 type ResponseData = {
@@ -66,20 +12,8 @@ type ResponseData = {
   choice_ids?: number[];
 };
 
-// Level and Choice types
-interface LevelData {
-  level_no: number;
-  label: string;
-  desc: string;
-  score: number;
-}
-
-interface ChoiceData {
-  id: number;
-  text: string;
-}
-
 export default function AssessmentPage() {
+  const router = useRouter();
   const [kesgItems, setKesgItems] = useState<KesgItem[]>([]);
   const [responses, setResponses] = useState<Record<number, ResponseData>>({});
   const [loading, setLoading] = useState(true);
@@ -103,11 +37,7 @@ export default function AssessmentPage() {
   useEffect(() => {
     const fetchKesgData = async () => {
       try {
-        const response = await fetch('http://localhost:8002/assessment/kesg');
-        if (!response.ok) {
-          throw new Error('KESG 데이터를 불러오는데 실패했습니다.');
-        }
-        const data = await response.json();
+        const data = await getKesgItems();
         console.log('API 응답 데이터:', data);
 
         // 응답 데이터 구조에 따른 처리
@@ -164,6 +94,14 @@ export default function AssessmentPage() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
+    // 회사명 확인
+    const companyName = localStorage.getItem('companyName');
+    if (!companyName) {
+      alert('회사 정보가 없습니다. 자가진단 페이지로 이동합니다.');
+      router.push('/assessment');
+      return;
+    }
+
     const formattedResponses: AssessmentSubmissionRequest[] = kesgItems.map((item) => {
       const response = responses[item.id];
 
@@ -191,26 +129,15 @@ export default function AssessmentPage() {
     
     try {
       // API 호출하여 실제로 데이터 저장
-      const response = await fetch('http://localhost:8002/assessment/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          company_name: '테스트회사',
-          responses: formattedResponses
-        }),
+      const result = await submitAssessment({
+        company_name: companyName,
+        responses: formattedResponses
       });
 
-      if (response.ok) {
-        console.log('자가진단 응답이 성공적으로 저장되었습니다.');
-        // 응답 데이터를 localStorage에 저장하고 결과 페이지로 이동
-        localStorage.setItem('assessmentResponses', JSON.stringify(formattedResponses));
-        window.location.href = '/assessment/result';
-      } else {
-        console.error('자가진단 응답 저장에 실패했습니다.');
-        alert('자가진단 응답 저장에 실패했습니다. 다시 시도해주세요.');
-      }
+      console.log('자가진단 응답이 성공적으로 저장되었습니다:', result);
+      // 응답 데이터를 localStorage에 저장하고 결과 페이지로 이동
+      localStorage.setItem('assessmentResponses', JSON.stringify(formattedResponses));
+      window.location.href = '/assessment/result';
     } catch (error) {
       console.error('API 호출 오류:', error);
       alert('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
@@ -361,7 +288,7 @@ export default function AssessmentPage() {
                       e.currentTarget.style.backgroundColor = 'transparent';
                     }}
                   >
-                    <Info size={20} color="#007bff" />
+                    <span style={{ fontSize: '20px', color: '#007bff' }}>ℹ️</span>
                   </button>
                 </div>
               </div>

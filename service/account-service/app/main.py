@@ -1,106 +1,44 @@
-"""
-Account Service - MSA 프랙탈 구조
-"""
-from dotenv import load_dotenv, find_dotenv
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
-import logging, sys, traceback, os
+from eripotter_common.database import engine
+from .domain.entity.account_entity import Base
+from .router.account_router import router as account_router
+from .domain.statement.account_migration import migrate_account_table
+import logging
 
-# ---------- Logging ----------
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-    force=True,
+# 로깅 설정
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# 데이터베이스 테이블 생성
+Base.metadata.create_all(bind=engine)
+
+# 마이그레이션 실행
+try:
+    migrate_account_table()
+except Exception as e:
+    logger.warning(f"마이그레이션 실패 (이미 적용된 경우): {str(e)}")
+
+# FastAPI 앱 생성
+app = FastAPI(
+    title="Account Service",
+    description="Account management service for EriPotter",
+    version="1.0.0"
 )
-logger = logging.getLogger("account-service")
 
-# 상세한 오류 로깅을 위한 함수
-def log_error_with_context(error: Exception, context: str = "", **kwargs):
-    """상세한 오류 정보를 로그로 남김"""
-    error_info = {
-        "error_type": type(error).__name__,
-        "error_message": str(error),
-        "context": context,
-        **kwargs
-    }
-    
-    logger.error(f"❌ 오류 발생: {error_info}")
-    
-    # 스택 트레이스 로깅
-    import traceback
-    logger.error(f"📋 스택 트레이스:\n{traceback.format_exc()}")
-    
-    return error_info
-
-# ---------- .env ----------
-if os.getenv("RAILWAY_ENVIRONMENT") != "true":
-    load_dotenv(find_dotenv())
-
-# ---------- FastAPI ----------
-app = FastAPI(title="Account Service API", description="Account 서비스", version="1.0.0")
-
+# CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://eripotter.com",
-        "https://www.eripotter.com",
-        # 개발용 필요 시 주석 해제
-        "http://localhost:3000", "http://localhost:8080",
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ---------- Database Connection Test ----------
-# 데이터베이스 연결은 나중에 구현 예정
-logger.info("✅ Account Service 시작됨")
-
-# ---------- Import Routers ----------
-from .router.account_router import account_router
-
-# ---------- Include Routers ----------
+# 라우터 등록
 app.include_router(account_router)
 
-# ---------- Root Route ----------
-@app.get("/", summary="Root")
-def root():
-    return {
-        "status": "ok", 
-        "service": "account-service", 
-        "endpoints": ["/login", "/signup", "/logout", "/profile"]
-    }
-
-# ---------- Middleware ----------
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    client_ip = request.client.host if request.client else "unknown"
-    user_agent = request.headers.get("user-agent", "unknown")
-    
-    logger.info(f"📥 요청: {request.method} {request.url.path} (클라이언트: {client_ip}, UA: {user_agent[:50]}...)")
-    
-    try:
-        response = await call_next(request)
-        logger.info(f"📤 응답: {response.status_code} - {request.method} {request.url.path}")
-        return response
-    except Exception as e:
-        log_error_with_context(
-            error=e,
-            context="HTTP 요청 처리",
-            service="account-service",
-            operation="request_processing",
-            request_method=request.method,
-            request_path=str(request.url.path),
-            client_ip=client_ip,
-            user_agent=user_agent,
-            headers=dict(request.headers)
-        )
-        raise
-
-# ---------- Entrypoint ----------
-if __name__ == "__main__":
-    port = int(os.getenv("PORT", "8001"))
-    logger.info(f"💻 서비스 시작 - 포트: {port}")
-    uvicorn.run("app.main:app", host="0.0.0.0", port=port, log_level="info", access_log=True)
+# 헬스체크
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "service": "account"}

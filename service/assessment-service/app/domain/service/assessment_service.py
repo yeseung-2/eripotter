@@ -5,6 +5,7 @@ Assessment Service - Service Layer
 
 import logging
 from typing import List, Dict, Union
+from datetime import datetime
 from ..repository.assessment_repository import AssessmentRepository
 from ..model.assessment_model import KesgItem, KesgResponse, AssessmentSubmissionResponse
 
@@ -123,7 +124,15 @@ class AssessmentService:
             elif question_type == 'five_choice':
                 # 선택형: scoring_json에서 점수 계산
                 scoring_json = kesg_item['scoring_json']
-                if isinstance(scoring_json, list) and isinstance(selected_value, list):
+                if isinstance(scoring_json, dict) and isinstance(selected_value, list):
+                    # 선택 개수에 따른 점수 계산
+                    choice_count = len(selected_value)
+                    choice_count_str = str(choice_count)
+                    if choice_count_str in scoring_json:
+                        return scoring_json[choice_count_str]
+                    return 0
+                elif isinstance(scoring_json, list) and isinstance(selected_value, list):
+                    # 선택된 choice들의 점수 합계
                     total_score = 0
                     for choice_id in selected_value:
                         for choice in scoring_json:
@@ -185,7 +194,16 @@ class AssessmentService:
                         if choice_count_str in scoring_json:
                             submission['score'] = scoring_json[choice_count_str]
                         else:
+                            # 선택 개수가 scoring_json에 없으면 0점
                             submission['score'] = 0
+                    elif isinstance(scoring_json, list) and isinstance(selected_value, list):
+                        # scoring_json이 리스트인 경우 (선택된 choice들의 점수 합계)
+                        total_score = 0
+                        for choice_id in selected_value:
+                            for choice in scoring_json:
+                                if choice.get('id') == choice_id:
+                                    total_score += choice.get('score', 0)
+                        submission['score'] = total_score
                     else:
                         submission['score'] = 0
                         
@@ -236,37 +254,42 @@ class AssessmentService:
                 
                 submissions.append(submission)
             
+            logger.info(f"📝 변환된 submissions: {len(submissions)}개")
+            
             # 배치로 점수 계산
             submissions_with_scores = self.calculate_scores_batch(submissions)
+            logger.info(f"📝 점수 계산 완료: {len(submissions_with_scores)}개")
             
             # 데이터베이스에 저장
             success = self.repository.save_assessment_responses(submissions_with_scores)
             
             if success:
-                logger.info(f"✅ 자가진단 응답 제출 성공: company_name={company_name}")
+                logger.info(f"✅ 자가진단 응답 제출 성공: company_name={company_name}, 저장된 응답 수={len(submissions_with_scores)}")
             else:
                 logger.error(f"❌ 자가진단 응답 제출 실패: company_name={company_name}")
+                raise Exception("데이터베이스 저장에 실패했습니다.")
             
             # AssessmentSubmissionResponse 리스트로 변환하여 반환
             result = []
             for submission in submissions_with_scores:
                 response = AssessmentSubmissionResponse(
-                    id=0,  # Mock에서는 0으로 설정
+                    id=0,  # 실제 DB에서는 저장 후 ID가 자동 생성됨
                     company_name=submission['company_name'],
                     question_id=submission['question_id'],
                     question_type=submission['question_type'],
                     level_no=submission.get('level_no'),
                     choice_ids=submission.get('choice_ids'),
                     score=submission.get('score', 0),
-                    timestamp=None  # Mock에서는 None으로 설정
+                    timestamp=datetime.now().isoformat()  # 현재 시간으로 설정
                 )
                 result.append(response)
             
+            logger.info(f"✅ AssessmentSubmissionResponse 변환 완료: {len(result)}개")
             return result
             
         except Exception as e:
             logger.error(f"❌ 자가진단 응답 제출 중 예상치 못한 오류: {e}")
-            return []
+            raise
     
     def get_company_results(self, company_name: str) -> List[Dict[str, Union[str, int, List[int], None]]]:
         """회사별 자가진단 결과 조회"""
@@ -326,15 +349,15 @@ class AssessmentService:
             return []
     
     def get_vulnerable_sections(self, company_name: str) -> List[Dict[str, Union[str, int, List[int], None]]]:
-        """특정 회사의 취약 부문 조회 (score가 0인 문항)"""
+        """특정 회사의 취약 부문 조회 (score가 0점 또는 25점인 문항)"""
         try:
             logger.info(f"📝 취약 부문 조회 요청: company_name={company_name}")
             
             # 기본 결과 조회
             results = self.repository.get_company_results(company_name)
             
-            # score가 0인 문항만 필터링
-            vulnerable_results = [result for result in results if result.get('score', 0) == 0]
+            # score가 0점 또는 25점인 문항을 취약 부문으로 필터링
+            vulnerable_results = [result for result in results if result.get('score', 0) in [0, 25]]
             
             # kesg 데이터와 조인하여 상세 정보 추가
             detailed_vulnerable_sections = []
@@ -361,7 +384,7 @@ class AssessmentService:
                 
                 detailed_vulnerable_sections.append(detailed_section)
             
-            logger.info(f"✅ 취약 부문 조회 성공: {len(detailed_vulnerable_sections)}개 취약 부문")
+            logger.info(f"✅ 취약 부문 조회 성공: {len(detailed_vulnerable_sections)}개 취약 부문 (0점: {len([r for r in vulnerable_results if r.get('score') == 0])}개, 25점: {len([r for r in vulnerable_results if r.get('score') == 25])}개)")
             return detailed_vulnerable_sections
             
         except Exception as e:

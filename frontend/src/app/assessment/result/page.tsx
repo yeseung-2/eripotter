@@ -2,6 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { getCompanyResults, getCompanySolutions, generateSolutions } from '@/lib/api';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Users } from 'lucide-react';
+import Image from 'next/image';
 
 export interface AssessmentSubmissionRequest {
   question_id: number;
@@ -81,17 +86,22 @@ export default function AssessmentResultPage() {
       try {
         const parsedResponses = JSON.parse(savedResponses);
         setResponses(parsedResponses);
-        
-        // 자가진단 결과 데이터 가져오기
-        fetchAssessmentResults();
-        // 솔루션은 버튼 클릭 시에만 생성되므로 초기 로딩 시에는 불러오지 않음
       } catch (error) {
         console.error('응답 데이터 파싱 오류:', error);
       }
-    } else {
-      // 응답 데이터가 없어도 결과 페이지에서 데이터를 불러올 수 있도록 시도
-      fetchAssessmentResults();
     }
+    
+    // 회사명 확인
+    const companyName = localStorage.getItem('companyName');
+    if (!companyName) {
+      console.error('회사명이 설정되지 않았습니다.');
+      alert('회사 정보가 없습니다. 자가진단 페이지로 이동합니다.');
+      router.push('/assessment');
+      return;
+    }
+    
+    // 응답 데이터 유무와 관계없이 자가진단 결과 데이터 가져오기 시도
+    fetchAssessmentResults();
     setLoading(false);
   }, [router]);
 
@@ -105,13 +115,14 @@ export default function AssessmentResultPage() {
 
   const fetchAssessmentResults = async () => {
     try {
-      const response = await fetch('http://localhost:8002/assessment/assessment-results/테스트회사');
-      if (response.ok) {
-        const data = await response.json();
-        setAssessmentResults(data.assessment_results || []);
-      } else {
-        console.error('자가진단 결과 데이터를 불러오는데 실패했습니다.');
+      const companyName = localStorage.getItem('companyName');
+      if (!companyName) {
+        console.error('회사명이 설정되지 않았습니다.');
+        return;
       }
+      
+      const data = await getCompanyResults(companyName);
+      setAssessmentResults(data.assessment_results || []);
     } catch (error) {
       console.error('자가진단 결과 API 호출 오류:', error);
     }
@@ -119,8 +130,8 @@ export default function AssessmentResultPage() {
 
   const fetchVulnerableSections = async () => {
     try {
-      // Assessment 결과에서 score=0인 항목을 직접 필터링하여 취약 부문으로 설정
-      const vulnerableFromAssessment = assessmentResults.filter(result => result.score === 0);
+      // Assessment 결과에서 score가 0점 또는 25점인 항목을 취약 부문으로 설정
+      const vulnerableFromAssessment = assessmentResults.filter(result => result.score === 0 || result.score === 25);
       setVulnerableSections(vulnerableFromAssessment);
     } catch (error) {
       console.error('취약 부문 데이터 처리 오류:', error);
@@ -129,39 +140,35 @@ export default function AssessmentResultPage() {
 
   const fetchSolutions = async () => {
     try {
-      const response = await fetch('http://localhost:8080/solution/테스트회사');
-      if (response.ok) {
-        const data = await response.json();
-        setSolutions(data || []);
-      } else {
-        console.error('솔루션 데이터를 불러오는데 실패했습니다.');
+      const companyName = localStorage.getItem('companyName');
+      if (!companyName) {
+        console.error('회사명이 설정되지 않았습니다.');
+        return;
       }
+      
+      const data = await getCompanySolutions(companyName);
+      setSolutions(data || []);
     } catch (error) {
       console.error('솔루션 API 호출 오류:', error);
     }
   };
 
-  const generateSolutions = async () => {
+  const handleGenerateSolutions = async () => {
+    const companyName = localStorage.getItem('companyName');
+    if (!companyName) {
+      alert('회사 정보가 없습니다. 자가진단 페이지로 이동합니다.');
+      router.push('/assessment');
+      return;
+    }
+    
     setGeneratingSolutions(true);
     try {
-      const response = await fetch('http://localhost:8080/solution/generate/테스트회사', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setSolutions(data || []);
-        if (data && data.length > 0) {
-          alert(`${data.length}개의 솔루션이 성공적으로 생성되었습니다!`);
-        } else {
-          alert('생성할 취약 부문이 없습니다.');
-        }
+      const data = await generateSolutions(companyName);
+      setSolutions(Array.isArray(data) ? data : []);
+      if (data && data.length > 0) {
+        alert(`${data.length}개의 솔루션이 성공적으로 생성되었습니다!`);
       } else {
-        console.error('솔루션 생성에 실패했습니다.');
-        alert('솔루션 생성에 실패했습니다. 다시 시도해주세요.');
+        alert('생성할 취약 부문이 없습니다.');
       }
     } catch (error) {
       console.error('솔루션 생성 API 호출 오류:', error);
@@ -184,8 +191,11 @@ export default function AssessmentResultPage() {
       maxScore += 100 * weight;
     });
     
-    setTotalScore(Math.round(total * 100) / 100); // 소수점 2자리까지 반올림
-    setMaxPossibleScore(Math.round(maxScore * 100) / 100);
+    // 총 점수를 100점으로 환산
+    const normalizedScore = maxScore > 0 ? (total / maxScore) * 100 : 0;
+    
+    setTotalScore(Math.round(normalizedScore * 100) / 100); // 소수점 2자리까지 반올림
+    setMaxPossibleScore(100); // 항상 100점
   };
 
   const handleRetakeAssessment = () => {
@@ -205,7 +215,9 @@ export default function AssessmentResultPage() {
       // levels_json에서 해당 level_no의 desc 찾기
       const levelInfo = result.levels_json?.find(level => level.level_no === result.level_no);
       if (levelInfo) {
-        return `${result.level_no}단계: ${levelInfo.desc}`;
+        // desc에도 • 기준 줄바꿈 적용
+        const formattedDesc = ((levelInfo?.desc?.replace(/• /g, '\n• ')) ?? '').trim();
+        return `${result.level_no}단계: ${formattedDesc}`;
       }
       return `${result.level_no}단계`;
     } else if (result.question_type === 'five_choice') {
@@ -301,6 +313,55 @@ export default function AssessmentResultPage() {
   }
 
   return (
+    <div className="min-h-screen bg-gray-50">
+    {/* Header */}
+    <header className="bg-white border-b border-gray-200 px-6 py-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          {/* 로고 클릭 시 main으로 이동 */}
+          <button
+            onClick={() => router.push('/main')}
+            className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
+          >
+            <Image 
+              src="/logo.png" 
+              alt="ERI Logo" 
+              width={40} 
+              height={40}
+              className="w-10 h-10"
+            />
+            <h1 className="text-2xl font-bold text-gray-900">ERI</h1>
+          </button>
+          <div className="border-l border-gray-300 h-6"></div>
+          <h2 className="text-xl font-semibold text-gray-700">자가진단 결과</h2>
+        </div>
+        
+        {/* User Actions */}
+        <div className="flex items-center space-x-4">
+          {/* Chat */}
+          <Link href="/chat">
+            <Button variant="outline" className="flex items-center space-x-2">
+              <span>💬</span>
+              <span>챗봇</span>
+            </Button>
+          </Link>
+          
+          {/* My Page */}
+          <Link href="/mypage">
+            <Button variant="outline" className="flex items-center space-x-2">
+              <Users className="w-4 h-4" />
+              <span>마이페이지</span>
+            </Button>
+          </Link>
+          
+          {/* Profile Image */}
+          <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+            <Users className="w-5 h-5 text-white" />
+          </div>
+        </div>
+      </div>
+    </header>
+
     <div style={{
       maxWidth: '1000px',
       margin: '0 auto',
@@ -425,7 +486,7 @@ export default function AssessmentResultPage() {
             color: '#2c3e50',
             marginBottom: '20px'
           }}>
-            
+            자가진단 결과
           </h3>
           
           <div style={{
@@ -508,14 +569,15 @@ export default function AssessmentResultPage() {
                       </div>
                     </div>
                     
-                    <p style={{
+                    <div style={{
                       fontSize: '14px',
                       color: '#6c757d',
                       lineHeight: '1.6',
-                      marginBottom: '12px'
+                      marginBottom: '12px',
+                      whiteSpace: 'pre-line'
                     }}>
-                      {result.item_desc}
-                    </p>
+                      {(result.item_desc?.replace(/• /g, '\n• ') ?? '').trim()}
+                    </div>
                     
                     <div style={{
                       display: 'flex',
@@ -631,13 +693,53 @@ export default function AssessmentResultPage() {
                 padding: '40px',
                 textAlign: 'center'
               }}>
+                <div style={{
+                  fontSize: '48px',
+                  marginBottom: '16px'
+                }}>
+                  📊
+                </div>
+                <h4 style={{
+                  fontSize: '18px',
+                  color: '#2c3e50',
+                  marginBottom: '12px',
+                  fontWeight: '600'
+                }}>
+                  자가진단을 진행해보세요
+                </h4>
                 <p style={{
                   fontSize: '16px',
                   color: '#6c757d',
-                  margin: '0'
+                  marginBottom: '20px',
+                  lineHeight: '1.6'
                 }}>
-                  자가진단 결과 데이터를 불러올 수 없습니다.
+                  아직 자가진단을 완료하지 않았습니다.<br />
+                  자가진단을 진행하면 상세한 결과와 분석을 확인할 수 있습니다.
                 </p>
+                <button 
+                  onClick={() => router.push('/assessment')}
+                  style={{
+                    backgroundColor: '#007bff',
+                    color: 'white',
+                    border: 'none',
+                    padding: '12px 24px',
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#0056b3';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#007bff';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  자가진단 시작하기
+                </button>
               </div>
             )}
           </div>
@@ -668,7 +770,7 @@ export default function AssessmentResultPage() {
               textAlign: 'center',
               fontWeight: '500'
             }}>
-              ⚠️ 다음 부문들은 자가진단 점수가 0점인 취약 영역입니다.
+              ⚠️ 다음 부문들은 자가진단 점수가 25점 이하인 취약 영역입니다.
             </p>
           </div>
           
@@ -746,35 +848,47 @@ export default function AssessmentResultPage() {
                     </div>
                   </div>
                   
-                  <p style={{
-                    fontSize: '14px',
-                    color: '#6c757d',
-                    lineHeight: '1.6',
-                    marginBottom: '12px'
-                  }}>
-                    {section.item_desc}
-                  </p>
-                  
+                  {/* 점수 표시 */}
                   <div style={{
                     display: 'flex',
+                    justifyContent: 'flex-end',
                     alignItems: 'center',
-                    gap: '8px'
+                    marginTop: '12px'
                   }}>
-                    <span style={{
-                      fontSize: '14px',
-                      color: '#dc3545',
-                      fontWeight: '600'
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
                     }}>
-                      점수:
-                    </span>
-                    <span style={{
-                      fontSize: '16px',
-                      color: '#dc3545',
-                      fontWeight: '700'
-                    }}>
-                      {section.score}점
-                    </span>
+                      <span style={{
+                        fontSize: '14px',
+                        color: section.score === 0 ? '#dc3545' : '#fd7e14',
+                        fontWeight: '600'
+                      }}>
+                        점수:
+                      </span>
+                      <span style={{
+                        fontSize: '18px',
+                        color: section.score === 0 ? '#dc3545' : '#fd7e14',
+                        fontWeight: '700'
+                      }}>
+                        {section.score}점
+                      </span>
+                      {section.score === 25 && (
+                        <span style={{
+                          fontSize: '12px',
+                          color: '#fd7e14',
+                          backgroundColor: '#fff3cd',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          border: '1px solid #fd7e14'
+                        }}>
+                          보통
+                        </span>
+                      )}
+                    </div>
                   </div>
+
                 </div>
               ))}
             </div>
@@ -786,12 +900,28 @@ export default function AssessmentResultPage() {
                 padding: '40px',
                 textAlign: 'center'
               }}>
+                <div style={{
+                  fontSize: '48px',
+                  marginBottom: '16px'
+                }}>
+                  🎉
+                </div>
+                <h4 style={{
+                  fontSize: '18px',
+                  color: '#28a745',
+                  marginBottom: '12px',
+                  fontWeight: '600'
+                }}>
+                  취약 부문이 없습니다
+                </h4>
                 <p style={{
                   fontSize: '16px',
                   color: '#6c757d',
-                  margin: '0'
+                  margin: '0',
+                  lineHeight: '1.6'
                 }}>
-                  자가진단 점수가 0점인 취약 부문이 없습니다.
+                  현재 자가진단 결과에서 25점 이하인 취약 부문이 발견되지 않았습니다.<br />
+                  지속적인 모니터링을 통해 ESG 수준을 유지하세요.
                 </p>
               </div>
             )}
@@ -882,14 +1012,7 @@ export default function AssessmentResultPage() {
                     </div>
                   </div>
                   
-                  <p style={{
-                    fontSize: '14px',
-                    color: '#6c757d',
-                    lineHeight: '1.6',
-                    marginBottom: '12px'
-                  }}>
-                    {solution.item_desc}
-                  </p>
+
                   
                   <div style={{
                     backgroundColor: '#e8f5e8',
@@ -926,13 +1049,29 @@ export default function AssessmentResultPage() {
               padding: '40px',
               textAlign: 'center'
             }}>
+              <div style={{
+                fontSize: '48px',
+                marginBottom: '16px'
+              }}>
+                💡
+              </div>
+              <h4 style={{
+                fontSize: '18px',
+                color: '#2c3e50',
+                marginBottom: '12px',
+                fontWeight: '600'
+              }}>
+                AI 솔루션을 생성해보세요
+              </h4>
               <p style={{
                 fontSize: '16px',
                 color: '#6c757d',
                 margin: '0',
-                marginBottom: '20px'
+                marginBottom: '20px',
+                lineHeight: '1.6'
               }}>
-                아직 생성된 솔루션이 없습니다. 아래 버튼을 클릭하여 취약 부문에 대한 AI 솔루션을 생성해보세요.
+                취약 부문에 대한 맞춤형 AI 솔루션을 생성할 수 있습니다.<br />
+                아래 버튼을 클릭하여 솔루션을 생성해보세요.
               </p>
             </div>
           )}
@@ -945,7 +1084,7 @@ export default function AssessmentResultPage() {
           flexWrap: 'wrap'
         }}>
           <button 
-            onClick={generateSolutions}
+                            onClick={handleGenerateSolutions}
             disabled={generatingSolutions}
             style={{
               backgroundColor: generatingSolutions ? '#6c757d' : '#28a745',
@@ -1035,6 +1174,7 @@ export default function AssessmentResultPage() {
           </button>
         </div>
       </div>
+    </div>
     </div>
   );
 }
