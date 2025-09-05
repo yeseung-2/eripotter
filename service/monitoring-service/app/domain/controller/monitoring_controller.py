@@ -101,6 +101,22 @@ class MonitoringController:
                 "status": "error",
                 "message": str(e)
             }
+
+    def get_recursive_supply_chain(self, root_company: str = None, max_depth: int = 5) -> Dict[str, Union[str, List, int]]:
+        """재귀적 공급망 구조 조회"""
+        try:
+            logger.info(f"📝 재귀적 공급망 구조 조회 컨트롤러 요청: {root_company or 'LG에너지솔루션'}")
+            result = self.service.get_recursive_supply_chain(root_company, max_depth)
+            return {
+                "status": "success",
+                "data": result
+            }
+        except Exception as e:
+            logger.error(f"❌ 재귀적 공급망 구조 조회 컨트롤러 오류: {e}")
+            return {
+                "status": "error",
+                "message": str(e)
+            }
     
     def get_company_list(self) -> CompanyListResponse:
         """회사 목록 조회"""

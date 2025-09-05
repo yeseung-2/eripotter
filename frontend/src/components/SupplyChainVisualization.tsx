@@ -19,6 +19,7 @@ import 'reactflow/dist/style.css';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Building2, Users, TrendingUp } from 'lucide-react';
+import axios from 'axios';
 
 // 커스텀 노드 컴포넌트
 const CompanyNode = ({ data }: { data: any }) => {
@@ -106,6 +107,129 @@ interface SupplyChainVisualizationProps {
 
 export default function SupplyChainVisualization({ onCompanySelect, isLegendExpanded = false, setIsLegendExpanded }: SupplyChainVisualizationProps) {
   const [selectedCompany, setSelectedCompany] = useState<any>(null);
+  const [supplyChainData, setSupplyChainData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string>('');
+
+  // 공급망 데이터 가져오기
+  useEffect(() => {
+    const fetchSupplyChainData = async () => {
+      try {
+        setIsLoading(true);
+        const response = await axios.get('/api/monitoring/supply-chain/recursive', {
+          params: {
+            root_company: 'LG에너지솔루션',
+            max_depth: 5
+          }
+        });
+        
+        if (response.data.status === 'success') {
+          setSupplyChainData(response.data.data);
+        } else {
+          setError(response.data.message || '공급망 데이터를 가져오는데 실패했습니다.');
+        }
+      } catch (err) {
+        console.error('공급망 데이터 조회 실패:', err);
+        setError('공급망 데이터를 가져오는데 실패했습니다.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSupplyChainData();
+  }, []);
+
+  // 공급망 데이터를 React Flow 노드와 엣지로 변환
+  const convertToNodesAndEdges = useCallback((data: any): { nodes: Node[], edges: Edge[] } => {
+    if (!data) return { nodes: [], edges: [] };
+
+    const nodes: Node[] = [];
+    const edges: Edge[] = [];
+    let nodeIdCounter = 1;
+
+    const processNode = (node: any, parentId: string | null = null, depth: number = 0, index: number = 0) => {
+      const nodeId = nodeIdCounter.toString();
+      nodeIdCounter++;
+
+      // 노드 생성
+      const reactFlowNode: Node = {
+        id: nodeId,
+        type: 'companyNode',
+        position: { 
+          x: depth * 300 + (index * 200), 
+          y: depth * 200 + (Math.random() * 50 - 25) // 약간의 랜덤 오프셋
+        },
+        data: {
+          label: node.company_name,
+          tier: node.tier,
+          industry: getIndustryFromCompanyName(node.company_name),
+          isStrategic: isStrategicPartner(node.company_name),
+          selected: false,
+          onNodeClick: handleNodeClick,
+        },
+      };
+
+      nodes.push(reactFlowNode);
+
+      // 부모와 연결하는 엣지 생성
+      if (parentId) {
+        const edge: Edge = {
+          id: `${parentId}-${nodeId}`,
+          source: parentId,
+          target: nodeId,
+          type: 'default',
+          style: { 
+            strokeWidth: 3,
+            stroke: getEdgeColor(depth)
+          },
+          animated: true,
+        };
+        edges.push(edge);
+      }
+
+      // 자식 노드들 처리
+      if (node.children && node.children.length > 0) {
+        node.children.forEach((child: any, childIndex: number) => {
+          processNode(child, nodeId, depth + 1, childIndex);
+        });
+      }
+    };
+
+    processNode(data);
+
+    return { nodes, edges };
+  }, []);
+
+  // 회사명으로부터 업종 추정
+  const getIndustryFromCompanyName = (companyName: string): string => {
+    if (companyName.includes('에너지') || companyName.includes('배터리')) return '배터리';
+    if (companyName.includes('화학') || companyName.includes('소재')) return '화학소재';
+    if (companyName.includes('전자') || companyName.includes('테크')) return '전자소재';
+    if (companyName.includes('재활용') || companyName.includes('그린')) return '재활용';
+    if (companyName.includes('원료') || companyName.includes('에코')) return '원료공급';
+    return '기타';
+  };
+
+  // 핵심 협력사 여부 판단
+  const isStrategicPartner = (companyName: string): boolean => {
+    const strategicPartners = ['에코프로비엠', '천보', 'SK아이이테크놀로지'];
+    return strategicPartners.includes(companyName);
+  };
+
+  // 엣지 색상 결정
+  const getEdgeColor = (depth: number): string => {
+    switch (depth) {
+      case 0: return '#8B5CF6'; // 보라색 (원청→1차)
+      case 1: return '#3B82F6'; // 파란색 (1차→2차)
+      case 2: return '#10B981'; // 초록색 (2차→3차)
+      default: return '#F59E0B'; // 주황색 (3차→4차)
+    }
+  };
+
+  // 노드와 엣지 생성
+  const { nodes: generatedNodes, edges: generatedEdges } = useMemo(() => {
+    return convertToNodesAndEdges(supplyChainData);
+  }, [supplyChainData, convertToNodesAndEdges]);
 
      // 초기 노드 데이터 (넓은 간격으로 배치하여 연결선이 잘 보이도록)
    const initialNodes: Node[] = [
@@ -376,8 +500,20 @@ export default function SupplyChainVisualization({ onCompanySelect, isLegendExpa
     
   ];
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  // 동적으로 생성된 노드와 엣지 사용 (데이터가 있으면), 없으면 초기 데이터 사용
+  const finalNodes = generatedNodes.length > 0 ? generatedNodes : initialNodes;
+  const finalEdges = generatedEdges.length > 0 ? generatedEdges : initialEdges;
+
+  const [nodes, setNodes, onNodesChange] = useNodesState(finalNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(finalEdges);
+
+  // 공급망 데이터가 변경되면 노드와 엣지 업데이트
+  useEffect(() => {
+    if (generatedNodes.length > 0) {
+      setNodes(generatedNodes);
+      setEdges(generatedEdges);
+    }
+  }, [generatedNodes, generatedEdges, setNodes, setEdges]);
 
   // 디버깅: 컴포넌트 마운트 시 엣지 정보 출력
   React.useEffect(() => {
@@ -469,6 +605,33 @@ export default function SupplyChainVisualization({ onCompanySelect, isLegendExpa
           </div>
         )}
       </div>
+
+      {/* 로딩 상태 */}
+      {isLoading && (
+        <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">공급망 데이터를 불러오는 중...</p>
+          </div>
+        </div>
+      )}
+
+      {/* 오류 상태 */}
+      {error && (
+        <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10">
+          <div className="text-center">
+            <div className="text-red-500 text-6xl mb-4">⚠️</div>
+            <p className="text-red-600 mb-2">공급망 데이터 로드 실패</p>
+            <p className="text-gray-600 text-sm">{error}</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              다시 시도
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* React Flow */}
       <ReactFlow

@@ -1,17 +1,59 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Building2 } from 'lucide-react';
 import SupplyChainVisualization from './SupplyChainVisualization';
 import EnvironmentalDataDisplay from './EnvironmentalDataDisplay';
+import axios from 'axios';
 
 export default function SupplyChainVisualizationPage() {
   const [selectedCompany, setSelectedCompany] = useState<any>(null);
   const [isLegendExpanded, setIsLegendExpanded] = useState(false);
+  const [partners, setPartners] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const handleCompanySelect = (company: any) => {
     setSelectedCompany(company);
+  };
+
+  // 협력사 목록 가져오기
+  useEffect(() => {
+    const fetchPartners = async () => {
+      try {
+        setIsLoading(true);
+        const response = await axios.get('/api/monitoring/partners', {
+          params: {
+            company_name: 'LG에너지솔루션'
+          }
+        });
+        
+        if (response.data.status === 'success') {
+          setPartners(response.data.data);
+        }
+      } catch (error) {
+        console.error('협력사 목록 조회 실패:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPartners();
+  }, []);
+
+  // 헬퍼 함수들
+  const isStrategicPartner = (companyName: string): boolean => {
+    const strategicPartners = ['에코프로비엠', '천보', 'SK아이이테크놀로지'];
+    return strategicPartners.includes(companyName);
+  };
+
+  const getIndustryFromCompanyName = (companyName: string): string => {
+    if (companyName.includes('에너지') || companyName.includes('배터리')) return '배터리';
+    if (companyName.includes('화학') || companyName.includes('소재')) return '화학소재';
+    if (companyName.includes('전자') || companyName.includes('테크')) return '전자소재';
+    if (companyName.includes('재활용') || companyName.includes('그린')) return '재활용';
+    if (companyName.includes('원료') || companyName.includes('에코')) return '원료공급';
+    return '기타';
   };
 
   return (
@@ -65,177 +107,49 @@ export default function SupplyChainVisualizationPage() {
            </CardHeader>
            <CardContent>
              <div className="space-y-3 max-h-96 overflow-y-auto">
-               {/* 1차 협력사들 */}
-               <div 
-                 className="p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors bg-yellow-50 border-yellow-200"
-                 onClick={() => handleCompanySelect({
-                   id: 'entop',
-                   label: '엔탑',
-                   tier: '1차사',
-                   industry: '화학소재',
-                   isStrategic: true
-                 })}
-               >
-                 <div className="flex items-center justify-between">
-                   <div className="flex items-center gap-2">
-                     <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                       엔
-                     </div>
-                     <div>
-                       <div className="flex items-center gap-1">
-                         <h4 className="font-semibold text-sm">엔탑</h4>
-                         <span className="text-yellow-600 text-xs">⭐</span>
+               {isLoading ? (
+                 <div className="flex items-center justify-center py-8">
+                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                   <span className="ml-2 text-gray-600">로딩 중...</span>
+                 </div>
+               ) : partners.length > 0 ? (
+                 partners.map((partner, index) => (
+                   <div 
+                     key={partner.id || index}
+                     className={`p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors ${
+                       isStrategicPartner(partner.tier1) ? 'bg-yellow-50 border-yellow-200' : ''
+                     }`}
+                     onClick={() => handleCompanySelect({
+                       id: partner.id,
+                       label: partner.tier1,
+                       tier: '1차사',
+                       industry: getIndustryFromCompanyName(partner.tier1),
+                       isStrategic: isStrategicPartner(partner.tier1)
+                     })}
+                   >
+                     <div className="flex items-center justify-between">
+                       <div className="flex items-center gap-2">
+                         <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                           {partner.tier1.charAt(0)}
+                         </div>
+                         <div>
+                           <div className="flex items-center gap-1">
+                             <h4 className="font-semibold text-sm">{partner.tier1}</h4>
+                             {isStrategicPartner(partner.tier1) && (
+                               <span className="text-yellow-600 text-xs">⭐</span>
+                             )}
+                           </div>
+                           <p className="text-xs text-gray-600">1차사 • {getIndustryFromCompanyName(partner.tier1)}</p>
+                         </div>
                        </div>
-                       <p className="text-xs text-gray-600">1차사 • 화학소재</p>
                      </div>
                    </div>
+                 ))
+               ) : (
+                 <div className="text-center py-8 text-gray-500">
+                   <p>협력사 데이터가 없습니다.</p>
                  </div>
-               </div>
-
-               <div 
-                 className="p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
-                 onClick={() => handleCompanySelect({
-                   id: 'cosmo',
-                   label: '코스모신소재',
-                   tier: '1차사',
-                   industry: '전자소재',
-                   isStrategic: false
-                 })}
-               >
-                 <div className="flex items-center justify-between">
-                   <div className="flex items-center gap-2">
-                     <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                       코
-                     </div>
-                     <div>
-                       <h4 className="font-semibold text-sm">코스모신소재</h4>
-                       <p className="text-xs text-gray-600">1차사 • 전자소재</p>
-                     </div>
-                   </div>
-                 </div>
-               </div>
-
-               <div 
-                 className="p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors bg-yellow-50 border-yellow-200"
-                 onClick={() => handleCompanySelect({
-                   id: 'greentech',
-                   label: '그린테크솔루션',
-                   tier: '1차사',
-                   industry: '재활용',
-                   isStrategic: true
-                 })}
-               >
-                 <div className="flex items-center justify-between">
-                   <div className="flex items-center gap-2">
-                     <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                       그
-                     </div>
-                     <div>
-                       <div className="flex items-center gap-1">
-                         <h4 className="font-semibold text-sm">그린테크솔루션</h4>
-                         <span className="text-yellow-600 text-xs">⭐</span>
-                       </div>
-                       <p className="text-xs text-gray-600">1차사 • 재활용</p>
-                     </div>
-                   </div>
-                 </div>
-               </div>
-
-               {/* 2차 협력사들 */}
-               <div 
-                 className="p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
-                 onClick={() => handleCompanySelect({
-                   id: 'ecomaterial',
-                   label: '에코머티리얼',
-                   tier: '2차사',
-                   industry: '원료공급',
-                   isStrategic: false
-                 })}
-               >
-                 <div className="flex items-center justify-between">
-                   <div className="flex items-center gap-2">
-                     <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                       에
-                     </div>
-                     <div>
-                       <h4 className="font-semibold text-sm">에코머티리얼</h4>
-                       <p className="text-xs text-gray-600">2차사 • 원료공급</p>
-                     </div>
-                   </div>
-                 </div>
-               </div>
-
-               <div 
-                 className="p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors bg-yellow-50 border-yellow-200"
-                 onClick={() => handleCompanySelect({
-                   id: 'cleansolution',
-                   label: '클린솔루션',
-                   tier: '2차사',
-                   industry: '폐기물처리',
-                   isStrategic: true
-                 })}
-               >
-                 <div className="flex items-center justify-between">
-                   <div className="flex items-center gap-2">
-                     <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                       클
-                     </div>
-                     <div>
-                       <div className="flex items-center gap-1">
-                         <h4 className="font-semibold text-sm">클린솔루션</h4>
-                         <span className="text-yellow-600 text-xs">⭐</span>
-                       </div>
-                       <p className="text-xs text-gray-600">2차사 • 폐기물처리</p>
-                     </div>
-                   </div>
-                 </div>
-               </div>
-
-               <div 
-                 className="p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
-                 onClick={() => handleCompanySelect({
-                   id: 'biomass',
-                   label: '바이오매스',
-                   tier: '2차사',
-                   industry: '바이오연료',
-                   isStrategic: false
-                 })}
-               >
-                 <div className="flex items-center justify-between">
-                   <div className="flex items-center gap-2">
-                     <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                       바
-                     </div>
-                     <div>
-                       <h4 className="font-semibold text-sm">바이오매스</h4>
-                       <p className="text-xs text-gray-600">2차사 • 바이오연료</p>
-                     </div>
-                   </div>
-                 </div>
-               </div>
-
-               <div 
-                 className="p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
-                 onClick={() => handleCompanySelect({
-                   id: 'eco-packaging',
-                   label: '친환경포장',
-                   tier: '2차사',
-                   industry: '포장재',
-                   isStrategic: false
-                 })}
-               >
-                 <div className="flex items-center justify-between">
-                   <div className="flex items-center gap-2">
-                     <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                       친
-                     </div>
-                     <div>
-                       <h4 className="font-semibold text-sm">친환경포장</h4>
-                       <p className="text-xs text-gray-600">2차사 • 포장재</p>
-                     </div>
-                   </div>
-                 </div>
-               </div>
+               )}
              </div>
            </CardContent>
          </Card>

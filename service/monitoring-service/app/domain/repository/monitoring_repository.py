@@ -117,6 +117,53 @@ class MonitoringRepository:
             logger.error(f"❌ 회사 레코드 조회 중 오류: {e}")
             return []
 
+    def get_recursive_supply_chain(self, root_company: str, max_depth: int = 5) -> Dict[str, Union[str, List, int]]:
+        """재귀적으로 공급망 구조를 가져오는 함수"""
+        try:
+            def build_supply_chain_tree(company_name: str, current_depth: int = 0) -> Dict[str, Union[str, List, int]]:
+                if current_depth >= max_depth:
+                    return {
+                        "company_name": company_name,
+                        "tier": f"{current_depth + 1}차사" if current_depth > 0 else "원청사",
+                        "children": [],
+                        "depth": current_depth
+                    }
+                
+                # 현재 회사의 tier1 협력사들 조회
+                with get_session() as db:
+                    companies = db.query(CompanyDB).filter(
+                        CompanyDB.company_name == company_name
+                    ).all()
+                    tier1_partners = [company.tier1 for company in companies if company.tier1]
+                
+                # 자식 노드들을 재귀적으로 생성
+                children = []
+                for partner in tier1_partners:
+                    child_node = build_supply_chain_tree(partner, current_depth + 1)
+                    children.append(child_node)
+                
+                return {
+                    "company_name": company_name,
+                    "tier": f"{current_depth + 1}차사" if current_depth > 0 else "원청사",
+                    "children": children,
+                    "depth": current_depth,
+                    "partner_count": len(tier1_partners)
+                }
+            
+            result = build_supply_chain_tree(root_company)
+            logger.info(f"✅ 재귀적 공급망 구조 조회 성공: {root_company} - 깊이 {max_depth}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"❌ 재귀적 공급망 구조 조회 중 오류: {e}")
+            return {
+                "company_name": root_company,
+                "tier": "원청사",
+                "children": [],
+                "depth": 0,
+                "error": str(e)
+            }
+
     def get_assessment_companies(self) -> List[Dict[str, str]]:
         """assessment 테이블에서 모든 기업명 조회 (중복 제거)"""
         try:

@@ -90,6 +90,25 @@ class MonitoringService:
         except Exception as e:
             logger.error(f"❌ 협력사 삭제 실패: {e}")
             return False
+
+    def get_recursive_supply_chain(self, root_company: str = None, max_depth: int = 5) -> Dict[str, Union[str, List, int]]:
+        """재귀적으로 공급망 구조를 가져오는 함수"""
+        try:
+            if root_company is None:
+                root_company = self.root_company
+            
+            result = self.repository.get_recursive_supply_chain(root_company, max_depth)
+            logger.info(f"✅ 재귀적 공급망 구조 조회 성공: {root_company}")
+            return result
+        except Exception as e:
+            logger.error(f"❌ 재귀적 공급망 구조 조회 실패: {e}")
+            return {
+                "company_name": root_company or self.root_company,
+                "tier": "원청사",
+                "children": [],
+                "depth": 0,
+                "error": str(e)
+            }
     
     def get_company_list(self) -> CompanyListResponse:
         """회사 목록 조회"""

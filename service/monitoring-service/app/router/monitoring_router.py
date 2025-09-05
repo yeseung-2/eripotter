@@ -92,6 +92,21 @@ async def delete_company_partner(
         logger.error(f"❌ 협력사 삭제 API 오류: {e}")
         raise HTTPException(status_code=500, detail=f"협력사 삭제 중 오류가 발생했습니다: {str(e)}")
 
+@monitoring_router.get("/supply-chain/recursive", summary="재귀적 공급망 구조 조회")
+async def get_recursive_supply_chain(
+    root_company: str = "LG에너지솔루션",
+    max_depth: int = 5,
+    controller: MonitoringController = Depends(get_monitoring_controller)
+):
+    """재귀적으로 공급망 구조를 조회하여 전체 네트워크를 반환"""
+    try:
+        result = controller.get_recursive_supply_chain(root_company, max_depth)
+        logger.info(f"✅ 재귀적 공급망 구조 조회 성공: {root_company} - 깊이 {max_depth}")
+        return result
+    except Exception as e:
+        logger.error(f"❌ 재귀적 공급망 구조 조회 API 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"재귀적 공급망 구조 조회 중 오류가 발생했습니다: {str(e)}")
+
 @monitoring_router.get("/companies", summary="회사 목록 조회")
 async def get_company_list(
     controller: MonitoringController = Depends(get_monitoring_controller)
